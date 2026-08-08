@@ -1,0 +1,23 @@
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap');
+
+* { box-sizing: border-box; }
+body { margin: 0; background: #f5f5f2; color: #202421; font: 14px 'Noto Sans KR', Arial, sans-serif; }
+main { min-height: 100vh; }
+header { height: 78px; padding: 15px 28px; display: flex; align-items: center; justify-content: space-between; background: #fff; border-bottom: 1px solid #e4e5df; }
+h1, h2, h3, p { margin: 0; } h1 { font-size: 22px; letter-spacing: -.8px; } h2 { font-size: 18px; } h3 { font-size: 14px; margin: 18px 0 9px; }
+.eyebrow { display: block; margin-bottom: 4px; color: #758076; font-size: 10px; font-weight: 700; letter-spacing: 1px; }
+.header-actions, .actions, .new-subject { display: flex; align-items: center; gap: 8px; }.saved { color: #4d7e62; font-size: 12px; }
+button { padding: 8px 10px; border: 1px solid #d9dcd5; border-radius: 6px; background: #fff; color: #303630; font: inherit; cursor: pointer; } button:hover { background: #f1f3ef; }
+.primary { border-color: #304b38; background: #304b38; color: #fff; }.primary:hover { background: #203a2a; }.wide { width: 100%; margin-top: 9px; }
+.layout.simple-layout { display: grid; grid-template-columns: 280px minmax(600px, 920px); justify-content: center; min-height: calc(100vh - 78px); }
+aside, .editor { padding: 20px; overflow: auto; background: #fafaf8; border-right: 1px solid #e0e2dc; }.editor { padding: 30px 36px; background: #fff; }
+.side-title, .section-title { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 15px; }
+input, select, textarea { width: 100%; padding: 8px 9px; border: 1px solid #d8dbd4; border-radius: 6px; background: #fff; color: inherit; font: inherit; } input:focus, select:focus, textarea:focus { outline: 2px solid #b9ccbe; border-color: #6f9679; }
+textarea { min-height: 70px; resize: vertical; line-height: 1.55; } label { display: block; margin: 11px 0 5px; font-weight: 600; } label small { color: #727872; font-weight: 400; }
+.intro { margin: 0 0 20px; color: #59645b; }.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 14px; }.prompt { min-height: 310px; background: #fbfcf9; font-size: 13px; }
+.projects { margin: 15px 0; }.project { width: 100%; margin-bottom: 7px; padding: 10px; text-align: left; }.project strong, .project span, .project small { display: block; }.project span { margin: 4px 0; color: #626a63; font-size: 11px; }.project small { color: #8a908a; font-size: 10px; }.project.active { border-color: #63826b; background: #edf4ed; box-shadow: inset 3px 0 #3e684c; }.new-subject { margin-top: 12px; }.new-subject button { padding: 7px; font-size: 12px; }
+.difficulty { display: grid; grid-template-columns: auto auto 1fr auto; align-items: center; gap: 8px; }.difficulty input { padding: 0; }.difficulty span { color: #778077; font-size: 11px; }.difficulty span:last-child { text-align: right; }
+fieldset { margin: 18px 0 8px; padding: 10px 13px; border: 1px solid #d8dbd4; border-radius: 7px; } legend { padding: 0 4px; font-size: 13px; font-weight: 700; } fieldset label { margin: 6px 0; font-weight: 400; } fieldset input { width: auto; margin: 0 6px 0 0; }
+.hint { color: #667067; font-size: 11px; line-height: 1.5; }.bottom-hint { margin-top: 14px; }.toast { position: fixed; top: 90px; left: 50%; z-index: 3; padding: 10px 16px; transform: translateX(-50%); border-radius: 7px; background: #263a2d; color: #fff; box-shadow: 0 5px 18px #0003; font-size: 13px; }
+@media (max-width: 1100px) { .layout.simple-layout { grid-template-columns: 250px 1fr; }.editor { padding: 24px; } }
+@media (max-width: 720px) { header { padding: 14px; }.header-actions { gap: 4px; }.header-actions .saved { display: none; }.layout.simple-layout { display: block; } aside, .editor { border-right: 0; border-bottom: 1px solid #e0e2dc; }.editor { padding: 20px; }.form-grid { grid-template-columns: 1fr; }.difficulty { grid-template-columns: auto 1fr auto; }.difficulty input { grid-column: 1 / -1; grid-row: 2; }.difficulty span:first-of-type { grid-column: 1; }.difficulty span:last-child { grid-column: 3; } }
