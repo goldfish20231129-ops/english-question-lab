@@ -26,8 +26,15 @@ if not exist "node_modules\vite\bin\vite.js" (
 )
 
 echo Starting Problem Making Lab.
-echo Keep this window open, then visit http://127.0.0.1:5173 in your browser.
+echo Your default browser will open automatically.
+echo Keep this window open while you use the app.
 echo.
-"%NODE_CMD%" "node_modules\vite\bin\vite.js" --host 127.0.0.1 --port 5173
+
+start "Problem Making Lab Server" /b "%NODE_CMD%" "node_modules\vite\bin\vite.js" --host 127.0.0.1 --port 5173
+timeout /t 2 /nobreak >nul
+start "" "http://127.0.0.1:5173/"
+
+echo The app should now be open in your default browser.
+echo Close this window when you are finished using the local app.
 
 pause
