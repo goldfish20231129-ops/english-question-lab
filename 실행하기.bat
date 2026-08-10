@@ -19,20 +19,20 @@ if not errorlevel 1 (
 if not exist "node_modules\vite\bin\vite.js" (
   echo.
   echo Required packages are missing.
-  echo Run npm install in PowerShell, then try again.
+  echo Run corepack enable and pnpm install in PowerShell, then try again.
   echo.
   pause
   exit /b 1
 )
 
-echo Starting Problem Making Lab.
+echo Starting English Question Lab.
 echo Your default browser will open automatically.
 echo Keep this window open while you use the app.
 echo.
 
-start "Problem Making Lab Server" /b "%NODE_CMD%" "node_modules\vite\bin\vite.js" --host 127.0.0.1 --port 5173
+start "English Question Lab Server" /b "%NODE_CMD%" "node_modules\vite\bin\vite.js" --host 127.0.0.1 --port 5174 --strictPort
 timeout /t 2 /nobreak >nul
-start "" "http://127.0.0.1:5173/"
+start "" "http://127.0.0.1:5174/"
 
 echo The app should now be open in your default browser.
 echo Close this window when you are finished using the local app.

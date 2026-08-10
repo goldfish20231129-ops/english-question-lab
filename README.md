@@ -1,99 +1,80 @@
-# 문제 제작 연구소
+# 영어 문제 제작 연구소
 
-고등학교 수학·국어 문항을 직접 만드는 개인용 웹앱입니다. AI API를 호출하거나 문제를 자동으로 생성하지 않습니다. 아이디어를 간단한 출제 명세로 정리해, ChatGPT 같은 외부 AI에 붙여넣을 프롬프트를 만듭니다.
+학원·학교 영어 선생님이 출제 조건을 설계하고, 외부 AI가 만든 구조화 JSON을 가져와 세트·시험지·정답 해설지를 만드는 React + TypeScript + Vite 앱입니다. OpenAI API는 사용하지 않으며, Supabase 로그인과 클라우드 저장을 통해 PC·아이패드 작업을 자동 동기화합니다.
 
-## 웹사이트 사용법
+## 제작 메뉴
 
-배포가 완료되면 다음 형태의 주소를 클릭해 사용합니다.
+- `내신형`: 교과서 본문, 부교재, 외부 지문 기반 어휘·어법·내용 이해·순서·문장 삽입 객관식
+- `수능형`: 듣기를 제외한 17개 수능 영어 독해 유형, 단일 및 장문 복수 문항 세트
+- `맞춤설정형`: 독해·어휘·어법·변형·워크시트·미니 테스트 프리셋을 자유롭게 조합
 
-`https://<GitHub-사용자이름>.github.io/<저장소-이름>/`
+모든 메뉴는 객관식만 지원합니다. 단답형·영작·서술형은 현재 버전에 포함하지 않습니다.
 
-웹사이트를 열면 바로 사용할 수 있으며 Node.js, 명령 프롬프트, `실행하기.bat`이 필요하지 않습니다. 정확한 주소는 GitHub 저장소의 **Settings → Pages** 또는 배포가 끝난 Actions 실행 결과에서 확인할 수 있습니다.
+## 기본 작업 흐름
 
-## 처음 한 번: 무료 웹 배포하기
+1. `영어 세트 제작`에서 유형과 지문·문항 조건을 설정합니다.
+2. 오른쪽 실시간 미리보기로 현재 구성을 확인합니다.
+3. 외부 AI용 프롬프트를 생성하고 복사합니다.
+4. 외부 AI가 출력한 JSON을 가져옵니다.
+5. 최신 결과를 검사하고 재검토 프롬프트를 같은 AI 대화에 전달합니다.
+6. 수정된 JSON을 다시 가져와 검사합니다.
+7. `시험지 조립`에서 세 유형의 세트를 자유롭게 섞고 양식을 설정합니다.
+8. `인쇄 미리보기`에서 문제지와 정답·해설지를 각각 인쇄하거나 PDF로 저장합니다.
 
-이 프로젝트는 **GitHub Pages + GitHub Actions**에 맞춰 준비되어 있습니다. 공개 GitHub 저장소에서 무료로 사용할 수 있고, `main` 브랜치에 코드를 올릴 때마다 자동으로 다시 배포됩니다.
+## 시험지 양식
 
-1. [GitHub](https://github.com)에 로그인합니다.
-2. 오른쪽 위 `+` → **New repository**를 누릅니다.
-3. 저장소 이름을 예를 들어 `problem-making-lab`으로 정하고, **Public**을 선택해 만듭니다.
-4. 이 프로젝트 폴더를 새 저장소에 올립니다. GitHub Desktop을 사용하면 **File → Add local repository**로 폴더를 선택한 뒤 **Publish repository**를 누르면 됩니다.
-5. GitHub 저장소에서 **Settings → Pages**로 이동합니다.
-6. **Build and deployment → Source**를 **GitHub Actions**로 바꿉니다.
-7. **Actions** 탭에서 `Deploy to GitHub Pages` 작업이 초록색 성공 표시가 될 때까지 기다립니다.
-8. **Settings → Pages**에 표시된 웹사이트 주소를 즐겨찾기에 저장합니다.
+수능형·학교형·워크시트형·사용자 설정형 프리셋을 제공합니다. A4 세로, 1·2단, 여백, 글자 크기, 줄 간격, 지문 테두리, 머리말·꼬리말, 문제지·해설지 칼럼을 설정할 수 있습니다. 세트별로 칼럼, 시작 위치, 글자 배율, 지문 폭을 덮어쓸 수 있으며 페이지 구조가 달라지면 새 페이지에서 시작합니다.
 
-처음 배포는 몇 분 정도 걸릴 수 있습니다. 공개 저장소의 GitHub Pages와 GitHub Actions는 무료입니다. GitHub Pages 및 Actions 구성의 공식 안내는 [GitHub 문서](https://docs.github.com/en/pages/getting-started-with-github-pages/using-custom-workflows-with-github-pages)에서 확인할 수 있습니다.
+## 데이터 격리
 
-## 업데이트 방법
+- IndexedDB: `english-question-lab-studio-v1`
+- localStorage: `english-question-lab-ui-v1`, `english-question-lab-principles-v1`
+- 백업 식별자: `english-question-lab`
+- GPT 설정: `public/english-gpt-config.json`
 
-Codex가 코드를 수정한 뒤 변경 사항을 GitHub 저장소의 `main` 브랜치에 올리면 자동 배포됩니다.
+기존 국어 프로그램의 저장소와 백업 파일은 읽거나 자동 변환하지 않습니다.
 
-GitHub Desktop을 쓰는 경우에는 변경 내용을 확인한 뒤 아래 순서만 하면 됩니다.
+## 로그인과 자동 동기화
 
-1. 왼쪽 아래에 변경 설명을 적습니다.
-2. **Commit to main**을 누릅니다.
-3. 위쪽의 **Push origin**을 누릅니다.
+- 앱은 이메일·비밀번호 로그인이 필요하며 회원가입 화면은 제공하지 않습니다.
+- 세트·시험지·출제 원칙은 Supabase JSON 작업 공간에, 이미지는 비공개 Storage에 저장됩니다.
+- 변경 사항은 브라우저에 즉시 저장되고 약 1초 후 클라우드에 반영됩니다.
+- 네트워크가 끊겨도 이미 로그인해 사용하던 기기에서는 로컬 자료로 계속 작업할 수 있습니다.
+- PC와 아이패드가 동시에 수정되면 자동으로 덮어쓰지 않고 보존할 버전을 선택하게 합니다.
+- 기존 JSON 백업·복원과 IndexedDB 저장은 그대로 유지됩니다.
 
-잠시 뒤 같은 웹사이트 주소에 수정 내용이 반영됩니다. 배포 상태는 GitHub의 **Actions** 탭에서 확인할 수 있습니다.
+처음 연결하는 방법은 [docs/CLOUD_SETUP.md](docs/CLOUD_SETUP.md)를 순서대로 따라 하면 됩니다.
 
-## 로컬 실행법
+## 전용 GPT 링크
 
-웹 배포와 별개로, 개발·테스트용 로컬 실행 방식도 그대로 사용할 수 있습니다.
+`public/english-gpt-config.json`에 세 유형의 공개 GPT 링크를 각각 넣을 수 있습니다.
 
-- Windows 탐색기에서 [실행하기.bat](<C:\Users\KMG\Desktop\문제 만들기 프로젝트(코덱스)\실행하기.bat>)을 더블클릭합니다.
-- 잠시 뒤 기본 브라우저가 자동으로 열립니다. 검은 창은 앱을 사용하는 동안 닫지 마세요.
+```json
+{
+  "school": "https://chatgpt.com/g/...",
+  "csat": "https://chatgpt.com/g/...",
+  "custom": "https://chatgpt.com/g/..."
+}
+```
 
-명령어를 쓰려면 Node.js 20 이상을 설치한 뒤 아래를 실행합니다.
+링크가 비어 있어도 일반 프롬프트 생성·복사와 JSON 가져오기는 정상 작동합니다. 자세한 설정은 `docs/english-gpt`를 참고하세요.
+
+## 실행과 검사
+
+Windows에서는 `실행하기.bat`을 열거나 다음 명령을 사용합니다.
 
 ```powershell
-npm install
-npm run dev
+corepack enable
+pnpm install
+pnpm dev
 ```
 
-## 실제 사용 순서
+기본 미리보기 주소는 `http://127.0.0.1:5174/`입니다.
 
-1. 왼쪽의 **새 문제**에서 수학 또는 국어 프로젝트를 만듭니다.
-2. 단원명/영역, 핵심 개념, 문제 수, 난이도, 출제 의도를 입력합니다. 각 입력칸 아래의 **빠른 선택** 버튼을 누르면 자주 쓰는 값을 직접 타이핑하지 않고 넣을 수 있습니다.
-3. 수학은 계산 범위를, 국어는 출제 방식과 필요에 따른 `<보기>`를 설정합니다.
-4. **프롬프트 생성** 후 내용을 필요하면 직접 고치고 **프롬프트 복사**를 누릅니다.
-5. 복사한 프롬프트를 외부 AI에 붙여 넣어 문제를 생성합니다.
-
-국어는 두 가지 출제 방식을 지원합니다.
-
-- **등록한 지문 안에서 출제**: 지문 또는 작품을 직접 입력한 뒤 그 안에서 문제를 만듭니다.
-- **AI가 새 지문을 만들고 출제**: 분야·소재·길이를 정하면 AI가 새 지문과 문제를 함께 만듭니다.
-- **`<보기>` 사용**: 유형(개념 적용·관점 비교·자료 해석 등)과 성격(짧은 설명·표·도표 등)을 정하면, 해당 조건을 포함한 문제 제작 프롬프트를 만듭니다.
-
-## 데이터 저장 주의사항
-
-프로젝트와 출제 원칙은 서버가 아닌, 현재 브라우저의 `localStorage`에 저장됩니다. 따라서 다음을 꼭 알아두세요.
-
-- 웹사이트 주소, 브라우저, 컴퓨터가 달라지면 데이터도 자동으로 공유되지 않습니다.
-- 브라우저의 사이트 데이터 삭제 또는 시크릿 창 사용 시 저장 내용이 사라질 수 있습니다.
-- 중요한 작업 전후에는 상단 **JSON 내보내기**로 백업 파일을 저장하세요.
-- 다른 PC나 브라우저에서는 **가져오기**로 해당 JSON 파일을 불러와 복원할 수 있습니다.
-
-입력 내용은 약간의 입력 대기 후 자동 저장됩니다. 상단의 `저장됨` 표시를 확인한 뒤 창을 닫는 것이 안전합니다.
-
-## 폴더 구조
-
-```
-.github/workflows/deploy-pages.yml  GitHub Pages 자동 배포 설정
-src/
-  main.tsx       화면과 사용자 흐름
-  types.ts        프로젝트 데이터 타입과 기본값
-  prompt.ts       AI용 프롬프트 문자열 생성
-  storage.ts      localStorage 저장과 백업 검증
-  core.test.ts    핵심 로직 테스트
-```
-
-## 검증 명령어
+클라우드 로그인을 테스트하려면 `.env.example`을 복사한 `.env.local`에 Supabase Project URL과 Publishable key를 입력해야 합니다. 설정이 없을 때는 프로그램 안에 연결 안내 화면이 표시됩니다.
 
 ```powershell
-npm run test
-npm run lint
-npm run build
+pnpm verify
 ```
 
-`npm run build` 결과물은 `dist` 폴더에 생성됩니다. GitHub Pages 배포 시에는 GitHub Actions가 이 폴더만 안전하게 업로드합니다.
+`pnpm verify`는 lint, 자동 테스트, TypeScript와 production build를 한 번에 확인합니다. 프로젝트 구조와 수정 위치는 `docs/PROJECT_STRUCTURE.md`를 참고하세요.

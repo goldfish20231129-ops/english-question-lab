@@ -1,0 +1,195 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "English Question Lab CSAT Batch Result",
+  "type": "object",
+  "required": ["title", "items"],
+  "properties": {
+    "title": { "type": "string", "minLength": 1 },
+    "items": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 20,
+      "items": { "$ref": "#/$defs/item" }
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "item": {
+      "type": "object",
+      "required": ["itemId", "templateId", "variantId", "materialTitle", "material", "materialSpec", "questions", "qualityReview"],
+      "properties": {
+        "itemId": { "type": "string", "minLength": 1 },
+        "templateId": {
+          "enum": ["18", "19", "20", "21", "22", "23", "24", "25", "26", "27", "28", "29", "30", "31", "32", "33", "34", "35", "36", "37", "38", "39", "40", "41-42", "43-45"]
+        },
+        "variantId": {
+          "enum": ["standard", "vocabulary-box", "long-order-content", "long-implication-blank", "narrative-emotion-implication-blank"]
+        },
+        "materialTitle": { "type": "string" },
+        "material": { "type": "string" },
+        "materialSpec": {
+          "anyOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/proseSpec" },
+            { "$ref": "#/$defs/chartSpec" },
+            { "$ref": "#/$defs/practicalSpec" },
+            { "$ref": "#/$defs/orderedSpec" },
+            { "$ref": "#/$defs/insertionSpec" },
+            { "$ref": "#/$defs/summarySpec" },
+            { "$ref": "#/$defs/longExpositorySpec" },
+            { "$ref": "#/$defs/longNarrativeSpec" }
+          ]
+        },
+        "questions": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 3,
+          "items": { "$ref": "#/$defs/question" }
+        },
+        "qualityReview": { "$ref": "#/$defs/qualityReview" }
+      },
+      "additionalProperties": false
+    },
+    "question": {
+      "type": "object",
+      "required": ["type", "stem", "choices", "answerIndex", "explanation", "intention", "evidenceRefs", "distractorReasons", "score"],
+      "properties": {
+        "type": { "type": "string", "minLength": 1 },
+        "stem": { "type": "string", "minLength": 1 },
+        "choices": { "type": "array", "minItems": 5, "maxItems": 5, "items": { "type": "string", "minLength": 1 } },
+        "answerIndex": { "type": "integer", "minimum": 1, "maximum": 5 },
+        "explanation": { "type": "string", "minLength": 1 },
+        "intention": { "type": "string", "minLength": 1 },
+        "evidenceRefs": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } },
+        "distractorReasons": { "type": "array", "minItems": 4, "maxItems": 4, "items": { "type": "string", "minLength": 1 } },
+        "score": { "enum": [2, 3] }
+      },
+      "additionalProperties": false
+    },
+    "qualityReview": {
+      "type": "object",
+      "required": ["passage", "questions"],
+      "properties": {
+        "passage": {
+          "type": "object",
+          "required": ["naturalness", "logicStructure", "vocabularyLevel", "templateFidelity"],
+          "properties": {
+            "naturalness": { "$ref": "#/$defs/scoreTen" },
+            "logicStructure": { "$ref": "#/$defs/scoreTen" },
+            "vocabularyLevel": { "$ref": "#/$defs/scoreTen" },
+            "templateFidelity": { "$ref": "#/$defs/scoreTen" }
+          },
+          "additionalProperties": false
+        },
+        "questions": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 3,
+          "items": {
+            "type": "object",
+            "required": ["slot", "answerInference", "distractorPlausibility", "choiceBalance", "directAnswerOverlap", "strongestDistractorIndex", "decisiveReason", "expectedDifficulty"],
+            "properties": {
+              "slot": { "type": "string", "minLength": 1 },
+              "answerInference": { "$ref": "#/$defs/scoreTen" },
+              "distractorPlausibility": { "$ref": "#/$defs/scoreTen" },
+              "choiceBalance": { "$ref": "#/$defs/scoreTen" },
+              "directAnswerOverlap": { "type": "boolean" },
+              "strongestDistractorIndex": { "type": "integer", "minimum": 1, "maximum": 5 },
+              "decisiveReason": { "type": "string", "minLength": 1 },
+              "expectedDifficulty": { "type": "integer", "minimum": 1, "maximum": 5 }
+            },
+            "additionalProperties": false
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "scoreTen": { "type": "number", "minimum": 0, "maximum": 10 },
+    "proseSpec": {
+      "type": "object",
+      "required": ["kind", "paragraphs"],
+      "properties": { "kind": { "const": "prose" }, "paragraphs": { "type": "array", "minItems": 1, "items": { "type": "string" } } },
+      "additionalProperties": false
+    },
+    "chartSpec": {
+      "type": "object",
+      "required": ["kind", "title", "unit", "categories", "series"],
+      "properties": {
+        "kind": { "const": "chart" }, "title": { "type": "string" }, "unit": { "type": "string" },
+        "categories": { "type": "array", "minItems": 2, "items": { "type": "string" } },
+        "series": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": ["name", "values"],
+            "properties": {
+              "name": { "type": "string" },
+              "values": { "type": "array", "minItems": 2, "items": { "type": "number" } }
+            },
+            "additionalProperties": false
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "practicalSpec": {
+      "type": "object",
+      "required": ["kind", "heading", "fields", "notes"],
+      "properties": {
+        "kind": { "const": "practical" }, "heading": { "type": "string" },
+        "fields": { "type": "object", "additionalProperties": { "type": "string" } },
+        "notes": { "type": "array", "items": { "type": "string" } }
+      },
+      "additionalProperties": false
+    },
+    "orderedSpec": {
+      "type": "object",
+      "required": ["kind", "lead", "sections"],
+      "properties": {
+        "kind": { "const": "ordered" }, "lead": { "type": "string" },
+        "sections": { "type": "array", "minItems": 3, "maxItems": 3, "items": { "$ref": "#/$defs/labeledSectionABC" } }
+      },
+      "additionalProperties": false
+    },
+    "insertionSpec": {
+      "type": "object",
+      "required": ["kind", "givenSentence", "body"],
+      "properties": { "kind": { "const": "insertion" }, "givenSentence": { "type": "string" }, "body": { "type": "string" } },
+      "additionalProperties": false
+    },
+    "summarySpec": {
+      "type": "object",
+      "required": ["kind", "summary"],
+      "properties": { "kind": { "const": "summary" }, "summary": { "type": "string" } },
+      "additionalProperties": false
+    },
+    "longExpositorySpec": {
+      "type": "object",
+      "required": ["kind", "paragraphs"],
+      "properties": { "kind": { "const": "longExpository" }, "paragraphs": { "type": "array", "minItems": 1, "items": { "type": "string" } } },
+      "additionalProperties": false
+    },
+    "longNarrativeSpec": {
+      "type": "object",
+      "required": ["kind", "sections"],
+      "properties": {
+        "kind": { "const": "longNarrative" },
+        "sections": { "type": "array", "minItems": 4, "maxItems": 4, "items": { "$ref": "#/$defs/labeledSectionABCD" } }
+      },
+      "additionalProperties": false
+    },
+    "labeledSectionABC": {
+      "type": "object",
+      "required": ["label", "text"],
+      "properties": { "label": { "enum": ["A", "B", "C"] }, "text": { "type": "string" } },
+      "additionalProperties": false
+    },
+    "labeledSectionABCD": {
+      "type": "object",
+      "required": ["label", "text"],
+      "properties": { "label": { "enum": ["A", "B", "C", "D"] }, "text": { "type": "string" } },
+      "additionalProperties": false
+    }
+  }
+}

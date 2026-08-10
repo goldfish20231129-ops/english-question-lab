@@ -1,49 +1,99 @@
-import { StrictMode, useEffect, useMemo, useRef, useState } from 'react'
+import { StrictMode, useEffect, useRef, useState } from 'react'
 import { createRoot } from 'react-dom/client'
+import type { Session, SupabaseClient } from '@supabase/supabase-js'
+import '@fontsource/noto-serif-kr/400.css'
+import '@fontsource/noto-serif-kr/700.css'
 import './style.css'
-import { emptyProject, koreanPrinciples, mathPrinciples, type ProblemProject, type Subject } from './types'
-import { isProjectList, loadPrinciples, loadProjects, savePrinciples, saveProjects } from './storage'
-import { generatePrompt } from './prompt'
-import { appendUniqueValue, includesValue } from './utils'
+import { CloudConflictPanel, CloudSetupRequired, LoginScreen, PasswordRecoveryPanel, SyncBadge } from './CloudAccess'
+import { EnglishStudio } from './EnglishStudio'
+import { MODE_LABELS } from './english'
+import { createBackup, loadPrinciples, loadUiSettings, parseBackup, savePrinciples, saveUiSettings } from './storage'
+import { loadStudioBundle, replaceStudioBundle } from './studioStorage'
+import { cloudConfigured, supabase } from './supabase'
+import type { EnglishMode, StudioBundle, StudioScreen, UiSettings } from './types'
+import { useCloudWorkspace } from './useCloudWorkspace'
 
-const statusLabel = { idea: '아이디어', prompted: '프롬프트 완성', generated: '문제 생성됨', reviewing: '검토 중', complete: '완성' }
+const EMPTY_BUNDLE: StudioBundle = { questionSets: [], exams: [], mediaAssets: [] }
 
-function App() {
-  const [projects, setProjects] = useState<ProblemProject[]>(loadProjects)
-  const [activeId, setActiveId] = useState(() => loadProjects()[0]?.id ?? '')
-  const [principles, setPrinciples] = useState(loadPrinciples)
-  const [query, setQuery] = useState(''); const [subjectFilter, setSubjectFilter] = useState('all')
-  const [saveState, setSaveState] = useState('저장됨'); const [notice, setNotice] = useState('')
+function WorkspaceApp({ client, session }: { client: SupabaseClient; session: Session }) {
+  const [bundle, setBundle] = useState<StudioBundle>(EMPTY_BUNDLE)
+  const [settings, setSettings] = useState<UiSettings>(loadUiSettings)
+  const [principles, setPrinciples] = useState<string[]>(loadPrinciples)
+  const [loading, setLoading] = useState(true)
+  const [notice, setNotice] = useState('')
   const importRef = useRef<HTMLInputElement>(null)
-  const active = projects.find((item) => item.id === activeId) ?? null
-  const filtered = useMemo(() => projects.filter((item) => (subjectFilter === 'all' || item.subject === subjectFilter) && `${item.title} ${item.unit} ${item.topic}`.toLowerCase().includes(query.toLowerCase())), [projects, query, subjectFilter])
-  useEffect(() => { if (!projects.length) { const project = emptyProject(); setProjects([project]); setActiveId(project.id) } }, [projects.length])
-  useEffect(() => { setSaveState('저장 중...'); const timer = window.setTimeout(() => { saveProjects(projects); setSaveState('저장됨') }, 450); return () => clearTimeout(timer) }, [projects])
-  const update = (patch: Partial<ProblemProject>) => { if (!active) return; setProjects((items) => items.map((item) => item.id === active.id ? { ...item, ...patch, updatedAt: new Date().toISOString() } : item)) }
-  const create = (subject: Subject) => { const project = emptyProject(subject); setProjects((items) => [project, ...items]); setActiveId(project.id) }
-  const notify = (message: string) => { setNotice(message); window.setTimeout(() => setNotice(''), 2200) }
-  const copy = async () => { if (!active?.generatedPrompt) return; try { await navigator.clipboard.writeText(active.generatedPrompt); notify('프롬프트를 복사했습니다.') } catch { notify('복사에 실패했습니다. 프롬프트를 직접 선택해 복사하세요.') } }
-  const exportData = () => { const blob = new Blob([JSON.stringify({ projects, principles }, null, 2)], { type: 'application/json' }); const link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = `문제-제작-연구소-${new Date().toISOString().slice(0, 10)}.json`; link.click(); URL.revokeObjectURL(link.href) }
-  const importData = (file?: File) => { if (!file) return; const reader = new FileReader(); reader.onload = () => { try { const data: unknown = JSON.parse(String(reader.result)); const list = Array.isArray(data) ? data : (data as { projects?: unknown }).projects; if (!isProjectList(list)) throw new Error(); setProjects(list); setActiveId(list[0]?.id ?? ''); const saved = (data as { principles?: Record<string, string[]> }).principles; if (saved) { setPrinciples(saved); savePrinciples(saved) }; notify('백업 데이터를 불러왔습니다.') } catch { notify('올바른 백업 JSON 파일이 아닙니다.') } }; reader.readAsText(file) }
-  if (!active) return null
-  const currentPrinciples = principles[active.subject] ?? (active.subject === 'math' ? mathPrinciples : koreanPrinciples)
-  return <main>
-    <header><div><span className="eyebrow">LOCAL QUESTION DESIGN WORKBENCH</span><h1>문제 제작 연구소</h1></div><div className="header-actions"><span className="saved">● {saveState}</span><button onClick={exportData}>JSON 내보내기</button><button onClick={() => importRef.current?.click()}>가져오기</button><input ref={importRef} type="file" accept="application/json" hidden onChange={(event) => importData(event.target.files?.[0])} /></div></header>
-    {notice && <div className="toast">{notice}</div>}
-    <div className="layout simple-layout">
-      <aside><div className="side-title"><h2>문제 프로젝트</h2><button className="primary" onClick={() => create('math')}>+ 새 문제</button></div><input placeholder="제목·단원 검색" value={query} onChange={(event) => setQuery(event.target.value)} /><select value={subjectFilter} onChange={(event) => setSubjectFilter(event.target.value)}><option value="all">모든 과목</option><option value="math">수학</option><option value="korean">국어</option></select><div className="projects">{filtered.map((project) => <button className={`project ${project.id === active.id ? 'active' : ''}`} key={project.id} onClick={() => setActiveId(project.id)}><strong>{project.title}</strong><span>{project.subject === 'math' ? '수학' : '국어'} · {project.unit || '단원 미정'} · 난이도 {project.difficulty}</span><small>{statusLabel[project.status]} · {new Date(project.updatedAt).toLocaleDateString('ko-KR')}</small></button>)}</div><div className="new-subject"><button onClick={() => create('math')}>수학 만들기</button><button onClick={() => create('korean')}>국어 만들기</button></div><hr /><h3>나의 출제 원칙</h3><textarea aria-label="출제 원칙" value={currentPrinciples.join('\n')} onChange={(event) => { const next = { ...principles, [active.subject]: event.target.value.split('\n').filter(Boolean) }; setPrinciples(next); savePrinciples(next) }} /></aside>
-      <section className="editor concise-editor"><div className="section-title"><div><span className="eyebrow">PROMPT BUILDER</span><h2>문제 만들기</h2></div><select value={active.subject} onChange={(event) => { const subject = event.target.value as Subject; update({ subject, questionCount: 1, questionDistribution: subject === 'math' ? { '추론형': 1 } : { '내용 일치': 1 } }) }}><option value="math">수학</option><option value="korean">국어</option></select></div><p className="intro">입력하거나, 아래의 빠른 선택 버튼을 눌러 출제 명세를 채울 수 있습니다.</p><div className="form-grid"><label>문제 제목<input value={active.title} onChange={(event) => update({ title: event.target.value })} /></label><label>문항 형식<select value={active.questionType} onChange={(event) => update({ questionType: event.target.value as 'multiple' | 'short' })}><option value="multiple">객관식</option><option value="short">주관식</option></select></label><QuickInput label="단원명 / 영역" placeholder={active.subject === 'math' ? '예: 함수의 극한' : '예: 독서, 문학'} value={active.unit} choices={active.subject === 'math' ? ['수학Ⅰ', '수학Ⅱ', '확률과 통계', '미적분', '기하'] : ['독서', '문학', '화법과 작문', '언어와 매체', '문법']} onChange={(unit) => update({ unit })} /><QuickInput label="핵심 개념" placeholder="예: 합성함수, 화자의 태도" value={active.topic} choices={active.subject === 'math' ? ['함수와 그래프', '수열', '미분', '적분', '경우의 수'] : ['내용 이해', '추론', '표현법', '화자의 태도', '관점 비교']} onChange={(topic) => update({ topic })} /></div>
-      {active.subject === 'math' ? <MathForm project={active} update={update} /> : <KoreanForm project={active} update={update} />}<QuestionPlan project={active} update={update} />
-      <QuickTextArea label="출제 의도" value={active.idea} choices={active.subject === 'math' ? ['조건 해석과 추론을 평가', '개념 간 연결을 평가', '계산보다 사고력을 평가', '여러 조건을 종합하게 함'] : ['지문의 내용 이해를 평가', '근거를 바탕으로 추론하게 함', '표현과 태도를 분석하게 함', '관점을 비교·적용하게 함']} onChange={(idea) => update({ idea })} placeholder="이 문제에서 학생이 어떤 사고를 하길 원하는지 자유롭게 적어보세요." /><QuickTextArea label="기타 요구 사항" value={active.reference} choices={active.subject === 'math' ? ['단순 공식 대입은 피한다', '정답은 깔끔한 값으로 한다', '불필요한 계산은 피한다', '교육과정 안에서 해결한다'] : ['정답 근거를 지문에서 명확히 찾게 한다', '말장난식 오답은 피한다', '선지 길이가 정답을 암시하지 않게 한다', '평가원형 문체를 사용한다']} onChange={(reference) => update({ reference })} placeholder="반드시 포함할 요소, 피하고 싶은 방식 등" /><div className="actions"><button className="primary" onClick={() => update({ generatedPrompt: generatePrompt(active, currentPrinciples), status: 'prompted' })}>프롬프트 생성</button><button onClick={() => update({ generatedPrompt: '' })}>초기화</button></div><label>생성된 프롬프트 <small>{active.generatedPrompt.length.toLocaleString()}자</small><textarea className="prompt" value={active.generatedPrompt} onChange={(event) => update({ generatedPrompt: event.target.value })} placeholder="프롬프트 생성 버튼을 누르면 여기에 표시됩니다." /></label><button className="primary wide" onClick={copy}>프롬프트 복사</button><p className="hint bottom-hint">자동 검토·검산 단계는 현재 화면에서 제외했습니다. 생성한 프롬프트를 외부 AI에 붙여넣어 사용하세요.</p></section>
-    </div>
+  const notify = (message: string) => { setNotice(message); window.setTimeout(() => setNotice(''), 3000) }
+  const cloud = useCloudWorkspace({ client, userId: session.user.id, localReady: !loading, bundle, principles, setBundle, setPrinciples })
+
+  useEffect(() => {
+    document.title = '영어 문제 제작 연구소'
+    void loadStudioBundle().then(setBundle).catch(() => notify('영어 전용 저장소를 불러오지 못했습니다.')).finally(() => setLoading(false))
+  }, [])
+  useEffect(() => saveUiSettings(settings), [settings])
+  useEffect(() => savePrinciples(principles), [principles])
+
+  const setScreen = (screen: StudioScreen) => setSettings((value) => ({ ...value, screen }))
+  const setMode = (activeMode: EnglishMode) => setSettings((value) => ({ ...value, activeMode }))
+  const exportBackup = () => {
+    const backup = createBackup(bundle, settings, principles)
+    const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' })
+    const link = document.createElement('a')
+    link.href = URL.createObjectURL(blob); link.download = `영어-문제-제작-연구소-${new Date().toISOString().slice(0, 10)}.json`; link.click(); URL.revokeObjectURL(link.href)
+    notify('영어 전용 JSON 백업을 저장했습니다.')
+  }
+  const importBackup = (file?: File) => {
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = () => {
+      try {
+        const backup = parseBackup(JSON.parse(String(reader.result)))
+        setBundle(backup.data); setSettings(backup.preferences); setPrinciples(backup.principles); void replaceStudioBundle(backup.data)
+        notify('영어 전용 백업을 복원했습니다. 클라우드 저장을 시작합니다.')
+      } catch (error) { notify(error instanceof Error ? error.message : '백업 파일을 읽지 못했습니다.') }
+    }
+    reader.readAsText(file)
+  }
+  const logout = async () => {
+    if (cloud.hasPending && !await cloud.flushForLogout()) {
+      notify('동기화되지 않은 작업이 있습니다. 인터넷 연결과 충돌 상태를 확인해 주세요.')
+      return
+    }
+    const { error } = await client.auth.signOut()
+    if (error) notify(`로그아웃하지 못했습니다: ${error.message}`)
+  }
+  const downloadRecovery = async () => {
+    if (!await cloud.downloadLatestRecovery()) notify('저장된 복구본이 없습니다.')
+  }
+
+  return <main className="app-shell">
+    <header className="app-header"><div className="brand"><span className="brand-mark">E</span><div><span className="eyebrow">ENGLISH QUESTION DESIGN WORKBENCH</span><h1>영어 문제 제작 연구소</h1></div></div><div className="header-actions"><SyncBadge status={cloud.status} label={cloud.statusLabel} lastSyncedAt={cloud.lastSyncedAt} /><span className="account-email">{session.user.email}</span><button onClick={() => void cloud.syncNow()}>지금 동기화</button>{cloud.hasRecovery && <button onClick={() => void downloadRecovery()}>최근 복구본</button>}<button onClick={exportBackup}>JSON 백업</button><button onClick={() => importRef.current?.click()}>백업 복원</button><button onClick={() => void logout()}>로그아웃</button><input ref={importRef} type="file" accept="application/json" hidden onChange={(event) => { importBackup(event.target.files?.[0]); event.currentTarget.value = '' }} /></div></header>
+    {cloud.message && <div className={`cloud-status-message ${cloud.status}`}>{cloud.message}</div>}
+    <nav className="main-nav" aria-label="주요 화면"><button className={settings.screen === 'sets' ? 'active' : ''} onClick={() => setScreen('sets')}><strong>영어 세트 제작</strong><small>조건 설계 · AI JSON</small></button><button className={settings.screen === 'assembly' ? 'active' : ''} onClick={() => setScreen('assembly')}><strong>시험지 조립</strong><small>유형 혼합 · 양식 설정</small></button><button className={settings.screen === 'preview' ? 'active' : ''} onClick={() => setScreen('preview')}><strong>인쇄 미리보기</strong><small>문제지 · 정답 해설지</small></button></nav>
+    {settings.screen === 'sets' && <><nav className="mode-nav" aria-label="영어 제작 유형">{(['school', 'csat', 'custom'] as EnglishMode[]).map((mode) => <button className={settings.activeMode === mode ? 'active' : ''} key={mode} onClick={() => setMode(mode)}><span>{MODE_LABELS[mode]}</span><small>{mode === 'school' ? '교과서·부교재·외부 지문' : mode === 'csat' ? '17개 수능 독해 유형' : '프리셋 기반 자유 조합'}</small></button>)}</nav><details className="principles-panel"><summary>나의 영어 출제 원칙</summary><p>한 줄에 하나씩 입력하면 세 유형의 제작 프롬프트에 공통으로 포함됩니다.</p><textarea value={principles.join('\n')} onChange={(event) => setPrinciples(event.target.value.split('\n'))} placeholder="예: 정답의 근거는 지문에서 명확히 확인되어야 한다." /></details></>}
+    {notice && <div className="toast" role="status">{notice}</div>}
+    {loading || cloud.status === 'starting' ? <div className="loading">영어 작업 공간과 클라우드 자료를 불러오는 중…</div> : <EnglishStudio screen={settings.screen} mode={settings.activeMode} bundle={bundle} setBundle={setBundle} notify={notify} />}
+    {cloud.conflict && <CloudConflictPanel message={cloud.message} useCloud={() => cloud.resolveConflict('cloud')} useLocal={() => cloud.resolveConflict('local')} />}
   </main>
 }
 
-function QuickChoices({ choices, value, separator, onSelect }: { choices: string[]; value: string; separator: string; onSelect: (choice: string) => void }) { return <div className="quick-choices"><span>빠른 선택</span>{choices.map((choice) => { const selected = includesValue(value, choice, separator); return <button type="button" className={selected ? 'is-selected' : ''} aria-pressed={selected} key={choice} onClick={() => onSelect(choice)}>{selected ? '✓ ' : ''}{choice}</button> })}</div> }
-function QuickInput({ label, value, placeholder, choices, onChange }: { label: string; value: string; placeholder: string; choices: string[]; onChange: (value: string) => void }) { return <label>{label}<input value={value} placeholder={placeholder} onChange={(event) => onChange(event.target.value)} /><QuickChoices value={value} separator="," choices={choices} onSelect={(choice) => onChange(appendUniqueValue(value, choice, ', '))} /></label> }
-function QuickTextArea({ label, value, placeholder, choices, onChange }: { label: string; value: string; placeholder: string; choices: string[]; onChange: (value: string) => void }) { return <label>{label}<textarea value={value} placeholder={placeholder} onChange={(event) => onChange(event.target.value)} /><QuickChoices value={value} separator="\n" choices={choices} onSelect={(choice) => onChange(appendUniqueValue(value, choice, '\n'))} /></label> }
-function Difficulty({ value, update }: { value: number; update: (difficulty: number) => void }) { return <label className="difficulty">난이도 <b>{value}/5</b><input type="range" min="1" max="5" value={value} onChange={(event) => update(Number(event.target.value))} /><span>쉬움</span><span>어려움</span></label> }
-function QuestionPlan({ project, update }: { project: ProblemProject; update: (patch: Partial<ProblemProject>) => void }) { const types = project.subject === 'math' ? ['계산형', '개념형', '추론형', '발상형', '조건 해석형'] : ['내용 일치', '추론형', '<보기> 활용형', '표현·태도 분석', '문맥·개념 적용']; const distribution = project.questionDistribution ?? (project.subject === 'math' ? { '추론형': project.questionCount ?? 1 } : { '내용 일치': project.questionCount ?? 1 }); const total = types.reduce((sum, type) => sum + (distribution[type] ?? 0), 0); return <section className="question-plan"><div><h3>문항 구성</h3><p className="hint">유형별 문항 수를 직접 입력하세요.</p></div><strong>합계 {total}문항</strong><div className="question-plan-grid">{types.map((type) => <label key={type}>{type}<input type="number" min="0" max="10" value={distribution[type] ?? 0} onChange={(event) => { const count = Math.max(0, Math.min(10, Number(event.target.value) || 0)); const questionDistribution = { ...distribution, [type]: count }; const questionCount = Object.values(questionDistribution).reduce((sum, value) => sum + value, 0); update({ questionDistribution, questionCount }) }} /></label>)}</div>{total === 0 && <p className="plan-warning">최소 한 유형에 1문항 이상을 입력하세요.</p>}</section> }
-function MathForm({ project, update }: { project: ProblemProject; update: (patch: Partial<ProblemProject>) => void }) { return <><QuickInput label="계산 범위" value={project.calculationScope ?? ''} onChange={(calculationScope) => update({ calculationScope })} placeholder="예: 복잡한 계산은 피하고, 유리수 범위에서 깔끔하게" choices={['계산을 최소화', '한두 단계 계산', '적당한 계산량', '여러 단계 계산 가능', '정수·유리수 범위']} /><Difficulty value={project.difficulty} update={(difficulty) => update({ difficulty })} /></> }
-function KoreanForm({ project, update }: { project: ProblemProject; update: (patch: Partial<ProblemProject>) => void }) { const mode = project.koreanMode ?? 'provided'; const useReference = project.koreanReferenceEnabled ?? false; return <><fieldset><legend>국어 출제 방식</legend><label><input type="radio" name="korean-mode" checked={mode === 'provided'} onChange={() => update({ koreanMode: 'provided' })} /> 등록한 지문 안에서 출제</label><label><input type="radio" name="korean-mode" checked={mode === 'generated'} onChange={() => update({ koreanMode: 'generated' })} /> AI가 새 지문을 만들고 출제</label></fieldset>{mode === 'provided' ? <label>등록 지문 또는 작품<textarea value={project.passage} onChange={(event) => update({ passage: event.target.value })} placeholder="출제할 지문 또는 작품 일부를 붙여넣으세요." /></label> : <div className="form-grid"><QuickInput label="지문 주제 또는 소재" value={project.passageTopic ?? ''} onChange={(passageTopic) => update({ passageTopic })} placeholder="예: 도시 열섬 현상" choices={['과학 기술', '사회 현상', '환경', '문화 예술', '철학적 주제']} /><label>지문 길이<select value={project.passageLength ?? 'medium'} onChange={(event) => update({ passageLength: event.target.value as 'short' | 'medium' | 'long' })}><option value="short">짧음</option><option value="medium">보통</option><option value="long">김</option></select></label></div>}<fieldset><legend>&lt;보기&gt; 사용</legend><label><input type="checkbox" checked={useReference} onChange={(event) => update({ koreanReferenceEnabled: event.target.checked })} /> 문제에 &lt;보기&gt;를 포함한다</label>{useReference && <><QuickInput label="&lt;보기&gt; 유형" value={project.koreanReferenceType ?? '개념 적용'} onChange={(koreanReferenceType) => update({ koreanReferenceType })} placeholder="예: 개념 적용" choices={['개념 적용', '관점 비교', '자료 해석', '작품 비교', '배경 정보']} /><QuickInput label="&lt;보기&gt; 성격" value={project.koreanReferenceStyle ?? '짧은 설명'} onChange={(koreanReferenceStyle) => update({ koreanReferenceStyle })} placeholder="예: 짧은 설명" choices={['짧은 설명', '비교 관점', '표·도표', '인용문', '보조 자료']} /></>}</fieldset><Difficulty value={project.difficulty} update={(difficulty) => update({ difficulty })} /></> }
-createRoot(document.getElementById('root')!).render(<StrictMode><App /></StrictMode>)
+function RootApp() {
+  const [session, setSession] = useState<Session | null>(null)
+  const [authLoading, setAuthLoading] = useState(cloudConfigured)
+  const [recoveringPassword, setRecoveringPassword] = useState(false)
+  useEffect(() => {
+    if (!supabase) { setAuthLoading(false); return }
+    void supabase.auth.getSession().then(({ data }) => { setSession(data.session); setAuthLoading(false) })
+    const { data } = supabase.auth.onAuthStateChange((event, nextSession) => {
+      setSession(nextSession)
+      if (event === 'PASSWORD_RECOVERY') setRecoveringPassword(true)
+      setAuthLoading(false)
+    })
+    return () => data.subscription.unsubscribe()
+  }, [])
+  if (!cloudConfigured || !supabase) return <CloudSetupRequired />
+  if (authLoading) return <main className="cloud-gate"><div className="loading">로그인 상태를 확인하는 중…</div></main>
+  if (!session) return <LoginScreen client={supabase} />
+  return <><WorkspaceApp client={supabase} session={session} />{recoveringPassword && <PasswordRecoveryPanel client={supabase} close={() => setRecoveringPassword(false)} />}</>
+}
+
+createRoot(document.getElementById('root')!).render(<StrictMode><RootApp /></StrictMode>)

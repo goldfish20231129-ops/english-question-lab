@@ -46,6 +46,9 @@ jobs:
         uses: actions/configure-pages@v5
 
       - name: Build static website
+        env:
+          VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ vars.VITE_SUPABASE_PUBLISHABLE_KEY }}
         run: |
           pnpm exec tsc -b
           pnpm exec vite build --base "${{ steps.pages.outputs.base_path }}"

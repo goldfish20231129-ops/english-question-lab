@@ -5,6 +5,8 @@ dist/
 
 # Local runtime logs
 *.log
+tmp/
+_tmp_*
 
 # Local configuration and secrets
 .env

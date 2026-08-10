@@ -1,28 +1,39 @@
 {
-  "name": "problem-making-lab",
+  "name": "english-question-lab",
   "private": true,
   "version": "0.1.0",
+  "packageManager": "pnpm@11.16.0",
+  "engines": {
+    "node": ">=22"
+  },
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "typecheck": "tsc -b",
     "build": "tsc -b && vite build",
     "lint": "eslint src --ignore-pattern '*.test.ts'",
-    "test": "vitest run"
+    "test": "vitest run",
+    "verify": "pnpm lint && pnpm test && pnpm build"
   },
   "dependencies": {
-    "@vitejs/plugin-react": "latest",
-    "vite": "latest",
-    "typescript": "^5.7.3",
-    "react": "latest",
-    "react-dom": "latest"
+    "@fontsource/noto-serif-kr": "^5.3.0",
+    "@supabase/supabase-js": "^2.112.2",
+    "@vitejs/plugin-react": "6.0.5",
+    "html2canvas": "^1.4.1",
+    "html2pdf.js": "^0.14.0",
+    "jspdf": "^4.2.1",
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
+    "typescript": "5.9.3",
+    "vite": "8.2.1"
   },
   "devDependencies": {
-    "@types/react": "latest",
-    "@types/react-dom": "latest",
-    "eslint": "latest",
-    "@eslint/js": "latest",
-    "typescript-eslint": "latest",
-    "vitest": "latest",
-    "globals": "latest"
+    "@eslint/js": "10.0.1",
+    "@types/react": "19.2.18",
+    "@types/react-dom": "19.2.4",
+    "eslint": "10.8.0",
+    "globals": "17.9.0",
+    "typescript-eslint": "8.66.0",
+    "vitest": "4.1.10"
   }
 }
