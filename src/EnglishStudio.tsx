@@ -1,18 +1,52 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { Component, useDeferredValue, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { ExamAnswerPages, ExamQuestionPages, SetLivePreview } from './ExamPaper'
-import { CSAT_FAMILIES, CSAT_PASSAGE_LENGTH_LABELS, allSetQuestions, applyCsatItemTemplate, choiceStyleLabel, countCsatPassageWords, createCsatItem, csatItemHasResult, getCsatItems, getCsatPassageLengthRange, getCsatTemplate, isInlinePositionTemplate, normalizeCsatPassageLength, normalizeCsatSet, resolvedCsatItem, templatesForCsatFamily } from './csat'
-import { CUSTOM_PRESETS, ENGLISH_INTENTION_PRESETS, ENGLISH_TOPIC_PRESETS, LAYOUT_PRESETS, MODE_LABELS, applyCustomPreset, createEnglishSet, createExamLayout, createQuestion, generateCsatGptInstructions, generateEnglishPrompt, generateReviewPrompt, loadEnglishGptConfig, parseEnglishSetJson, questionTypesFor, validateEnglishSet, type EnglishGptConfig } from './english'
-import { contentEntriesForSet, examSetIds, normalizeExamDocument, resolveExamEntries } from './examLayout'
+import { CSAT_FAMILIES, CSAT_PASSAGE_LENGTH_LABELS, MAX_CSAT_SET_QUESTIONS, allSetQuestions, applyCsatItemTemplate, choiceStyleLabel, countCsatPassageWords, createCsatItem, csatItemHasResult, getCsatItems, getCsatPassageLengthRange, getCsatTemplate, isInlinePositionTemplate, normalizeCsatPassageLength, normalizeCsatSet, plannedCsatItemQuestionCount, plannedCsatSetQuestionCount, resolvedCsatItem, templatesForCsatFamily } from './csat'
+import { CUSTOM_PRESETS, ENGLISH_INTENTION_PRESETS, ENGLISH_TOPIC_PRESETS, LAYOUT_PRESETS, MODE_LABELS, applyCustomPreset, assignAutomaticCsatTopics, createEnglishSet, createExamLayout, createQuestion, generateCsatGptInstructions, generateEnglishPrompt, generateReviewPrompt, layoutForFirstSelectedSet, loadEnglishGptConfig, parseEnglishSetJson, preferredExamPresetForSets, questionTypesFor, validateEnglishSet, type EnglishGptConfig } from './english'
+import { contentEntriesForSet, examSetIds, moveExamContentEntry, normalizeExamDocument, resolveExamEntries } from './examLayout'
 import { deleteExamDocument, deleteMediaAsset, deleteQuestionSet, saveExamDocument, saveMediaAsset, saveQuestionSet } from './studioStorage'
-import type { CsatItemDesign, CsatNumberTemplateId, CsatPassageLengthPreset, CsatQuestionFamilyId, CsatVariantId, EnglishExamDocument, EnglishMode, EnglishQuestion, EnglishQuestionSet, ExamContentEntry, ExamLayoutSettings, LayoutPreset, MediaAsset, SetLayoutOverride, StudioBundle, ValidationIssue } from './types'
+import type { CsatItemDesign, CsatNumberTemplateId, CsatPassageLengthPreset, CsatQuestionFamilyId, CsatVariantId, EnglishExamDocument, EnglishMode, EnglishQuestion, EnglishQuestionSet, ExamContentEntry, ExamLayoutSettings, LayoutPreset, MediaAsset, SetLayoutOverride, StudioBundle, StudioScreen, ValidationIssue, VerificationTarget } from './types'
 import { includesValue, toggleUniqueValue } from './utils'
+import { VerificationStudio } from './VerificationStudio'
+import { VERIFICATION_STATUS_LABELS, verificationDisplayStatus } from './verification'
 
 interface Props {
-  screen: 'sets' | 'assembly' | 'preview'
+  screen: StudioScreen
   mode: EnglishMode
   bundle: StudioBundle
   setBundle: React.Dispatch<React.SetStateAction<StudioBundle>>
   notify: (message: string) => void
+  verificationTarget?: VerificationTarget
+  onOpenVerification?: (target: VerificationTarget) => void
+}
+
+class AssemblyPreviewBoundary extends Component<{
+  children: ReactNode
+  resetKey: string
+  onCreateExam: () => void
+  onClearExam: () => void
+}, { failed: boolean; message: string }> {
+  state = { failed: false, message: '' }
+
+  static getDerivedStateFromError() { return { failed: true } }
+
+  componentDidCatch(error: unknown) {
+    this.setState({ message: error instanceof Error ? error.message : '알 수 없는 미리보기 오류' })
+  }
+
+  componentDidUpdate(previous: Readonly<{ resetKey: string }>) {
+    if (this.state.failed && previous.resetKey !== this.props.resetKey) this.setState({ failed: false, message: '' })
+  }
+
+  render() {
+    if (!this.state.failed) return this.props.children
+    return <section className="assembly-preview-recovery" role="alert">
+      <span className="eyebrow">PREVIEW RECOVERY</span>
+      <h3>이 시험지의 미리보기만 잠시 중단했습니다.</h3>
+      <p>세트와 다른 시험지는 그대로 유지됩니다. 왼쪽 편집기에서 다른 시험지를 선택하거나 새 시험지를 만들어 계속 작업할 수 있습니다.</p>
+      {this.state.message && <details><summary>오류 원인 보기</summary><code>{this.state.message}</code></details>}
+      <div className="button-row"><button onClick={() => this.setState({ failed: false, message: '' })}>미리보기 다시 시도</button><button className="primary" onClick={() => { this.props.onCreateExam(); this.setState({ failed: false, message: '' }) }}>새 빈 시험지 만들기</button><button className="danger" onClick={this.props.onClearExam}>현재 시험지 문항 비우기</button></div>
+    </section>
+  }
 }
 
 const MODE_HELP: Record<EnglishMode, string> = {
@@ -25,9 +59,10 @@ function persistLocally(operation: Promise<unknown>, action: string, notify: (me
   void operation.catch(() => notify(`${action}을 로컬 저장소에 반영하지 못했습니다. JSON 백업을 저장해 주세요.`))
 }
 
-function QuickPresetField({ label, value, choices, onChange, placeholder, multiline = false }: { label: string; value: string; choices: readonly string[]; onChange: (value: string) => void; placeholder?: string; multiline?: boolean }) {
+function QuickPresetField({ label, help, value, choices, onChange, placeholder, multiline = false }: { label: string; help?: string; value: string; choices: readonly string[]; onChange: (value: string) => void; placeholder?: string; multiline?: boolean }) {
   const separator = multiline ? '\n' : ', '
   return <label className="quick-preset-field">{label}
+    {help && <small className="field-help">{help}</small>}
     {multiline
       ? <textarea value={value} placeholder={placeholder} onChange={(event) => onChange(event.target.value)} />
       : <input value={value} placeholder={placeholder} onChange={(event) => onChange(event.target.value)} />}
@@ -36,19 +71,21 @@ function QuickPresetField({ label, value, choices, onChange, placeholder, multil
 }
 
 export function EnglishStudio(props: Props) {
+  if (props.screen === 'verification') return <VerificationStudio bundle={props.bundle} setBundle={props.setBundle} notify={props.notify} initialTarget={props.verificationTarget} />
   if (props.screen === 'assembly') return <ExamAssembly {...props} />
   if (props.screen === 'preview') return <ExamPreview {...props} />
   return <SetWorkspace {...props} />
 }
 
-function SetWorkspace({ mode, bundle, setBundle, notify }: Props) {
+function SetWorkspace({ mode, bundle, setBundle, notify, onOpenVerification }: Props) {
   const filtered = bundle.questionSets.filter((set) => set.mode === mode)
   const [activeId, setActiveId] = useState(filtered[0]?.id ?? '')
   const [jsonInput, setJsonInput] = useState('')
   const [issues, setIssues] = useState<ValidationIssue[]>([])
   const [reviewPrompt, setReviewPrompt] = useState('')
-  const [gptConfig, setGptConfig] = useState<EnglishGptConfig>({ school: '', csat: '', custom: '' })
+  const [gptConfig, setGptConfig] = useState<EnglishGptConfig>({ school: '', csat: '', custom: '', csatVerifier: '' })
   const active = bundle.questionSets.find((set) => set.id === activeId && set.mode === mode)
+  const activeVerificationStatus = active?.mode === 'csat' ? verificationDisplayStatus({ scope: 'set', id: active.id }, active.verificationRuns, bundle) : undefined
   const imageInput = useRef<HTMLInputElement>(null)
   useEffect(() => { if (!active) setActiveId(filtered[0]?.id ?? '') }, [mode, active, filtered])
   useEffect(() => { setJsonInput(''); setIssues([]); setReviewPrompt('') }, [activeId])
@@ -81,6 +118,17 @@ function SetWorkspace({ mode, bundle, setBundle, notify }: Props) {
   const copy = async (value: string, message: string) => {
     if (!value.trim()) { notify('먼저 내용을 생성해 주세요.'); return }
     try { await navigator.clipboard.writeText(value); notify(message) } catch { notify('복사하지 못했습니다. 내용을 직접 선택해 주세요.') }
+  }
+  const createPrompt = () => {
+    if (!active) return
+    try {
+      const prepared = assignAutomaticCsatTopics(active)
+      const assignedCount = active.mode === 'csat' && !active.topic.trim()
+        ? getCsatItems(active).filter((item) => !item.topic?.trim()).length
+        : 0
+      updateSet({ csatItems: prepared.csatItems, prompt: generateEnglishPrompt(prepared) })
+      if (assignedCount) notify(`비어 있던 ${assignedCount}개 문항 카드의 주제·소재를 자동 배정했습니다.`)
+    } catch (error) { notify(error instanceof Error ? error.message : '프롬프트를 만들지 못했습니다.') }
   }
   const importJson = () => {
     if (!active) return
@@ -119,16 +167,16 @@ function SetWorkspace({ mode, bundle, setBundle, notify }: Props) {
           <h3>1. 세트 공통 조건</h3>
           <p>{mode === 'csat' ? '각 문항 카드는 아래 값을 기본으로 사용하며 카드 안에서 개별 덮어쓸 수 있습니다.' : '세트 전체에 적용할 기본 조건을 설정합니다.'}</p>
           <div className="form-grid">
-            <label>세트 제목<input value={active.title} onChange={(event) => updateSet({ title: event.target.value })} /></label>
-            <label>대상 수준<input value={active.targetLevel} onChange={(event) => updateSet({ targetLevel: event.target.value })} placeholder="예: 고2 중상위권" /></label>
-            <label>난이도<select value={active.difficulty} onChange={(event) => updateSet({ difficulty: Number(event.target.value) })}>{[1, 2, 3, 4, 5].map((value) => <option value={value} key={value}>{value} / 5</option>)}</select></label>
-            <QuickPresetField label="주제·소재" value={active.topic} choices={ENGLISH_TOPIC_PRESETS} onChange={(topic) => updateSet({ topic })} />
+            <label>세트 제목<small className="field-help">세트 목록과 시험지 조립 화면에 표시할 이름입니다.</small><input value={active.title} onChange={(event) => updateSet({ title: event.target.value })} /></label>
+            <label>대상 수준<small className="field-help">문장을 읽을 학생의 학년과 실력대를 정합니다.</small><input value={active.targetLevel} onChange={(event) => updateSet({ targetLevel: event.target.value })} placeholder="예: 고2 중상위권" /></label>
+            <label>난이도<small className="field-help">1은 기본 확인, 5는 상위권 변별 수준입니다.</small><select value={active.difficulty} onChange={(event) => updateSet({ difficulty: Number(event.target.value) })}>{[1, 2, 3, 4, 5].map((value) => <option value={value} key={value}>{value} / 5</option>)}</select></label>
+            <QuickPresetField label="주제·소재" help="지문이 다룰 중심 분야입니다. 비워 두면 수능형은 카드별로 자동 배정됩니다." value={active.topic} choices={ENGLISH_TOPIC_PRESETS} placeholder={mode === 'csat' ? '비워 두면 문항 카드별로 자동 배정됩니다.' : undefined} onChange={(topic) => updateSet({ topic })} />
             {mode === 'school' && <label>자료 출처<select value={active.sourceKind} onChange={(event) => updateSet({ sourceKind: event.target.value as EnglishQuestionSet['sourceKind'], materialMode: 'provided' })}><option value="textbook">교과서 본문</option><option value="supplement">부교재 지문</option><option value="external">외부 지문</option></select></label>}
             {mode === 'custom' && <label>빠른 시작 프리셋<select value={active.customPreset} onChange={(event) => updateSet(applyCustomPreset(active, event.target.value))}>{CUSTOM_PRESETS.map((preset) => <option key={preset}>{preset}</option>)}</select></label>}
             {mode === 'custom' && <label>선지 수<select value={active.choiceCount} onChange={(event) => setChoiceCount(Number(event.target.value))}>{[2, 3, 4, 5].map((value) => <option value={value} key={value}>{value}지선다</option>)}</select></label>}
             {mode !== 'csat' && <label>자료 제목<input value={active.materialTitle} onChange={(event) => updateSet({ materialTitle: event.target.value })} /></label>}
           </div>
-          <QuickPresetField label="공통 출제 의도" value={active.intention} choices={ENGLISH_INTENTION_PRESETS} multiline placeholder="학생이 어떤 능력을 발휘해야 하는지 적으세요." onChange={(intention) => updateSet({ intention })} />
+          <QuickPresetField label="공통 출제 의도" help="학생에게 평가하려는 독해 능력과 사고 과정을 적습니다." value={active.intention} choices={ENGLISH_INTENTION_PRESETS} multiline placeholder="학생이 어떤 능력을 발휘해야 하는지 적으세요." onChange={(intention) => updateSet({ intention })} />
           {mode !== 'csat' && <><label>영어 지문·자료<textarea className="material-input" value={active.material} onChange={(event) => updateSet({ material: event.target.value })} placeholder="출제할 영어 지문을 붙여넣으세요." /></label><p className="hint">밑줄 <code>[[밑줄:표현]]</code> · 빈칸 <code>[[빈칸]]</code> · 삽입 <code>[[삽입문장:문장]]</code></p></>}
         </section>
 
@@ -137,9 +185,9 @@ function SetWorkspace({ mode, bundle, setBundle, notify }: Props) {
           <div className="question-editor-list">{active.questions.map((question, index) => <QuestionEditor key={question.id} set={active} question={question} index={index} updateQuestion={updateQuestion} remove={() => updateSet({ questions: active.questions.filter((item) => item.id !== question.id) })} />)}</div>
         </section>}
 
-        <section className="editor-card"><div className="card-title-row"><div><h3>{mode === 'csat' ? '3. 일괄 AI 제작 프롬프트' : '3. 외부 AI용 제작 프롬프트'}</h3><p>{mode === 'csat' ? '모든 문항 카드를 하나의 프롬프트와 JSON으로 생성합니다.' : 'API 연결 없이 프롬프트를 복사해 원하는 외부 AI에서 사용합니다.'}</p></div><button className="primary" onClick={() => { try { updateSet({ prompt: generateEnglishPrompt(active) }) } catch (error) { notify(error instanceof Error ? error.message : '프롬프트를 만들지 못했습니다.') } }}>프롬프트 생성</button></div><textarea className="prompt-output" value={active.prompt} onChange={(event) => updateSet({ prompt: event.target.value })} placeholder="프롬프트 생성 버튼을 누르세요." /><div className="button-row"><button onClick={() => void copy(active.prompt, '프롬프트를 복사했습니다.')}>프롬프트 복사</button>{mode === 'csat' && <button onClick={() => void copy(generateCsatGptInstructions(), '수능형 GPT 전체 지침을 복사했습니다.')}>수능형 GPT 지침 복사</button>}<button disabled={!gptConfig[mode]} onClick={() => { if (gptConfig[mode]) { void copy(active.prompt, '프롬프트를 복사하고 전용 GPT를 열었습니다.'); window.open(gptConfig[mode], '_blank', 'noopener,noreferrer') } }}>{gptConfig[mode] ? `${MODE_LABELS[mode]} GPT 열기` : 'GPT 링크 미설정'}</button></div></section>
+        <section className="editor-card"><div className="card-title-row"><div><h3>{mode === 'csat' ? '3. 일괄 AI 제작 프롬프트' : '3. 외부 AI용 제작 프롬프트'}</h3><p>{mode === 'csat' ? '빈 주제·소재는 빠른 선택 후보에서 카드별로 자동 배정한 뒤 하나의 프롬프트와 JSON으로 생성합니다.' : 'API 연결 없이 프롬프트를 복사해 원하는 외부 AI에서 사용합니다.'}</p></div><button className="primary" onClick={createPrompt}>프롬프트 생성</button></div><textarea className="prompt-output" value={active.prompt} onChange={(event) => updateSet({ prompt: event.target.value })} placeholder="프롬프트 생성 버튼을 누르세요." /><div className="button-row"><button onClick={() => void copy(active.prompt, '프롬프트를 복사했습니다.')}>프롬프트 복사</button>{mode === 'csat' && <button onClick={() => void copy(generateCsatGptInstructions(), '수능형 GPT 전체 지침을 복사했습니다.')}>수능형 GPT 지침 복사</button>}<button disabled={!gptConfig[mode]} onClick={() => { if (gptConfig[mode]) { void copy(active.prompt, '프롬프트를 복사하고 전용 GPT를 열었습니다.'); window.open(gptConfig[mode], '_blank', 'noopener,noreferrer') } }}>{gptConfig[mode] ? `${MODE_LABELS[mode]} GPT 열기` : 'GPT 링크 미설정'}</button></div></section>
         <section className="editor-card"><h3>{mode === 'csat' ? '4. 일괄 AI 결과 JSON 가져오기' : '4. AI 결과 JSON 가져오기'}</h3><textarea className="json-input" value={jsonInput} onChange={(event) => setJsonInput(event.target.value)} placeholder={mode === 'csat' ? '{"title":"...","items":[{"itemId":"...","templateId":"18","variantId":"standard","material":"...","questions":[...]}]}' : '{"title":"...","material":"...","questions":[...]}'}/><button className="primary wide" onClick={importJson}>JSON 분석하여 가져오기</button></section>
-        <section className="editor-card"><div className="card-title-row"><div><h3>{mode === 'csat' ? '5. 최신 일괄 결과 검사와 재검토' : '5. 최신 결과 검사와 재검토'}</h3><p>현재 AI 결과 v{active.aiRevision} · 마지막 검사 v{active.validatedRevision || '-'}</p></div><button onClick={() => { const nextIssues = validateEnglishSet(active); const next = { ...active, validatedRevision: active.aiRevision, updatedAt: new Date().toISOString() }; setIssues(nextIssues); setReviewPrompt(generateReviewPrompt(next, nextIssues)); updateSet({ validatedRevision: active.aiRevision }) }}>최신 AI 결과 검사</button></div>{issues.length > 0 && <div className="validation-list">{issues.map((issue) => <article className={issue.level} key={issue.id}><strong>{issue.level === 'error' ? '오류' : issue.level === 'warning' ? '확인' : '통과'} · {issue.label}</strong><span>{issue.detail}</span></article>)}</div>}{reviewPrompt && <><textarea className="review-output" value={reviewPrompt} onChange={(event) => setReviewPrompt(event.target.value)} /><button className="wide" onClick={() => void copy(reviewPrompt, '재검토 프롬프트를 복사했습니다.')}>재검토 프롬프트 복사</button></>}</section>
+        <section className="editor-card"><div className="card-title-row"><div><h3>{mode === 'csat' ? '5. 최신 일괄 결과 검사와 재검토' : '5. 최신 결과 검사와 재검토'}</h3><p>현재 AI 결과 v{active.aiRevision} · 마지막 검사 v{active.validatedRevision || '-'}{activeVerificationStatus ? ` · AI 검증 ${VERIFICATION_STATUS_LABELS[activeVerificationStatus]}` : ''}</p></div><div className="button-row"><button onClick={() => { const nextIssues = validateEnglishSet(active); const next = { ...active, validatedRevision: active.aiRevision, updatedAt: new Date().toISOString() }; setIssues(nextIssues); setReviewPrompt(generateReviewPrompt(next, nextIssues)); updateSet({ validatedRevision: active.aiRevision }) }}>최신 AI 결과 검사</button>{mode === 'csat' && <button className="primary" disabled={!active.aiRevision} onClick={() => onOpenVerification?.({ scope: 'set', id: active.id })}>선택적으로 AI 검증하기</button>}</div></div>{mode === 'csat' && <p className="optional-verification-hint">별도 검증 AI는 선택 사항입니다. 실행하지 않아도 시험지 조립·인쇄·PDF 저장에 제한이 없습니다.</p>}{issues.length > 0 && <div className="validation-list">{issues.map((issue) => <article className={issue.level} key={issue.id}><strong>{issue.level === 'error' ? '오류' : issue.level === 'warning' ? '확인' : '통과'} · {issue.label}</strong><span>{issue.detail}</span></article>)}</div>}{reviewPrompt && <><textarea className="review-output" value={reviewPrompt} onChange={(event) => setReviewPrompt(event.target.value)} /><button className="wide" onClick={() => void copy(reviewPrompt, '재검토 프롬프트를 복사했습니다.')}>재검토 프롬프트 복사</button></>}</section>
         {mode !== 'csat' && <section className="editor-card"><div className="card-title-row"><div><h3>6. 이미지 자료</h3><p>파일당 3MB 이하를 권장합니다.</p></div><button onClick={() => imageInput.current?.click()}>이미지 추가</button><input ref={imageInput} type="file" accept="image/*" hidden onChange={(event) => { uploadImage(event.target.files?.[0]); event.currentTarget.value = '' }} /></div><AssetGrid assets={bundle.mediaAssets.filter((asset) => asset.setId === active.id)} updateAsset={updateAsset} removeAsset={removeAsset} /></section>}
       </section>
       <aside className="live-preview-panel"><div className="sticky-preview"><span className="eyebrow">LIVE PREVIEW</span><h3>실시간 미리보기</h3><details open><summary>현재 세트 시험지</summary><SetLivePreview set={active} assets={bundle.mediaAssets.filter((asset) => asset.setId === active.id)} /></details></div></aside>
@@ -148,16 +196,27 @@ function SetWorkspace({ mode, bundle, setBundle, notify }: Props) {
 }
 
 function CsatItemsEditor({ set, items, updateItems, assets, uploadImage, updateAsset, removeAsset, notify }: { set: EnglishQuestionSet; items: CsatItemDesign[]; updateItems: (items: CsatItemDesign[]) => void; assets: MediaAsset[]; uploadImage: (file?: File, itemId?: string) => void; updateAsset: (asset: MediaAsset) => void; removeAsset: (asset: MediaAsset) => void; notify: (message: string) => void }) {
+  const plannedQuestions = plannedCsatSetQuestionCount(items)
+  const limitMessage = '수능형 세트는 실제 생성 문항을 최대 4개까지 만들 수 있습니다. 41~42번은 2문항, 43~45번은 3문항으로 계산합니다.'
   const addItem = () => {
-    if (items.length >= 20) { notify('문항 설계 카드는 최대 20개까지 추가할 수 있습니다.'); return }
+    if (plannedQuestions >= MAX_CSAT_SET_QUESTIONS) { notify(limitMessage); return }
     const viewport = { left: window.scrollX, top: window.scrollY }
     updateItems([...items, createCsatItem()])
     window.requestAnimationFrame(() => window.requestAnimationFrame(() => window.scrollTo({ ...viewport, behavior: 'auto' })))
   }
-  const change = (id: string, patch: Partial<CsatItemDesign>) => updateItems(items.map((item) => item.id === id ? { ...item, ...patch, qualityReview: undefined } : item))
+  const change = (id: string, patch: Partial<CsatItemDesign>) => {
+    const current = items.find((item) => item.id === id)
+    if (!current) return
+    const next = { ...current, ...patch, qualityReview: undefined }
+    const currentCount = plannedCsatItemQuestionCount(current)
+    const nextCount = plannedCsatItemQuestionCount(next)
+    const nextTotal = plannedQuestions - currentCount + nextCount
+    if (nextTotal > MAX_CSAT_SET_QUESTIONS && nextCount > currentCount) { notify(limitMessage); return }
+    updateItems(items.map((item) => item.id === id ? next : item))
+  }
   const move = (index: number, direction: -1 | 1) => { const target = index + direction; if (target < 0 || target >= items.length) return; const next = [...items]; [next[index], next[target]] = [next[target], next[index]]; updateItems(next) }
   const duplicate = (item: CsatItemDesign) => {
-    if (items.length >= 20) { notify('문항 설계 카드는 최대 20개까지 추가할 수 있습니다.'); return }
+    if (plannedQuestions + plannedCsatItemQuestionCount(item) > MAX_CSAT_SET_QUESTIONS) { notify(limitMessage); return }
     const copy = createCsatItem()
     const next = item.design ? applyCsatItemTemplate({ ...copy, targetLevel: item.targetLevel, difficulty: item.difficulty, topic: item.topic, intention: item.intention, materialMode: item.materialMode, sourceKind: item.sourceKind, passageLength: normalizeCsatPassageLength(item.passageLength) }, item.design.templateId, item.design.variantId) : copy
     if (item.design && next.design) next.design = { ...next.design, userInputs: { ...item.design.userInputs }, passagePlan: item.design.passagePlan }
@@ -170,9 +229,9 @@ function CsatItemsEditor({ set, items, updateItems, assets, uploadImage, updateA
     updateItems(items.filter((candidate) => candidate.id !== item.id))
   }
   return <section className="editor-card csat-items-section">
-    <div className="card-title-row"><div><span className="eyebrow">CSAT ITEM BUILDER</span><h3>2. 문항 설계 목록</h3><p>각 카드는 독립 지문을 사용합니다. 장문 묶음은 한 카드 안에서 함께 관리됩니다.</p></div><div className="item-count-actions"><span>{items.length} / 20</span><button className="primary" onClick={addItem}>+ 문항 추가</button></div></div>
+    <div className="card-title-row"><div><span className="eyebrow">CSAT ITEM BUILDER</span><h3>2. 문항 설계 목록</h3><p>실제 생성 문항은 세트당 최대 4개입니다. 장문 묶음은 41~42번 2문항, 43~45번 3문항으로 계산합니다.</p></div><div className="item-count-actions"><span>{plannedQuestions} / {MAX_CSAT_SET_QUESTIONS}문항 · {items.length}카드</span><button className="primary" disabled={plannedQuestions >= MAX_CSAT_SET_QUESTIONS} onClick={addItem}>+ 문항 추가</button></div></div>
     <div className="csat-item-list">{items.map((item, index) => <CsatItemCard key={item.id} set={set} item={item} index={index} total={items.length} change={(patch) => change(item.id, patch)} move={(direction) => move(index, direction)} duplicate={() => duplicate(item)} remove={() => remove(item)} assets={assets.filter((asset) => asset.csatItemId === item.id)} uploadImage={(file) => uploadImage(file, item.id)} updateAsset={updateAsset} removeAsset={removeAsset} />)}</div>
-    <button className="wide add-item-bottom" disabled={items.length >= 20} onClick={addItem}>+ 문항 추가</button>
+    <button className="wide add-item-bottom" disabled={plannedQuestions >= MAX_CSAT_SET_QUESTIONS} onClick={addItem}>+ 문항 추가</button>
   </section>
 }
 
@@ -210,16 +269,16 @@ function CsatItemCard({ set, item, index, total, change, move, duplicate, remove
     <summary><span><b>{index + 1}</b><strong>{template ? `${template.numberLabel} · ${template.label}` : '문항 유형을 선택하세요'}</strong><small>{item.questions.length || '-'}문항 · 난이도 {resolved.difficulty}/5{passageRange ? ` · ${CSAT_PASSAGE_LENGTH_LABELS[passageLength]} ${passageRange.min}~${passageRange.max}단어 / 실제 ${actualWords || '-'}단어` : ''} · {qualityLabel}</small></span><span className="item-summary-actions"><button disabled={index === 0} onClick={(event) => { event.preventDefault(); move(-1) }}>위로</button><button disabled={index === total - 1} onClick={(event) => { event.preventDefault(); move(1) }}>아래로</button><button onClick={(event) => { event.preventDefault(); duplicate() }}>복제</button><button onClick={(event) => { event.preventDefault(); remove() }}>삭제</button></span></summary>
     <div className="csat-item-body">
       <div className="form-grid csat-template-selectors">
-        <label>문항 대분류<select value={item.familyId ?? ''} onChange={(event) => selectFamily(event.target.value as CsatQuestionFamilyId)}><option value="">선택하세요</option>{CSAT_FAMILIES.map((family) => <option value={family.id} key={family.id}>{family.label}</option>)}</select></label>
-        <label>번호 템플릿<select value={design?.templateId ?? ''} disabled={!item.familyId} onChange={(event) => selectTemplate(event.target.value as CsatNumberTemplateId)}><option value="">선택하세요</option>{templates.map((candidate) => <option value={candidate.id} key={candidate.id}>{candidate.numberLabel} · {candidate.label}</option>)}</select></label>
-        <label>출제 구조<select value={design?.variantId ?? 'standard'} disabled={!template} onChange={(event) => selectTemplate(design!.templateId, event.target.value as CsatVariantId)}><option value="standard">최근 평가원 기본형</option>{template?.variants?.map((variant) => <option value={variant.id} key={variant.id}>{variant.label}</option>)}</select></label>
-        <label>지문 길이<select value={passageLength} disabled={!template} onChange={(event) => change({ passageLength: event.target.value as CsatPassageLengthPreset })}>{(['short', 'medium', 'long'] as CsatPassageLengthPreset[]).map((preset) => { const range = template ? getCsatPassageLengthRange(template.id, preset) : undefined; return <option value={preset} key={preset}>{CSAT_PASSAGE_LENGTH_LABELS[preset]}{range ? ` (${range.min}~${range.max}단어)` : ''}</option> })}</select></label>
-        <label>선지 형식<input value={template ? choiceStyleLabel(template.choiceStyle) : '-'} readOnly /></label>
+        <label>문항 대분류<small className="field-help">목적·어법·빈칸 등 만들 문제의 큰 계열을 고릅니다.</small><select value={item.familyId ?? ''} onChange={(event) => selectFamily(event.target.value as CsatQuestionFamilyId)}><option value="">선택하세요</option>{CSAT_FAMILIES.map((family) => <option value={family.id} key={family.id}>{family.label}</option>)}</select></label>
+        <label>번호 템플릿<small className="field-help">평가원 번호별 발문과 고유 문제 구조를 선택합니다.</small><select value={design?.templateId ?? ''} disabled={!item.familyId} onChange={(event) => selectTemplate(event.target.value as CsatNumberTemplateId)}><option value="">선택하세요</option>{templates.map((candidate) => <option value={candidate.id} key={candidate.id}>{candidate.numberLabel} · {candidate.label}</option>)}</select></label>
+        <label>출제 구조<small className="field-help">최근 기본형 또는 허용된 고급 변형을 정합니다.</small><select value={design?.variantId ?? 'standard'} disabled={!template} onChange={(event) => selectTemplate(design!.templateId, event.target.value as CsatVariantId)}><option value="standard">최근 평가원 기본형</option>{template?.variants?.map((variant) => <option value={variant.id} key={variant.id}>{variant.label}</option>)}</select></label>
+        <label>지문 길이<small className="field-help">선택한 번호의 실제 기출 단어 수 범위에 맞춥니다.</small><select value={passageLength} disabled={!template} onChange={(event) => change({ passageLength: event.target.value as CsatPassageLengthPreset })}>{(['short', 'medium', 'long'] as CsatPassageLengthPreset[]).map((preset) => { const range = template ? getCsatPassageLengthRange(template.id, preset) : undefined; return <option value={preset} key={preset}>{CSAT_PASSAGE_LENGTH_LABELS[preset]}{range ? ` (${range.min}~${range.max}단어)` : ''}</option> })}</select></label>
+        <label>선지 형식<small className="field-help">이 유형에서 사용하는 선지 언어와 표현 방식입니다.</small><input value={template ? choiceStyleLabel(template.choiceStyle) : '-'} readOnly /></label>
       </div>
       {design && template && <>
-        <div className="item-override-panel"><h4>세트 공통값 덮어쓰기</h4><div className="form-grid"><label>대상 수준<input value={item.targetLevel ?? ''} placeholder={`공통값: ${set.targetLevel}`} onChange={(event) => change({ targetLevel: event.target.value })} /></label><label>난이도<select value={item.difficulty ?? ''} onChange={(event) => change({ difficulty: event.target.value ? Number(event.target.value) : undefined })}><option value="">공통값 ({set.difficulty}/5)</option>{[1, 2, 3, 4, 5].map((value) => <option value={value} key={value}>{value}/5</option>)}</select></label><QuickPresetField label="주제·소재" value={item.topic ?? ''} choices={ENGLISH_TOPIC_PRESETS} placeholder={`공통값: ${set.topic || '미입력'}`} onChange={(topic) => change({ topic })} /><QuickPresetField label="출제 의도" value={item.intention ?? ''} choices={ENGLISH_INTENTION_PRESETS} multiline placeholder={`공통값: ${set.intention || '유형에 맞게 설정'}`} onChange={(intention) => change({ intention })} /></div></div>
-        <div className="form-grid"><label>자료 작성 방식<select value={item.materialMode} onChange={(event) => change({ materialMode: event.target.value as 'provided' | 'generated', sourceKind: event.target.value === 'generated' ? 'generated' : 'external' })}><option value="generated">AI가 새 지문 작성</option><option value="provided">등록 지문으로 출제</option></select></label><label>자료 제목<input value={item.materialTitle} onChange={(event) => change({ materialTitle: event.target.value })} /></label></div>
-        <div className="csat-blueprint-grid"><section><h4>사용자 추천 입력</h4><div className="form-grid">{template.inputFields.map((field) => <label key={field.key}>{field.label}{field.multiline ? <textarea value={design.userInputs[field.key] ?? ''} placeholder={field.placeholder} onChange={(event) => updateDesign({ userInputs: { ...design.userInputs, [field.key]: event.target.value } })} /> : <input value={design.userInputs[field.key] ?? ''} placeholder={field.placeholder} onChange={(event) => updateDesign({ userInputs: { ...design.userInputs, [field.key]: event.target.value } })} />}</label>)}</div></section><section className="structure-panel"><h4>지문 형식과 구조</h4><span className="genre-chip">{template.passageGenre}</span><ol>{template.structureSteps.map((step) => <li key={step}>{step}</li>)}</ol><label>지문 설계 메모<textarea value={design.passagePlan} onChange={(event) => updateDesign({ passagePlan: event.target.value })} /></label><div className="fixed-question-plan"><strong>고정 문항</strong>{item.questions.map((question) => <span key={question.id}>{question.csatSlot ?? question.type} · {question.type} · {question.score ?? 2}점</span>)}</div></section></div>
+        <div className="item-override-panel"><h4>세트 공통값 덮어쓰기</h4><p className="hint">비워 두면 세트 공통 조건을 사용하며, 입력한 항목만 이 카드에 따로 적용됩니다.</p><div className="form-grid"><label>대상 수준<small className="field-help">이 문항만 다른 학년이나 실력대로 조정할 때 입력합니다.</small><input value={item.targetLevel ?? ''} placeholder={`공통값: ${set.targetLevel}`} onChange={(event) => change({ targetLevel: event.target.value })} /></label><label>난이도<small className="field-help">이 문항만 세트 기본 난이도와 다르게 설정합니다.</small><select value={item.difficulty ?? ''} onChange={(event) => change({ difficulty: event.target.value ? Number(event.target.value) : undefined })}><option value="">공통값 ({set.difficulty}/5)</option>{[1, 2, 3, 4, 5].map((value) => <option value={value} key={value}>{value}/5</option>)}</select></label><QuickPresetField label="주제·소재" help="이 문항 지문의 중심 분야입니다. 비워 두면 공통값 또는 자동 배정값을 사용합니다." value={item.topic ?? ''} choices={ENGLISH_TOPIC_PRESETS} placeholder={set.topic ? `공통값: ${set.topic}` : '미입력 시 프롬프트 생성 때 자동 배정'} onChange={(topic) => change({ topic })} /><QuickPresetField label="출제 의도" help="이 문항에서 특별히 평가할 추론·이해 능력을 지정합니다." value={item.intention ?? ''} choices={ENGLISH_INTENTION_PRESETS} multiline placeholder={`공통값: ${set.intention || '유형에 맞게 설정'}`} onChange={(intention) => change({ intention })} /></div></div>
+        <div className="form-grid"><label>자료 작성 방식<small className="field-help">새 지문 생성을 맡길지, 직접 등록한 지문으로 출제할지 정합니다.</small><select value={item.materialMode} onChange={(event) => change({ materialMode: event.target.value as 'provided' | 'generated', sourceKind: event.target.value === 'generated' ? 'generated' : 'external' })}><option value="generated">AI가 새 지문 작성</option><option value="provided">등록 지문으로 출제</option></select></label><label>자료 제목<small className="field-help">관리용 제목이며 비워 두어도 문제 생성에는 지장이 없습니다.</small><input value={item.materialTitle} onChange={(event) => change({ materialTitle: event.target.value })} /></label></div>
+        <div className="csat-blueprint-grid"><section><h4>사용자 추천 입력</h4><p className="hint">선택한 번호 유형에 꼭 필요한 내용만 입력합니다. 비워 둔 항목은 AI가 다른 조건과 모순되지 않게 구성합니다.</p><div className="form-grid">{template.inputFields.map((field) => <label key={field.key}>{field.label}<small className="field-help">{field.placeholder}</small>{field.multiline ? <textarea value={design.userInputs[field.key] ?? ''} placeholder={field.placeholder} onChange={(event) => updateDesign({ userInputs: { ...design.userInputs, [field.key]: event.target.value } })} /> : <input value={design.userInputs[field.key] ?? ''} placeholder={field.placeholder} onChange={(event) => updateDesign({ userInputs: { ...design.userInputs, [field.key]: event.target.value } })} />}</label>)}</div></section><section className="structure-panel"><h4>지문 형식과 구조</h4><span className="genre-chip">{template.passageGenre}</span><ol>{template.structureSteps.map((step) => <li key={step}>{step}</li>)}</ol><label>지문 설계 메모<small className="field-help">전개 순서, 반드시 포함할 사례나 피할 표현을 자유롭게 적습니다.</small><textarea value={design.passagePlan} onChange={(event) => updateDesign({ passagePlan: event.target.value })} /></label><div className="fixed-question-plan"><strong>고정 문항</strong>{item.questions.map((question) => <span key={question.id}>{question.csatSlot ?? question.type} · {question.type} · {question.score ?? 2}점</span>)}</div></section></div>
         <details className="editor-fold material-editor-fold">
           <summary><span><strong>영어 지문·자료</strong><small>{item.material.trim() ? `입력됨 · 실제 ${actualWords || 0}단어` : '아직 입력되지 않음'}</small></span><span className="fold-toggle-label" /></summary>
           <div className="editor-fold-body">
@@ -258,27 +317,32 @@ function QuestionEditor({ set, question, index, locked = false, updateQuestion, 
   return <details className="question-editor editor-fold">
     <summary><span><strong>{roleLabel}</strong><small>{question.type} · {question.score ?? 2}점 · 발문 {question.stem.trim() ? '입력됨' : '미입력'} · 선지 {completedChoices}/{question.choices.length}</small></span><span className="question-fold-actions"><span className="fold-toggle-label" />{!locked && <button disabled={set.questions.length === 1} onClick={(event) => { event.preventDefault(); event.stopPropagation(); remove() }}>삭제</button>}</span></summary>
     <div className="editor-fold-body">
-      <div className="form-grid"><label>문항 유형<select value={question.type} disabled={locked} onChange={(event) => updateQuestion(question.id, { type: event.target.value })}>{locked ? <option>{question.type}</option> : questionTypesFor(set.mode).map((type) => <option key={type}>{type}</option>)}</select></label><label>배점<input type="number" min="1" max="10" value={question.score ?? 2} onChange={(event) => updateQuestion(question.id, { score: Number(event.target.value) })} /></label></div>
-      <label>발문<textarea value={question.stem} onChange={(event) => updateQuestion(question.id, { stem: event.target.value })} /></label>
+      <div className="form-grid"><label>문항 유형<small className="field-help">학생에게 요구할 풀이 방식과 문제 구조를 정합니다.</small><select value={question.type} disabled={locked} onChange={(event) => updateQuestion(question.id, { type: event.target.value })}>{locked ? <option>{question.type}</option> : questionTypesFor(set.mode).map((type) => <option key={type}>{type}</option>)}</select></label><label>배점<small className="field-help">시험지에 표시할 문항 점수입니다.</small><input type="number" min="1" max="10" value={question.score ?? 2} onChange={(event) => updateQuestion(question.id, { score: Number(event.target.value) })} /></label></div>
+      <label>발문<small className="field-help">시험지에서 학생이 실제로 읽는 질문 문장입니다.</small><textarea value={question.stem} onChange={(event) => updateQuestion(question.id, { stem: event.target.value })} /></label>
       {inlinePosition ? <p className="inline-position-note">이 유형은 별도의 내용 선지를 작성하지 않습니다. 정답은 지문 안 ①~⑤ 위치 중에서 선택합니다.</p> : <>{embeddedChartChoices && <p className="inline-position-note">25번형의 각 칸에는 번호를 제외한 영어 완전문장을 입력하세요. 시험지에서는 도표 아래 설명문에 ①~⑤ 진술로 이어서 표시됩니다.</p>}<div className="choice-grid">{question.choices.map((choice, choiceIndex) => <label key={choiceIndex}><span>{embeddedChartChoices ? ['①', '②', '③', '④', '⑤'][choiceIndex] : choiceIndex + 1}</span><input value={choice} placeholder={embeddedChartChoices ? '지문 속 영어 진술' : '비워두면 AI가 작성'} onChange={(event) => { const choices = [...question.choices]; choices[choiceIndex] = event.target.value; updateQuestion(question.id, { choices }) }} /></label>)}</div></>}
-      <div className="form-grid"><label>정답 번호<select value={question.answerIndex} onChange={(event) => updateQuestion(question.id, { answerIndex: Number(event.target.value) })}>{question.choices.map((_, choiceIndex) => <option value={choiceIndex + 1} key={choiceIndex}>{inlinePosition ? `지문 위치 ${choiceIndex + 1}` : embeddedChartChoices ? `지문 속 ${['①', '②', '③', '④', '⑤'][choiceIndex]}` : `${choiceIndex + 1}번`}</option>)}</select></label><label>문항별 출제 의도<input value={question.intention} onChange={(event) => updateQuestion(question.id, { intention: event.target.value })} /></label></div>
-      <label>상세 해설<textarea value={question.explanation} onChange={(event) => updateQuestion(question.id, { explanation: event.target.value })} /></label>
-      <div className="form-grid"><label>정답 근거 <small>한 줄에 하나</small><textarea value={question.evidenceRefs.join('\n')} onChange={(event) => updateQuestion(question.id, { evidenceRefs: event.target.value.split('\n').map((item) => item.trim()).filter(Boolean) })} /></label><label>오답 오류 근거 <small>한 줄에 하나</small><textarea value={question.distractorReasons.join('\n')} onChange={(event) => updateQuestion(question.id, { distractorReasons: event.target.value.split('\n').map((item) => item.trim()).filter(Boolean) })} /></label></div>
+      <div className="form-grid"><label>정답 번호<small className="field-help">현재 선지 또는 지문 위치 중 유일한 정답을 선택합니다.</small><select value={question.answerIndex} onChange={(event) => updateQuestion(question.id, { answerIndex: Number(event.target.value) })}>{question.choices.map((_, choiceIndex) => <option value={choiceIndex + 1} key={choiceIndex}>{inlinePosition ? `지문 위치 ${choiceIndex + 1}` : embeddedChartChoices ? `지문 속 ${['①', '②', '③', '④', '⑤'][choiceIndex]}` : `${choiceIndex + 1}번`}</option>)}</select></label><label>문항별 출제 의도<small className="field-help">이 문항이 평가하는 구체적인 사고 능력을 기록합니다.</small><input value={question.intention} onChange={(event) => updateQuestion(question.id, { intention: event.target.value })} /></label></div>
+      <label>상세 해설<small className="field-help">정답이 되는 이유와 필요한 독해 과정을 설명합니다.</small><textarea value={question.explanation} onChange={(event) => updateQuestion(question.id, { explanation: event.target.value })} /></label>
+      <div className="form-grid"><label>정답 근거 <small className="field-help">지문에서 정답을 확정하는 문장이나 정보를 한 줄에 하나씩 적습니다.</small><textarea value={question.evidenceRefs.join('\n')} onChange={(event) => updateQuestion(question.id, { evidenceRefs: event.target.value.split('\n').map((item) => item.trim()).filter(Boolean) })} /></label><label>오답 오류 근거 <small className="field-help">각 오답이 틀린 이유를 선지 순서에 맞춰 한 줄씩 적습니다.</small><textarea value={question.distractorReasons.join('\n')} onChange={(event) => updateQuestion(question.id, { distractorReasons: event.target.value.split('\n').map((item) => item.trim()).filter(Boolean) })} /></label></div>
     </div>
   </details>
 }
 
-function createExam(): EnglishExamDocument {
+function createExam(preset: LayoutPreset = 'school'): EnglishExamDocument {
   const now = new Date().toISOString()
-  return { id: crypto.randomUUID(), title: '새 영어 시험지', setIds: [], contentEntries: [], layout: createExamLayout('school'), setOverrides: {}, entryOverrides: {}, createdAt: now, updatedAt: now }
+  return { id: crypto.randomUUID(), title: '새 영어 시험지', setIds: [], contentEntries: [], layout: createExamLayout(preset), setOverrides: {}, entryOverrides: {}, createdAt: now, updatedAt: now }
 }
 
 function ExamAssembly({ bundle, setBundle, notify }: Props) {
   const [activeId, setActiveId] = useState(bundle.exams[0]?.id ?? '')
   const storedActive = bundle.exams.find((exam) => exam.id === activeId)
-  const active = storedActive ? normalizeExamDocument(storedActive, bundle.questionSets) : undefined
+  const active = useMemo(() => storedActive ? normalizeExamDocument(storedActive, bundle.questionSets) : undefined, [storedActive, bundle.questionSets])
+  const activeRef = useRef(active)
+  const saveQueueRef = useRef<Promise<void>>(Promise.resolve())
+  activeRef.current = active
   useEffect(() => { if (!active && bundle.exams[0]) setActiveId(bundle.exams[0].id) }, [active, bundle.exams])
-  const selectedSets = useMemo(() => (active ? examSetIds(active) : []).map((id) => bundle.questionSets.find((set) => set.id === id)).filter((set): set is EnglishQuestionSet => Boolean(set)), [active, bundle.questionSets])
+  const previewExam = useDeferredValue(active)
+  const previewOrderKey = useMemo(() => previewExam ? `${previewExam.id}:${(previewExam.contentEntries ?? []).map((entry) => entry.id).join('|')}` : 'empty', [previewExam])
+  const selectedSets = useMemo(() => (previewExam ? examSetIds(previewExam) : []).map((id) => bundle.questionSets.find((set) => set.id === id)).filter((set): set is EnglishQuestionSet => Boolean(set)), [previewExam, bundle.questionSets])
   const resolvedEntries = useMemo(() => active ? resolveExamEntries(active, bundle.questionSets) : [], [active, bundle.questionSets])
   const grammarItem = resolvedEntries.find(({ csatItem }) => csatItem?.design?.templateId === '29')?.csatItem
   const vocabularyItem = resolvedEntries.find(({ csatItem }) => csatItem?.design?.templateId === '30')?.csatItem
@@ -286,27 +350,57 @@ function ExamAssembly({ bundle, setBundle, notify }: Props) {
   useEffect(() => {
     if (grammarItem && vocabularyItem && grammarVocabularyScore !== 5) notify(`29번 어법과 30번 어휘의 배점 합은 5점을 권장합니다. 현재 ${grammarVocabularyScore}점입니다.`)
   }, [grammarItem?.id, vocabularyItem?.id, grammarVocabularyScore])
-  const addExam = () => { const next = createExam(); setBundle((value) => ({ ...value, exams: [next, ...value.exams] })); setActiveId(next.id); persistLocally(saveExamDocument(next), '새 시험지', notify) }
-  const updateExam = (patch: Partial<EnglishExamDocument>) => {
-    if (!active) return
-    const next = normalizeExamDocument({ ...active, ...patch, updatedAt: new Date().toISOString() }, bundle.questionSets)
-    setBundle((value) => ({ ...value, exams: value.exams.map((exam) => exam.id === next.id ? next : exam) })); persistLocally(saveExamDocument(next), '시험지 변경 사항', notify)
+  const addExam = () => { const next = createExam(preferredExamPresetForSets(bundle.questionSets)); setBundle((value) => ({ ...value, exams: [next, ...value.exams] })); setActiveId(next.id); persistLocally(saveExamDocument(next), '새 시험지', notify) }
+  const queueExamSave = (next: EnglishExamDocument) => {
+    saveQueueRef.current = saveQueueRef.current
+      .catch(() => undefined)
+      .then(() => saveExamDocument(next))
+      .catch(() => notify('시험지 변경 사항을 로컬 저장소에 반영하지 못했습니다. JSON 백업을 저장해 주세요.'))
   }
-  const updateLayout = (patch: Partial<ExamLayoutSettings>) => updateExam({ layout: { ...active!.layout, ...patch } })
+  const updateExam = (change: Partial<EnglishExamDocument> | ((current: EnglishExamDocument) => Partial<EnglishExamDocument> | null)) => {
+    const current = activeRef.current
+    if (!current) return
+    const patch = typeof change === 'function' ? change(current) : change
+    if (!patch) return
+    const next = normalizeExamDocument({ ...current, ...patch, updatedAt: new Date().toISOString() }, bundle.questionSets)
+    activeRef.current = next
+    setBundle((value) => ({ ...value, exams: value.exams.map((exam) => exam.id === next.id ? next : exam) }))
+    queueExamSave(next)
+  }
+  const updateLayout = (patch: Partial<ExamLayoutSettings>) => updateExam((current) => ({ layout: { ...current.layout, ...patch } }))
+  const layoutForAddedContent = (current: EnglishExamDocument, set: EnglishQuestionSet, contentEntries: ExamContentEntry[]) => {
+    const next = layoutForFirstSelectedSet(current.layout, set, Boolean(current.contentEntries?.length) || contentEntries.length === 0)
+    if (next !== current.layout) notify('첫 수능형 세트를 추가하여 시험지 기본 양식을 수능형으로 설정했습니다.')
+    return next
+  }
   const toggleSet = (set: EnglishQuestionSet) => {
     const candidates = contentEntriesForSet(set)
-    const current = active!.contentEntries ?? []
-    const allIncluded = candidates.every((candidate) => current.some((entry) => entry.id === candidate.id))
-    const contentEntries = allIncluded ? current.filter((entry) => entry.setId !== set.id) : [...current, ...candidates.filter((candidate) => !current.some((entry) => entry.id === candidate.id))]
-    updateExam({ contentEntries, setIds: [...new Set(contentEntries.map((entry) => entry.setId))] })
+    updateExam((currentExam) => {
+      const current = currentExam.contentEntries ?? []
+      const allIncluded = candidates.every((candidate) => current.some((entry) => entry.id === candidate.id))
+      const contentEntries = allIncluded ? current.filter((entry) => entry.setId !== set.id) : [...current, ...candidates.filter((candidate) => !current.some((entry) => entry.id === candidate.id))]
+      return { contentEntries, setIds: [...new Set(contentEntries.map((entry) => entry.setId))], layout: layoutForAddedContent(currentExam, set, contentEntries) }
+    })
   }
   const toggleEntry = (entry: ExamContentEntry) => {
-    const current = active!.contentEntries ?? []
-    const contentEntries = current.some((candidate) => candidate.id === entry.id) ? current.filter((candidate) => candidate.id !== entry.id) : [...current, entry]
-    updateExam({ contentEntries, setIds: [...new Set(contentEntries.map((candidate) => candidate.setId))] })
+    updateExam((currentExam) => {
+      const current = currentExam.contentEntries ?? []
+      const contentEntries = current.some((candidate) => candidate.id === entry.id) ? current.filter((candidate) => candidate.id !== entry.id) : [...current, entry]
+      const set = bundle.questionSets.find((candidate) => candidate.id === entry.setId)
+      return { contentEntries, setIds: [...new Set(contentEntries.map((candidate) => candidate.setId))], layout: set ? layoutForAddedContent(currentExam, set, contentEntries) : currentExam.layout }
+    })
   }
-  const move = (index: number, direction: -1 | 1) => { const entries = active?.contentEntries ?? []; const target = index + direction; if (!active || target < 0 || target >= entries.length) return; const next = [...entries]; [next[index], next[target]] = [next[target], next[index]]; updateExam({ contentEntries: next }) }
-  const updateOverride = (entryId: string, patch: Partial<SetLayoutOverride>) => updateExam({ entryOverrides: { ...(active!.entryOverrides ?? {}), [entryId]: { ...(active!.entryOverrides?.[entryId] ?? {}), ...patch } } })
+  const move = (entryId: string, direction: -1 | 1) => updateExam((current) => {
+    const entries = current.contentEntries ?? []
+    const next = moveExamContentEntry(entries, entryId, direction)
+    return next === entries ? null : { contentEntries: next }
+  })
+  const updateOverride = (entryId: string, patch: Partial<SetLayoutOverride>) => updateExam((current) => ({ entryOverrides: { ...(current.entryOverrides ?? {}), [entryId]: { ...(current.entryOverrides?.[entryId] ?? {}), ...patch } } }))
+  const clearExamEntries = () => {
+    if (!active || !window.confirm('현재 시험지에서 조립한 문항만 모두 뺄까요? 세트 원본은 삭제되지 않습니다.')) return
+    updateExam({ contentEntries: [], setIds: [], entryOverrides: {} })
+    notify('현재 시험지의 조립 목록을 비웠습니다. 세트 원본은 그대로 유지됩니다.')
+  }
 
   if (!active) return <section className="empty-editor"><h2>시험지 조립</h2><p>내신형·수능형·맞춤설정형 세트를 한 시험지에 자유롭게 섞을 수 있습니다.</p><button className="primary" onClick={addExam}>첫 시험지 만들기</button></section>
   return <div className="assembly-layout"><section className="assembly-editor">
@@ -314,9 +408,9 @@ function ExamAssembly({ bundle, setBundle, notify }: Props) {
     <section className="editor-card"><h3>시험지 기본 정보</h3><div className="form-grid"><label>시험지 선택<select value={activeId} onChange={(event) => setActiveId(event.target.value)}>{bundle.exams.map((exam) => <option value={exam.id} key={exam.id}>{exam.title}</option>)}</select></label><label>시험지 제목<input value={active.title} onChange={(event) => updateExam({ title: event.target.value })} /></label><label>기관명<input value={active.layout.institution} onChange={(event) => updateLayout({ institution: event.target.value })} /></label><label>학년·반 표기<input value={active.layout.gradeLabel} onChange={(event) => updateLayout({ gradeLabel: event.target.value })} /></label><label>날짜<input value={active.layout.dateLabel} onChange={(event) => updateLayout({ dateLabel: event.target.value })} /></label><label>꼬리말<input value={active.layout.footerText} onChange={(event) => updateLayout({ footerText: event.target.value })} /></label></div></section>
     <section className="editor-card"><h3>시험지 기본 양식</h3><div className="form-grid"><label>양식 프리셋<select value={active.layout.preset} onChange={(event) => { const preset = event.target.value as LayoutPreset; updateExam({ layout: { ...LAYOUT_PRESETS[preset], institution: active.layout.institution, gradeLabel: active.layout.gradeLabel, dateLabel: active.layout.dateLabel } }) }}><option value="csat">수능형</option><option value="school">학교형</option><option value="worksheet">워크시트형</option><option value="custom">사용자 설정형</option></select></label><label>문제지 칼럼<select value={active.layout.columns} onChange={(event) => updateLayout({ columns: Number(event.target.value) as 1 | 2 })}><option value={1}>1단</option><option value={2}>2단</option></select></label><label>해설지 칼럼<select value={active.layout.answerColumns} onChange={(event) => updateLayout({ answerColumns: Number(event.target.value) as 1 | 2 })}><option value={1}>1단</option><option value={2}>2단</option></select></label><NumberField label="글자 크기(pt)" value={active.layout.fontSize} step={0.1} onChange={(fontSize) => updateLayout({ fontSize })} /><NumberField label="줄 간격" value={active.layout.lineHeight} step={0.05} onChange={(lineHeight) => updateLayout({ lineHeight })} /><NumberField label="문항 간격(mm)" value={active.layout.questionGap} onChange={(questionGap) => updateLayout({ questionGap })} /><NumberField label="위 여백(mm)" value={active.layout.marginTop} onChange={(marginTop) => updateLayout({ marginTop })} /><NumberField label="오른쪽 여백(mm)" value={active.layout.marginRight} onChange={(marginRight) => updateLayout({ marginRight })} /><NumberField label="아래 여백(mm)" value={active.layout.marginBottom} onChange={(marginBottom) => updateLayout({ marginBottom })} /><NumberField label="왼쪽 여백(mm)" value={active.layout.marginLeft} onChange={(marginLeft) => updateLayout({ marginLeft })} /><label className="check-label"><input type="checkbox" checked={active.layout.passageBorder} onChange={(event) => updateLayout({ passageBorder: event.target.checked })} /> 지문 테두리</label><label className="check-label"><input type="checkbox" checked={active.layout.showPageNumbers} onChange={(event) => updateLayout({ showPageNumbers: event.target.checked })} /> 페이지 번호</label></div></section>
     <section className="editor-card"><h3>세트 전체 추가 후 문항별 조정</h3><div className="assembly-set-grid">{bundle.questionSets.map((set) => { const candidates = contentEntriesForSet(set); const included = candidates.filter((candidate) => active.contentEntries?.some((entry) => entry.id === candidate.id)).length; return <details className={included ? 'selected' : ''} key={set.id}><summary><label onClick={(event) => event.stopPropagation()}><input type="checkbox" checked={included === candidates.length && included > 0} onChange={() => toggleSet(set)} /><span><strong>{set.title}</strong><small>{MODE_LABELS[set.mode]} · {allSetQuestions(set).length}문항 {included > 0 && included < candidates.length ? `· 일부 ${included}/${candidates.length}` : ''}</small></span></label>{set.mode === 'csat' && <span className="assembly-detail-toggle">문항별 선택</span>}</summary>{set.mode === 'csat' && <div className="assembly-item-checks">{candidates.map((entry, index) => { const item = getCsatItems(set)[index]; const template = item.design ? getCsatTemplate(item.design.templateId) : undefined; return <label key={entry.id}><input type="checkbox" checked={active.contentEntries?.some((candidate) => candidate.id === entry.id) ?? false} onChange={() => toggleEntry(entry)} /><span>{index + 1}. {template ? `${template.numberLabel} · ${template.label}` : '미설정 카드'} ({item.questions.length}문항)</span></label> })}</div>}</details> })}</div></section>
-    <section className="editor-card"><h3>시험 순서와 문항별 양식</h3><div className="set-order-list">{resolvedEntries.map(({ entry, set, csatItem }, index) => { const override = active.entryOverrides?.[entry.id] ?? {}; const template = csatItem?.design ? getCsatTemplate(csatItem.design.templateId) : undefined; return <details key={entry.id}><summary><span><strong>{index + 1}. {template ? `${template.numberLabel} · ${template.label}` : set.title}</strong><small>{set.title} · {csatItem?.questions.length ?? set.questions.length}문항</small></span><span><button disabled={index === 0} onClick={(event) => { event.preventDefault(); move(index, -1) }}>위로</button><button disabled={index === resolvedEntries.length - 1} onClick={(event) => { event.preventDefault(); move(index, 1) }}>아래로</button><button onClick={(event) => { event.preventDefault(); toggleEntry(entry) }}>제외</button></span></summary><div className="override-grid"><label>시작 위치<select value={override.breakBefore ?? 'auto'} onChange={(event) => updateOverride(entry.id, { breakBefore: event.target.value as SetLayoutOverride['breakBefore'] })}><option value="auto">자동</option><option value="column">다음 칼럼</option><option value="page">다음 페이지</option></select></label><label>칼럼<select value={override.columns ?? 0} onChange={(event) => updateOverride(entry.id, { columns: Number(event.target.value) === 0 ? undefined : Number(event.target.value) as 1 | 2 })}><option value={0}>시험지 기본값</option><option value={1}>1단</option><option value={2}>2단</option></select></label><NumberField label="글자 배율" value={override.fontScale ?? 1} step={0.05} onChange={(fontScale) => updateOverride(entry.id, { fontScale })} /><NumberField label="줄 간격" value={override.lineHeight ?? active.layout.lineHeight} step={0.05} onChange={(lineHeight) => updateOverride(entry.id, { lineHeight })} /><label className="check-label"><input type="checkbox" checked={override.passageBorder ?? active.layout.passageBorder} onChange={(event) => updateOverride(entry.id, { passageBorder: event.target.checked })} /> 지문 테두리</label><label className="check-label"><input type="checkbox" checked={override.keepMaterialWithFirst ?? true} onChange={(event) => updateOverride(entry.id, { keepMaterialWithFirst: event.target.checked })} /> 지문과 첫 문항 묶기</label><label className="check-label"><input type="checkbox" checked={override.keepQuestions ?? true} onChange={(event) => updateOverride(entry.id, { keepQuestions: event.target.checked })} /> 문항 선지 묶기</label></div></details> })}</div></section>
+    <section className="editor-card"><h3>시험 순서와 문항별 양식</h3><div className="set-order-list">{resolvedEntries.map(({ entry, set, csatItem }, index) => { const override = active.entryOverrides?.[entry.id] ?? {}; const template = csatItem?.design ? getCsatTemplate(csatItem.design.templateId) : undefined; return <details key={entry.id}><summary><span><strong>{index + 1}. {template ? `${template.numberLabel} · ${template.label}` : set.title}</strong><small>{set.title} · {csatItem?.questions.length ?? set.questions.length}문항</small></span><span><button type="button" disabled={index === 0} onClick={(event) => { event.preventDefault(); event.stopPropagation(); move(entry.id, -1) }}>위로</button><button type="button" disabled={index === resolvedEntries.length - 1} onClick={(event) => { event.preventDefault(); event.stopPropagation(); move(entry.id, 1) }}>아래로</button><button type="button" onClick={(event) => { event.preventDefault(); event.stopPropagation(); toggleEntry(entry) }}>제외</button></span></summary><div className="override-grid"><label>시작 위치<select value={override.breakBefore ?? 'auto'} onChange={(event) => updateOverride(entry.id, { breakBefore: event.target.value as SetLayoutOverride['breakBefore'] })}><option value="auto">자동</option><option value="column">다음 칼럼</option><option value="page">다음 페이지</option></select></label><label>칼럼<select value={override.columns ?? 0} onChange={(event) => updateOverride(entry.id, { columns: Number(event.target.value) === 0 ? undefined : Number(event.target.value) as 1 | 2 })}><option value={0}>시험지 기본값</option><option value={1}>1단</option><option value={2}>2단</option></select></label><NumberField label="글자 배율" value={override.fontScale ?? 1} step={0.05} onChange={(fontScale) => updateOverride(entry.id, { fontScale })} /><NumberField label="줄 간격" value={override.lineHeight ?? active.layout.lineHeight} step={0.05} onChange={(lineHeight) => updateOverride(entry.id, { lineHeight })} /><label className="check-label"><input type="checkbox" checked={override.passageBorder ?? active.layout.passageBorder} onChange={(event) => updateOverride(entry.id, { passageBorder: event.target.checked })} /> 지문 테두리</label><label className="check-label"><input type="checkbox" checked={override.keepMaterialWithFirst ?? true} onChange={(event) => updateOverride(entry.id, { keepMaterialWithFirst: event.target.checked })} /> 지문과 첫 문항 묶기</label><label className="check-label"><input type="checkbox" checked={override.keepQuestions ?? true} onChange={(event) => updateOverride(entry.id, { keepQuestions: event.target.checked })} /> 문항 선지 묶기</label></div></details> })}</div></section>
     <button className="danger" onClick={() => { if (!window.confirm('이 시험지를 삭제할까요?')) return; setBundle((value) => ({ ...value, exams: value.exams.filter((exam) => exam.id !== active.id) })); persistLocally(deleteExamDocument(active.id), '시험지 삭제', notify); notify('시험지를 삭제했습니다.') }}>시험지 삭제</button>
-  </section><aside className="assembly-preview"><div className="sticky-preview"><span className="eyebrow">LIVE EXAM PREVIEW</span><h3>양식 실시간 미리보기</h3>{selectedSets.length ? <div className="scaled-paper"><ExamQuestionPages exam={active} sets={selectedSets} assets={bundle.mediaAssets} /></div> : <div className="empty-state">세트를 선택하면 시험지가 바로 표시됩니다.</div>}</div></aside></div>
+  </section><aside className="assembly-preview"><div className="sticky-preview"><span className="eyebrow">LIVE EXAM PREVIEW</span><h3>양식 실시간 미리보기</h3><AssemblyPreviewBoundary resetKey={previewOrderKey} onCreateExam={addExam} onClearExam={clearExamEntries}>{previewExam && selectedSets.length ? <div className="scaled-paper"><ExamQuestionPages key={previewOrderKey} exam={previewExam} sets={selectedSets} assets={bundle.mediaAssets} /></div> : <div className="empty-state">세트를 선택하면 시험지가 바로 표시됩니다.</div>}</AssemblyPreviewBoundary></div></aside></div>
 }
 
 function NumberField({ label, value, step = 1, onChange }: { label: string; value: number; step?: number; onChange: (value: number) => void }) {

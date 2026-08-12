@@ -1,4 +1,5 @@
-import { CSAT_FAMILIES, CSAT_GPT_APPROVAL_PROTOCOL, CSAT_INLINE_POSITION_CHOICES, CSAT_PASSAGE_LENGTH_LABELS, CSAT_QUALITY_REVIEW_INSTRUCTIONS, buildCsatPromptSection, countCsatPassageWords, createCsatItem, csatPrintableMaterialText, decorateCsatMaterialText, effectiveCsatDesign, embedCsatChartChoices, expectedCsatItemQuestions, expectedCsatQuestions, generateCsatGptInstructions, getCsatItems, getCsatPassageLengthRange, getCsatTemplate, hasUnnecessaryPassageBreaks, isInlinePositionTemplate, normalizeCsatPassageLength, normalizeCsatSet, resolvedCsatItem } from './csat'
+import { CSAT_FAMILIES, CSAT_GPT_APPROVAL_PROTOCOL, CSAT_INLINE_POSITION_CHOICES, CSAT_PASSAGE_LENGTH_LABELS, CSAT_QUALITY_REVIEW_INSTRUCTIONS, MAX_CSAT_SET_QUESTIONS, buildCsatPromptSection, countCsatPassageWords, createCsatItem, csatPrintableMaterialText, decorateCsatMaterialText, effectiveCsatDesign, embedCsatChartChoices, expectedCsatItemQuestions, expectedCsatQuestions, generateCsatGptInstructions, getCsatItems, getCsatPassageLengthRange, getCsatTemplate, hasUnnecessaryPassageBreaks, isInlinePositionTemplate, normalizeCsatPassageLength, normalizeCsatSet, plannedCsatSetQuestionCount, resolvedCsatItem } from './csat'
+import { assertCsatGenerationSchema } from './generationContract'
 import type { CsatMaterialSpec, CsatQualityReview, EnglishMode, EnglishQuestion, EnglishQuestionSet, ExamLayoutSettings, LayoutPreset, SourceKind, ValidationIssue } from './types'
 
 export const MODE_LABELS: Record<EnglishMode, string> = {
@@ -17,6 +18,28 @@ export const ENGLISH_TOPIC_PRESETS = [
   '인문·철학', '심리·인지', '교육·학습', '사회·문화', '과학·기술', '환경·생태',
   '경제·경영', '예술·문학', '역사·문명', '언어·소통', '건강·생활',
 ] as const
+
+function stableTopicIndex(seed: string, length: number) {
+  let hash = 2166136261
+  for (let index = 0; index < seed.length; index += 1) hash = Math.imul(hash ^ seed.charCodeAt(index), 16777619)
+  return (hash >>> 0) % length
+}
+
+export function assignAutomaticCsatTopics(set: EnglishQuestionSet): EnglishQuestionSet {
+  if (set.mode !== 'csat' || set.topic.trim()) return set
+  const used = new Set(getCsatItems(set).map((item) => item.topic?.trim()).filter((topic): topic is string => Boolean(topic)))
+  let changed = false
+  const csatItems = getCsatItems(set).map((item, index) => {
+    if (item.topic?.trim()) return item
+    const unused = ENGLISH_TOPIC_PRESETS.filter((topic) => !used.has(topic))
+    const candidates = unused.length ? unused : ENGLISH_TOPIC_PRESETS
+    const topic = candidates[stableTopicIndex(`${set.id}:${item.id}:${index}`, candidates.length)]
+    used.add(topic)
+    changed = true
+    return { ...item, topic }
+  })
+  return changed ? { ...set, csatItems } : set
+}
 
 export const ENGLISH_INTENTION_PRESETS = [
   '핵심 주장과 중심 내용을 파악하게 함',
@@ -95,6 +118,21 @@ export function createExamLayout(preset: LayoutPreset = 'school'): ExamLayoutSet
   return { ...LAYOUT_PRESETS[preset] }
 }
 
+export function preferredExamPresetForSets(sets: EnglishQuestionSet[]): LayoutPreset {
+  return sets.some((set) => set.mode === 'csat') ? 'csat' : 'school'
+}
+
+export function layoutForFirstSelectedSet(layout: ExamLayoutSettings, set: EnglishQuestionSet, hasContent: boolean): ExamLayoutSettings {
+  if (hasContent || set.mode !== 'csat' || layout.preset !== 'school') return layout
+  return {
+    ...createExamLayout('csat'),
+    institution: layout.institution,
+    gradeLabel: layout.gradeLabel,
+    dateLabel: layout.dateLabel,
+    footerText: layout.footerText,
+  }
+}
+
 export function applyCustomPreset(set: EnglishQuestionSet, preset: string): Partial<EnglishQuestionSet> {
   const map: Record<string, { types: string[]; topic: string; intention: string }> = {
     독해: { types: ['주제', '내용 이해', '빈칸 추론'], topic: '핵심 내용과 논리 구조 파악', intention: '글의 핵심 내용과 추론 능력을 평가한다.' },
@@ -124,9 +162,11 @@ function savedPrinciplesSection() {
 }
 
 function generateCsatBatchPrompt(set: EnglishQuestionSet) {
-  const normalized = normalizeCsatSet(set)
+  const normalized = normalizeCsatSet(assignAutomaticCsatTopics(set))
   const items = getCsatItems(normalized)
   if (!items.length || items.some((item) => !item.design)) throw new Error('모든 문항 설계 카드에서 대분류와 번호 템플릿을 선택해 주세요.')
+  const plannedQuestions = plannedCsatSetQuestionCount(items)
+  if (plannedQuestions > MAX_CSAT_SET_QUESTIONS) throw new Error(`수능형 세트는 실제 생성 문항을 최대 ${MAX_CSAT_SET_QUESTIONS}개까지 만들 수 있습니다. 문항 카드를 줄여 주세요.`)
   return `[역할]
 당신은 대한민국 수능 영어 읽기 영역의 구조를 연구한 전문 창작 출제자이다.
 
@@ -145,7 +185,7 @@ ${CSAT_GPT_APPROVAL_PROTOCOL}
 - 세트 제목: ${normalized.title}
 - 기본 대상 수준: ${normalized.targetLevel}
 - 기본 난이도: ${normalized.difficulty}/5
-- 기본 주제·소재: ${normalized.topic || '교육적이고 중립적인 주제'}
+- 기본 주제·소재: ${normalized.topic || '카드별 자동 배정값 사용'}
 - 기본 출제 의도: ${normalized.intention || '유형에 맞게 설정'}
 
 ${buildCsatPromptSection(normalized)}
@@ -365,6 +405,7 @@ function parseAnswerIndex(value: unknown, choiceCount: number) {
 export function parseEnglishSetJson(raw: string, base: EnglishQuestionSet): EnglishQuestionSet {
   const parsed: unknown = JSON.parse(cleanJson(raw))
   if (!parsed || typeof parsed !== 'object') throw new Error('JSON 최상위 값은 객체여야 합니다.')
+  if (base.mode === 'csat') assertCsatGenerationSchema(parsed)
   const input = parsed as Record<string, unknown>
   if (base.mode === 'csat') return parseCsatBatchJson(input, base)
   if (typeof input.material !== 'string' || !Array.isArray(input.questions)) throw new Error('material 문자열과 questions 배열이 필요합니다.')
@@ -392,45 +433,82 @@ export function parseEnglishSetJson(raw: string, base: EnglishQuestionSet): Engl
   }
 }
 
+function strictCsatAnswerIndex(value: unknown, itemId: string, questionIndex: number) {
+  if (!Number.isInteger(value) || typeof value !== 'number' || value < 1 || value > 5) {
+    throw new Error(`문항 카드 ${itemId}의 ${questionIndex + 1}번 문항 answerIndex는 1~5 정수여야 합니다.`)
+  }
+  return value
+}
+
+function assertRequiredQuestionText(value: unknown, field: string, itemId: string, questionIndex: number): asserts value is string {
+  if (typeof value !== 'string' || !value.trim()) throw new Error(`문항 카드 ${itemId}의 ${questionIndex + 1}번 문항 ${field} 값은 비어 있을 수 없습니다.`)
+}
+
+function canonicalCsatQuestionType(value: unknown) {
+  if (value === '문맥상 어휘') return '어휘'
+  return value
+}
+
 function parseQuestionArray(values: unknown[], expected: ReturnType<typeof expectedCsatItemQuestions>, itemId: string, templateId: EnglishQuestion['csatTemplateId'], fallback: EnglishQuestion[] = []) {
   if (values.length !== expected.length) throw new Error(`문항 카드 ${itemId}은 문항 ${expected.length}개가 고정입니다.`)
   return values.map((value, index) => {
     if (!value || typeof value !== 'object') throw new Error(`문항 카드 ${itemId}의 ${index + 1}번 문항 형식이 올바르지 않습니다.`)
     const input = value as Record<string, unknown>
-    const choices = isInlinePositionTemplate(templateId) ? [...CSAT_INLINE_POSITION_CHOICES] : cleanStrings(input.choices)
-    if (!isInlinePositionTemplate(templateId) && choices.length !== 5) throw new Error(`문항 카드 ${itemId}의 ${index + 1}번 문항은 내용이 채워진 선지 5개가 필요합니다.`)
-    if (typeof input.stem !== 'string') throw new Error(`문항 카드 ${itemId}의 ${index + 1}번 문항에 stem이 필요합니다.`)
     const blueprint = expected[index]
+    if (canonicalCsatQuestionType(input.type) !== blueprint.type) throw new Error(`문항 카드 ${itemId}의 ${index + 1}번 문항 type이 예상값 '${blueprint.type}'과 다릅니다.`)
+    assertRequiredQuestionText(input.stem, 'stem', itemId, index)
+    assertRequiredQuestionText(input.explanation, 'explanation', itemId, index)
+    assertRequiredQuestionText(input.intention, 'intention', itemId, index)
+    const providedChoices = cleanStrings(input.choices)
+    if (providedChoices.length !== 5 || providedChoices.some((choice) => !choice)) throw new Error(`문항 카드 ${itemId}의 ${index + 1}번 문항은 내용이 채워진 선지 5개가 필요합니다.`)
+    if (isInlinePositionTemplate(templateId) && providedChoices.some((choice, choiceIndex) => choice !== CSAT_INLINE_POSITION_CHOICES[choiceIndex])) {
+      throw new Error(`문항 카드 ${itemId}의 ${index + 1}번 위치 선택형 choices는 ①~⑤ 표식이어야 합니다.`)
+    }
+    const choices = isInlinePositionTemplate(templateId) ? [...CSAT_INLINE_POSITION_CHOICES] : providedChoices
     return {
       id: fallback[index]?.id ?? crypto.randomUUID(), type: blueprint.type, stem: input.stem.trim(), choices,
-      answerIndex: parseAnswerIndex(input.answerIndex ?? input.answer, 5),
-      explanation: typeof input.explanation === 'string' ? input.explanation.trim() : '',
-      intention: typeof input.intention === 'string' ? input.intention.trim() : '',
+      answerIndex: strictCsatAnswerIndex(input.answerIndex, itemId, index),
+      explanation: input.explanation.trim(),
+      intention: input.intention.trim(),
       evidenceRefs: cleanStrings(input.evidenceRefs), distractorReasons: cleanStrings(input.distractorReasons),
-      score: typeof input.score === 'number' ? input.score : blueprint.score,
+      score: input.score as number,
       csatTemplateId: templateId ?? fallback[index]?.csatTemplateId, csatSlot: blueprint.slot, csatItemId: itemId,
     }
   })
 }
 
 function normalizeImportedTemplateId(value: unknown) {
-  if (typeof value === 'string') return value.trim()
-  if (typeof value === 'number' && Number.isInteger(value)) return String(value)
-  return ''
+  return typeof value === 'string' ? value.trim() : ''
+}
+
+function assertMaterialSpecSemantics(value: unknown, itemId: string) {
+  if (value == null) return
+  const spec = value as Record<string, unknown>
+  if (spec.kind === 'chart') {
+    const categoryCount = (spec.categories as unknown[]).length
+    const invalidSeries = (spec.series as Array<Record<string, unknown>>).find((series) => (series.values as unknown[]).length !== categoryCount)
+    if (invalidSeries) throw new Error(`문항 카드 ${itemId}의 chart categories와 series.values 항목 수가 일치하지 않습니다.`)
+  }
+  if (spec.kind === 'ordered') {
+    const labels = (spec.sections as Array<Record<string, unknown>>).map((section) => section.label)
+    if (labels.join(',') !== 'A,B,C') throw new Error(`문항 카드 ${itemId}의 ordered material은 A/B/C section을 순서대로 정확히 한 번씩 포함해야 합니다.`)
+  }
+  if (spec.kind === 'summary' && !(spec.summary as string).trim()) throw new Error(`문항 카드 ${itemId}의 summary material에 summary 문자열이 필요합니다.`)
+  if (spec.kind === 'longNarrative') {
+    const labels = (spec.sections as Array<Record<string, unknown>>).map((section) => section.label)
+    if (labels.join(',') !== 'A,B,C,D') throw new Error(`문항 카드 ${itemId}의 longNarrative material은 A/B/C/D section을 순서대로 정확히 한 번씩 포함해야 합니다.`)
+  }
 }
 
 function parseCsatBatchJson(input: Record<string, unknown>, base: EnglishQuestionSet): EnglishQuestionSet {
   const normalized = normalizeCsatSet(base)
   const currentItems = getCsatItems(normalized)
   if (currentItems.some((item) => !item.design)) throw new Error('모든 문항 설계 카드에서 번호 템플릿을 먼저 선택해 주세요.')
-  const legacy = !Array.isArray(input.items) && typeof input.material === 'string' && Array.isArray(input.questions)
-  if (legacy && currentItems.length !== 1) throw new Error('기존 단일 JSON은 문항 설계 카드가 하나일 때만 가져올 수 있습니다.')
-  const rawItems: unknown[] = legacy ? [{
-    itemId: currentItems[0].id, templateId: currentItems[0].design?.templateId, variantId: currentItems[0].design?.variantId,
-    materialTitle: input.materialTitle, material: input.material, materialSpec: input.materialSpec, questions: input.questions, qualityReview: input.qualityReview,
-  }] : Array.isArray(input.items) ? input.items : []
+  const rawItems: unknown[] = Array.isArray(input.items) ? input.items : []
   if (!rawItems.length) throw new Error('수능형 JSON에는 items 배열이 필요합니다.')
   if (rawItems.length !== currentItems.length) throw new Error(`요청한 문항 카드가 누락되었습니다. ${currentItems.length}개를 모두 반환해야 합니다.`)
+  const totalQuestionCount = currentItems.reduce((total, item) => total + expectedCsatItemQuestions(item).length, 0)
+  if (totalQuestionCount > MAX_CSAT_SET_QUESTIONS) throw new Error(`수능형 Generation JSON의 실제 하위 문항 합계는 최대 ${MAX_CSAT_SET_QUESTIONS}개입니다.`)
   const records = rawItems.map((value, index) => {
     if (!value || typeof value !== 'object') throw new Error(`items[${index}] 형식이 올바르지 않습니다.`)
     return value as Record<string, unknown>
@@ -445,9 +523,13 @@ function parseCsatBatchJson(input: Record<string, unknown>, base: EnglishQuestio
   const nextItems = currentItems.map((item) => {
     const record = records.find((candidate) => candidate.itemId === item.id)!
     const design = item.design!
+    const template = getCsatTemplate(design.templateId)
+    const allowedVariant = design.variantId === 'standard' || Boolean(template.variants?.some((variant) => variant.id === design.variantId))
+    if (!allowedVariant) throw new Error(`문항 카드 ${item.id}의 templateId와 variantId 조합이 허용되지 않습니다.`)
     if (normalizeImportedTemplateId(record.templateId) !== design.templateId) throw new Error(`문항 카드 ${item.id}의 templateId가 요청과 다릅니다.`)
     if (record.variantId !== design.variantId) throw new Error(`문항 카드 ${item.id}의 variantId가 요청과 다릅니다.`)
     if (typeof record.material !== 'string' || !Array.isArray(record.questions)) throw new Error(`문항 카드 ${item.id}에는 material과 questions가 필요합니다.`)
+    assertMaterialSpecSemantics(record.materialSpec, item.id)
     const expected = expectedCsatItemQuestions(item)
     return {
       ...item,
@@ -656,7 +738,8 @@ export function validateEnglishSet(set: EnglishQuestionSet): ValidationIssue[] {
   if (set.mode === 'csat') {
     const normalized = normalizeCsatSet(set)
     const items = getCsatItems(normalized)
-    if (items.length > 20) add({ level: 'error', label: '문항 카드 수', detail: '수능형 세트는 문항 설계 카드를 최대 20개까지 사용할 수 있습니다.' })
+    const plannedQuestions = plannedCsatSetQuestionCount(items)
+    if (plannedQuestions > MAX_CSAT_SET_QUESTIONS) add({ level: 'error', label: '세트 문항 수', detail: `수능형 세트는 실제 생성 문항을 최대 ${MAX_CSAT_SET_QUESTIONS}개까지 만들 수 있습니다. 현재 ${plannedQuestions}문항입니다.` })
     items.forEach((item, itemIndex) => {
       const card = `카드 ${itemIndex + 1}`
       if (!item.design) { add({ level: 'error', label: `${card} · 템플릿 미선택`, detail: '대분류와 번호 템플릿을 선택해 주세요.' }); return }
@@ -747,18 +830,18 @@ export function generateReviewPrompt(set: EnglishQuestionSet, issues: Validation
   return `[역할]\n당신은 고등학교 영어 객관식 세트의 재검토자이다. 아래 자동 검사 결과를 반영하여 원본 JSON을 수정하라.\n\n[검사 대상]\nAI 결과 리비전 ${set.aiRevision}${csatRules}\n\n[자동 검사]\n${actionable.length ? actionable.map((issue) => `- ${issue.label}: ${issue.detail}`).join('\n') : '- 형식 검사는 통과했으나 정답 유일성과 문항 자연스러움을 다시 검토할 것'}\n\n[수정 원칙]\n- 이 입력은 이미 생성된 결과의 재검토이므로 별도의 설계 승인 없이 수정된 JSON을 반환한다.\n- 먼저 기존 문항을 분석하고 최소 수정안과 적극 수정안을 내부적으로 비교한 뒤, 더 타당한 최종 JSON 하나만 반환한다. 두 수정안을 출력하지 않는다.\n- 타당한 지문과 문항은 보존한다.\n- 객관식 ${set.choiceCount}지선다와 단일 정답을 유지한다.\n- evidenceRefs는 지문에 실제로 존재하는 연속된 직접 인용으로 기록한다.\n- 오답은 각기 다른 명백한 오류 근거를 갖게 한다.\n- 일반 영어 지문은 마지막 문장까지 빈 줄 없이 하나의 연속 문단으로 수정하고, 구조형 문항은 필수 구획만 유지한다.\n- 지문 길이·정답 추론성·오답 매력도·선지 균형을 다시 채점하고 qualityReview를 갱신한다.\n- 어느 품질 점수든 8점 미만이면 한 차례 수정하고, 정답 추론성·오답 매력도·템플릿 유사도는 9점 이상을 목표로 한다.\n- 설명이나 마크다운 없이 수정된 JSON 하나만 출력한다.\n\n[원본 JSON]\n${source}`
 }
 
-export interface EnglishGptConfig { school: string; csat: string; custom: string }
+export interface EnglishGptConfig { school: string; csat: string; custom: string; csatVerifier: string }
 
 export { generateCsatGptInstructions }
 
 export async function loadEnglishGptConfig(): Promise<EnglishGptConfig> {
-  const empty = { school: '', csat: '', custom: '' }
+  const empty: EnglishGptConfig = { school: '', csat: '', custom: '', csatVerifier: '' }
   try {
     const response = await fetch(`${import.meta.env.BASE_URL}english-gpt-config.json`, { cache: 'no-store' })
     if (!response.ok) return empty
     const value: unknown = await response.json()
     if (!value || typeof value !== 'object') return empty
-    return Object.fromEntries((Object.keys(empty) as EnglishMode[]).map((key) => {
+    return Object.fromEntries((Object.keys(empty) as Array<keyof EnglishGptConfig>).map((key) => {
       const url = typeof (value as Record<string, unknown>)[key] === 'string' ? String((value as Record<string, unknown>)[key]).trim() : ''
       return [key, /^https:\/\/chatgpt\.com\/g\//.test(url) ? url : '']
     })) as unknown as EnglishGptConfig

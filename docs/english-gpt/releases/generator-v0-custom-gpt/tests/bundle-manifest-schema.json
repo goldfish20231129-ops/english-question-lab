@@ -1,0 +1,142 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Generator v0 Custom GPT Bundle Manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "bundleId",
+    "bundleVersion",
+    "bundleStatus",
+    "targetEnvironment",
+    "createdFrom",
+    "approvedPrecedence",
+    "components",
+    "validationCommands",
+    "unsupportedFeatures",
+    "knownLimitations",
+    "deterministicBuild",
+    "manifestFingerprint"
+  ],
+  "properties": {
+    "bundleId": {
+      "const": "english-question-lab-generator-v0"
+    },
+    "bundleVersion": {
+      "const": "0.1.0-rc.1"
+    },
+    "bundleStatus": {
+      "const": "release_candidate"
+    },
+    "targetEnvironment": {
+      "const": "custom_gpt_manual_copy_paste"
+    },
+    "createdFrom": {
+      "type": "object"
+    },
+    "approvedPrecedence": {
+      "type": "array",
+      "minItems": 7,
+      "maxItems": 7,
+      "items": {
+        "type": "string"
+      }
+    },
+    "components": {
+      "type": "array",
+      "minItems": 9,
+      "items": {
+        "type": "object",
+        "required": [
+          "role",
+          "bundledPath",
+          "bundledSha256",
+          "bundledByteSize",
+          "identity",
+          "requiredAtRuntime",
+          "precedence",
+          "provenance"
+        ],
+        "properties": {
+          "role": {
+            "type": "string"
+          },
+          "canonicalProject": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "canonicalSource": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "bundledPath": {
+            "type": "string"
+          },
+          "canonicalSha256": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "bundledSha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "canonicalByteSize": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "bundledByteSize": {
+            "type": "integer"
+          },
+          "identity": {
+            "type": "string"
+          },
+          "requiredAtRuntime": {
+            "type": "boolean"
+          },
+          "precedence": {
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "provenance": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "validationCommands": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "unsupportedFeatures": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "knownLimitations": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "deterministicBuild": {
+      "type": "object"
+    },
+    "manifestFingerprint": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    }
+  }
+}

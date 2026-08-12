@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://local.corpus-engine.invalid/schemas/generation-runtime-profile-v0.4-schema.json",
+  "title": "Compact Generator Runtime Profile 0.4",
+  "type": "object", "additionalProperties": false,
+  "required": ["metadata", "detailedProfile", "evidenceLayers", "coreSurfaceRanges", "sufficientSampleTypeStatistics", "vocabularyReferenceBoundary", "syntaxDiscourseGuidance", "difficultyPolicy", "unsupported", "forbiddenUses", "priorityOrder", "runtimeFingerprint"],
+  "properties": {
+    "metadata": {"type": "object", "required": ["profileId", "profileVersion", "profileKind", "candidateSemanticStatus"]},
+    "detailedProfile": {"type": "object", "required": ["path", "profileFingerprint"]},
+    "evidenceLayers": {"type": "object", "minProperties": 4},
+    "coreSurfaceRanges": {"type": "object"},
+    "sufficientSampleTypeStatistics": {"type": "object"},
+    "vocabularyReferenceBoundary": {"type": "object"},
+    "syntaxDiscourseGuidance": {"type": "object"},
+    "difficultyPolicy": {"type": "object"},
+    "unsupported": {"type": "array", "minItems": 12, "items": {"type": "string"}},
+    "forbiddenUses": {"type": "array", "minItems": 10, "items": {"type": "string"}},
+    "priorityOrder": {"type": "array", "minItems": 6, "maxItems": 6},
+    "runtimeFingerprint": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}

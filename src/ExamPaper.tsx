@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import { collapseCsatProseParagraphs, csatLongExpositoryText, csatLongNarrativeSections, csatPrintFlow, decorateCsatMaterialText, embedCsatChartChoices, getCsatItems, getCsatTemplate, isInlinePositionTemplate, resolvedCsatItem, splitCsatSummaryMaterial, usesContinuousCsatProse } from './csat'
 import { CsatMaterialView } from './CsatMaterialView'
-import { buildExamFlowBlocks, getOversizedQuestionIssues, paginateExamBlocks, resolveExamEntries, type ExamFlowBlock, type ExamLayoutMetrics } from './examLayout'
+import { buildExamFlowBlocks, examFlowMeasurementKey, geometryKey, getOversizedQuestionIssues, paginateExamBlocks, resolveExamEntries, type ExamFlowBlock, type ExamLayoutMetrics } from './examLayout'
 import type { CsatItemDesign, EnglishExamDocument, EnglishQuestion, EnglishQuestionSet, ExamLayoutSettings, MediaAsset } from './types'
 
 const MARKUP = /\[\[(밑줄|빈칸|요약빈칸|삽입문장|삽입위치|선택)(?::([^\]]+))?\]\]/g
@@ -123,41 +123,48 @@ function FlowBlock({ block }: { block: ExamFlowBlock }) {
   return <QuestionBlock block={block} />
 }
 
-function sameMetrics(left: ExamLayoutMetrics | undefined, right: ExamLayoutMetrics) {
-  if (!left) return false
-  const leftBlocks = Object.keys(left.blockHeights); const rightBlocks = Object.keys(right.blockHeights)
-  const leftColumns = Object.keys(left.columnHeights); const rightColumns = Object.keys(right.columnHeights)
-  return leftBlocks.length === rightBlocks.length && leftColumns.length === rightColumns.length
-    && rightBlocks.every((key) => Math.abs((left.blockHeights[key] ?? 0) - right.blockHeights[key]) < 1)
-    && rightColumns.every((key) => Math.abs((left.columnHeights[key] ?? 0) - right.columnHeights[key]) < 1)
-}
-
 export function ExamQuestionPages({ exam, sets, assets, onLayoutIssuesChange }: { exam: EnglishExamDocument; sets: EnglishQuestionSet[]; assets: MediaAsset[]; onLayoutIssuesChange?: (issues: string[]) => void }) {
   const rootRef = useRef<HTMLDivElement>(null)
-  const [metrics, setMetrics] = useState<ExamLayoutMetrics>()
+  const [measurement, setMeasurement] = useState<{ flowKey: string; metrics: ExamLayoutMetrics }>()
   const blocks = useMemo(() => buildExamFlowBlocks(exam, sets, assets), [exam, sets, assets])
+  const flowKey = useMemo(() => examFlowMeasurementKey(blocks), [blocks])
+  const metrics = measurement?.flowKey === flowKey ? measurement.metrics : undefined
   const pages = useMemo(() => paginateExamBlocks(blocks, metrics), [blocks, metrics])
   const issues = useMemo(() => getOversizedQuestionIssues(blocks, metrics), [blocks, metrics])
   const issueKey = issues.join('\n')
   useEffect(() => onLayoutIssuesChange?.(issues), [issueKey, onLayoutIssuesChange])
 
   useLayoutEffect(() => {
+    // Every flow is measured once. A second synchronous measurement after
+    // pagination can oscillate between two column arrangements for mixed
+    // CSAT blocks (notably 33 + 40) and trip React's update-depth guard.
+    if (measurement?.flowKey === flowKey) return
     const root = rootRef.current
     if (!root) return
     const blockHeights: Record<string, number> = {}
     root.querySelectorAll<HTMLElement>('[data-flow-id]').forEach((element) => {
       const style = getComputedStyle(element)
-      blockHeights[element.dataset.flowId ?? ''] = element.getBoundingClientRect().height + parseFloat(style.marginTop || '0') + parseFloat(style.marginBottom || '0')
+      // offsetHeight excludes the 48% transform used only by the assembly preview.
+      // It therefore stays in the same unit as column.clientHeight.
+      const marginTop = parseFloat(style.marginTop || '0')
+      const marginBottom = parseFloat(style.marginBottom || '0')
+      const height = element.offsetHeight + (Number.isFinite(marginTop) ? marginTop : 0) + (Number.isFinite(marginBottom) ? marginBottom : 0)
+      blockHeights[element.dataset.flowId ?? ''] = Number.isFinite(height) ? height : 0
     })
     const columnHeights: Record<string, number> = {}
-    root.querySelectorAll<HTMLElement>('[data-column-key]').forEach((column) => { columnHeights[column.dataset.columnKey ?? ''] = column.clientHeight })
-    const next = { blockHeights, columnHeights }
-    setMetrics((current) => sameMetrics(current, next) ? current : next)
-  }, [pages])
+    const layoutHeights: Record<string, number> = {}
+    root.querySelectorAll<HTMLElement>('[data-column-key]').forEach((column) => {
+      columnHeights[column.dataset.columnKey ?? ''] = column.clientHeight
+      const layoutKey = column.dataset.layoutKey
+      if (layoutKey) layoutHeights[layoutKey] = Math.max(layoutHeights[layoutKey] ?? 0, column.clientHeight)
+    })
+    const next = { blockHeights, columnHeights, layoutHeights }
+    setMeasurement({ flowKey, metrics: next })
+  }, [pages, flowKey, measurement?.flowKey])
 
-  return <div className="exam-question-pages" ref={rootRef}>{pages.map((page, pageIndex) => <article className={`exam-page print-page preset-${page.layout.preset}`} style={paperStyle(page.layout)} key={pageIndex}>
+  return <div className="exam-question-pages" ref={rootRef} key={flowKey}>{pages.map((page, pageIndex) => <article className={`exam-page print-page preset-${page.layout.preset}`} style={paperStyle(page.layout)} key={pageIndex}>
     <Header exam={exam} pageNumber={pageIndex + 1} layout={page.layout} />
-    <div className={`paper-columns columns-${page.layout.columns}`}>{page.columns.map((column, columnIndex) => <div className="paper-column" data-column-key={`${pageIndex}-${columnIndex}`} key={columnIndex}>{column.map((block) => <FlowBlock block={block} key={block.id} />)}</div>)}</div>
+    <div className={`paper-columns columns-${page.layout.columns}`}>{page.columns.map((column, columnIndex) => <div className="paper-column" data-column-key={`${pageIndex}-${columnIndex}`} data-layout-key={geometryKey(page.layout)} key={columnIndex}>{column.map((block) => <FlowBlock block={block} key={block.id} />)}</div>)}</div>
     <Footer layout={page.layout} pageNumber={pageIndex + 1} total={pages.length} />
   </article>)}</div>
 }

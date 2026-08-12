@@ -1,0 +1,79 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "csat-verifier-output-schema.json",
+  "title": "CSAT English Verification Result",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaId", "targetId", "sourceFingerprint", "overallSummary", "questionReviews", "findings"],
+  "properties": {
+    "schemaId": { "const": "english-question-lab-csat-verification-v1" },
+    "targetId": { "type": "string", "minLength": 1 },
+    "sourceFingerprint": { "type": "string", "minLength": 1 },
+    "overallSummary": { "type": "string", "maxLength": 180 },
+    "questionReviews": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/questionReview" }
+    },
+    "findings": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/finding" }
+    }
+  },
+  "$defs": {
+    "choiceAssessment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["choiceIndex", "verdict", "reason"],
+      "properties": {
+        "choiceIndex": { "type": "integer", "minimum": 1 },
+        "verdict": { "enum": ["correct", "incorrect", "ambiguous"] },
+        "reason": { "type": "string", "maxLength": 45 }
+      }
+    },
+    "referent": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["marker", "entityId", "evidence"],
+      "properties": {
+        "marker": { "type": "string" },
+        "entityId": { "type": "string" },
+        "evidence": { "type": "string", "maxLength": 60 }
+      }
+    },
+    "questionReview": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["setId", "csatItemId", "questionId", "slot", "predictedAnswerIndex", "confidence", "choiceAssessments", "evidence", "explanationConsistent", "explanationNote"],
+      "properties": {
+        "setId": { "type": "string" },
+        "csatItemId": { "type": "string" },
+        "questionId": { "type": "string" },
+        "slot": { "type": "string" },
+        "predictedAnswerIndex": { "type": "integer", "minimum": 1 },
+        "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+        "choiceAssessments": { "type": "array", "items": { "$ref": "#/$defs/choiceAssessment" } },
+        "evidence": { "type": "array", "maxItems": 2, "items": { "type": "string", "maxLength": 120 } },
+        "explanationConsistent": { "type": "boolean" },
+        "explanationNote": { "type": "string", "maxLength": 120 },
+        "strongestDistractorIndex": { "type": "integer", "minimum": 1 },
+        "referents": { "type": "array", "items": { "$ref": "#/$defs/referent" } }
+      }
+    },
+    "finding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["setId", "csatItemId", "questionId", "slot", "severity", "category", "summary", "evidence", "suggestedRepair"],
+      "properties": {
+        "setId": { "type": "string" },
+        "csatItemId": { "type": "string" },
+        "questionId": { "type": "string" },
+        "slot": { "type": "string" },
+        "severity": { "enum": ["error", "warning"] },
+        "category": { "type": "string" },
+        "summary": { "type": "string", "maxLength": 120 },
+        "evidence": { "type": "string", "maxLength": 120 },
+        "suggestedRepair": { "type": "string", "maxLength": 120 }
+      }
+    }
+  }
+}

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import schema from '../docs/english-gpt/csat-output-schema.json'
+import verifierSchema from '../docs/english-gpt/csat-verifier-output-schema.json'
 import { applyCsatItemTemplate, createCsatItem, generateCsatGptInstructions } from './csat'
 import { createEnglishSet, generateEnglishPrompt, generateReviewPrompt } from './english'
 
@@ -20,6 +21,8 @@ describe('수능형 전용 GPT 자료 패키지', () => {
       expect(text).toContain('이 설계로 JSON을 생성할까요? 수정할 카드가 있으면 카드 번호와 변경 사항을 알려주세요.')
       expect(text).toContain('명시적으로 승인한 뒤에만')
     }
+    expect(prompt).toContain('실제 생성 문항 수: 1개 / 최대 4개')
+    expect(instructions).toContain('실제 생성 문항은 최대 4개')
     expect(generateReviewPrompt(set, [])).toContain('별도의 설계 승인 없이')
   })
 
@@ -30,6 +33,14 @@ describe('수능형 전용 GPT 자료 패키지', () => {
     for (const name of ['proseSpec', 'chartSpec', 'practicalSpec', 'orderedSpec', 'insertionSpec', 'summarySpec', 'longExpositorySpec', 'longNarrativeSpec']) {
       expect(schema.$defs).toHaveProperty(name)
     }
+  })
+
+  it('별도 검증 GPT 스키마는 독립 풀이와 수정 권고만 받는다', () => {
+    expect(verifierSchema.properties.schemaId.const).toBe('english-question-lab-csat-verification-v1')
+    expect(verifierSchema.properties).toHaveProperty('questionReviews')
+    expect(verifierSchema.properties).toHaveProperty('findings')
+    expect(verifierSchema.$defs.questionReview.properties).toHaveProperty('choiceAssessments')
+    expect(verifierSchema.$defs.finding.properties).toHaveProperty('suggestedRepair')
   })
 
 })

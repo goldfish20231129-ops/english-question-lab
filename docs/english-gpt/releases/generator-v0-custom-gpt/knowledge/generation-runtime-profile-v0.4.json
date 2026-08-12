@@ -1,0 +1,414 @@
+{
+  "coreSurfaceRanges": {
+    "embeddingProxy": {
+      "count": 276,
+      "maximum": 3.0,
+      "mean": 0.717763,
+      "median": 0.666667,
+      "minimum": 0.0,
+      "standardDeviation": 0.506962
+    },
+    "explicitCueAbsent": {
+      "applicableCount": 276,
+      "count": 35,
+      "meaning": "no configured explicit cue detected; implicit relation may still exist",
+      "ratio": 0.126812
+    },
+    "explicitCueDensityPer100Tokens": {
+      "count": 276,
+      "maximum": 9.375,
+      "mean": 2.143055,
+      "median": 2.083333,
+      "minimum": 0.0,
+      "standardDeviation": 1.492623
+    },
+    "maximumSentenceLength": {
+      "count": 276,
+      "maximum": 85.0,
+      "mean": 33.112319,
+      "median": 32.0,
+      "minimum": 12.0,
+      "standardDeviation": 9.905627
+    },
+    "modifierSpanProxy": {
+      "count": 276,
+      "maximum": 29.0,
+      "mean": 7.645383,
+      "median": 7.5,
+      "minimum": 0.0,
+      "standardDeviation": 4.144235
+    },
+    "referentialDistanceProxy": {
+      "count": 276,
+      "maximum": 29.4,
+      "mean": 9.868939,
+      "median": 9.267857,
+      "minimum": 0.0,
+      "standardDeviation": 5.578278
+    },
+    "sentenceCount": {
+      "count": 276,
+      "maximum": 32.0,
+      "mean": 7.884058,
+      "median": 7.0,
+      "minimum": 1.0,
+      "standardDeviation": 4.65875
+    },
+    "syntaxApplicablePopulation": 276
+  },
+  "detailedProfile": {
+    "path": "profiles/generation-profile-12exam-gold35-ebs-reference-syntax-discourse-v0.4.json",
+    "profileFingerprint": "5758a177ca3ca064b244897999e7dc2d6211ea2edf53c10a987ce3dfe71d9fa4"
+  },
+  "difficultyPolicy": {
+    "absoluteDifficultyScoreSupported": false,
+    "candidateDifficulty": {
+      "generatorApplication": "disabled",
+      "provenance": "preserved",
+      "reason": "no observed response or accuracy calibration"
+    },
+    "corpusDifficultyModelUsed": false,
+    "gradeCutPredictionSupported": false,
+    "implementationOwner": "generator_core_instructions",
+    "observedAccuracySupported": false,
+    "postGenerationEvaluationOwner": "independent_verification",
+    "relativeDifficultyPercentileSupported": false,
+    "targetDifficultyOwner": "request_specific_prompt"
+  },
+  "evidenceLayers": {
+    "candidateSemanticMetrics": {
+      "evidenceLevel": "ai_candidate_semantic",
+      "population": "35 questions / 29 passages / 0 human verified",
+      "strength": "soft_advisory"
+    },
+    "derivedSyntaxDiscourseSurfaceMetrics": {
+      "evidenceLevel": "derived_surface_with_rule_based_candidates",
+      "population": "300 passages / 276 applicable / 24 not_applicable",
+      "strength": "format_aware_soft_reference"
+    },
+    "observedSurfaceMetrics": {
+      "evidenceLevel": "observed_surface",
+      "population": "12 exams / 336 questions / 300 passages",
+      "strength": "reference_range"
+    },
+    "observedVocabularyReferenceMetrics": {
+      "evidenceLevel": "observed_reference",
+      "population": "1,939 occurrences / 1,512 unique normalized headwords",
+      "strength": "reference_only"
+    }
+  },
+  "forbiddenUses": [
+    "replicate_source_exam_passages_choices_or_unique_examples",
+    "replicate_exact_answer_number_distribution",
+    "force_observed_means_on_every_passage",
+    "use_syntax_candidate_counts_as_generation_quotas",
+    "use_connective_counts_as_direct_kice_style_criterion",
+    "label_candidate_semantics_as_human_verified",
+    "use_ebs_listing_coverage_as_target_vocabulary_ratio",
+    "interpret_grade_differences_as_absolute_difficulty",
+    "present_surface_proxy_as_actual_difficulty",
+    "infer_meaning_or_item_writer_intent_absent_from_sources",
+    "reproduce_complete_ebs_headwords_or_korean_meanings",
+    "auto_fail_only_for_departing_from_observed_range"
+  ],
+  "metadata": {
+    "candidateSemanticStatus": "candidate_not_human_verified",
+    "profileId": "csat-generator-runtime-evidence-v0.4",
+    "profileKind": "compact_runtime_advisory",
+    "profileVersion": "0.4.0-candidate"
+  },
+  "priorityOrder": [
+    {
+      "authority": "current_user_confirmed_requirements",
+      "priority": 1
+    },
+    {
+      "authority": "request_specific_prompt",
+      "priority": 2
+    },
+    {
+      "authority": "generator_core_instructions",
+      "priority": 3
+    },
+    {
+      "authority": "generation_contract_and_json_schema",
+      "priority": 4
+    },
+    {
+      "authority": "generation_profile_v0.4",
+      "priority": 5
+    },
+    {
+      "authority": "profile_candidate_or_proxy_guidance",
+      "priority": 6
+    }
+  ],
+  "runtimeFingerprint": "64a5b6d8dc9d5d61cef3e8c62d24fa4fbe819d2f5698a24ec56cc7ef2f8f688c",
+  "sufficientSampleTypeStatistics": {
+    "minimumSampleCount": 24,
+    "omissionDoesNotMeanUnsupported": true,
+    "smallSamplesOmittedFromRuntime": true,
+    "statistics": {
+      "blank": {
+        "applicableCount": 48,
+        "connectiveDensityPer100Tokens": {
+          "count": 48,
+          "maximum": 6.622517,
+          "mean": 2.356225,
+          "median": 2.378599,
+          "minimum": 0.0,
+          "standardDeviation": 1.366166
+        },
+        "maximumSentenceLength": {
+          "count": 48,
+          "maximum": 52.0,
+          "mean": 36.5625,
+          "median": 36.0,
+          "minimum": 23.0,
+          "standardDeviation": 7.135318
+        },
+        "sampleCount": 48,
+        "sentenceCount": {
+          "count": 48,
+          "maximum": 10.0,
+          "mean": 7.416667,
+          "median": 7.0,
+          "minimum": 5.0,
+          "standardDeviation": 1.335935
+        },
+        "use": "soft_reference_only"
+      },
+      "content_match": {
+        "applicableCount": 24,
+        "connectiveDensityPer100Tokens": {
+          "count": 24,
+          "maximum": 2.925532,
+          "mean": 1.33703,
+          "median": 1.33565,
+          "minimum": 0.0,
+          "standardDeviation": 0.806145
+        },
+        "maximumSentenceLength": {
+          "count": 24,
+          "maximum": 46.0,
+          "mean": 26.916667,
+          "median": 26.0,
+          "minimum": 18.0,
+          "standardDeviation": 6.909635
+        },
+        "sampleCount": 24,
+        "sentenceCount": {
+          "count": 24,
+          "maximum": 32.0,
+          "mean": 16.708333,
+          "median": 15.5,
+          "minimum": 7.0,
+          "standardDeviation": 7.997287
+        },
+        "use": "soft_reference_only"
+      },
+      "ordering": {
+        "applicableCount": 36,
+        "connectiveDensityPer100Tokens": {
+          "count": 36,
+          "maximum": 9.375,
+          "mean": 1.584153,
+          "median": 1.097066,
+          "minimum": 0.0,
+          "standardDeviation": 2.055471
+        },
+        "maximumSentenceLength": {
+          "count": 36,
+          "maximum": 44.0,
+          "mean": 25.805556,
+          "median": 26.0,
+          "minimum": 12.0,
+          "standardDeviation": 6.649225
+        },
+        "sampleCount": 36,
+        "sentenceCount": {
+          "count": 36,
+          "maximum": 32.0,
+          "mean": 9.083333,
+          "median": 2.0,
+          "minimum": 1.0,
+          "standardDeviation": 10.873962
+        },
+        "use": "soft_reference_only"
+      },
+      "practical_information": {
+        "applicableCount": 0,
+        "connectiveDensityPer100Tokens": {
+          "count": 0,
+          "maximum": null,
+          "mean": null,
+          "median": null,
+          "minimum": null,
+          "standardDeviation": null
+        },
+        "maximumSentenceLength": {
+          "count": 0,
+          "maximum": null,
+          "mean": null,
+          "median": null,
+          "minimum": null,
+          "standardDeviation": null
+        },
+        "sampleCount": 24,
+        "sentenceCount": {
+          "count": 0,
+          "maximum": null,
+          "mean": null,
+          "median": null,
+          "minimum": null,
+          "standardDeviation": null
+        },
+        "use": "soft_reference_only"
+      },
+      "sentence_insertion": {
+        "applicableCount": 24,
+        "connectiveDensityPer100Tokens": {
+          "count": 24,
+          "maximum": 5.333333,
+          "mean": 2.38877,
+          "median": 2.216083,
+          "minimum": 0.675676,
+          "standardDeviation": 1.24603
+        },
+        "maximumSentenceLength": {
+          "count": 24,
+          "maximum": 66.0,
+          "mean": 36.666667,
+          "median": 36.0,
+          "minimum": 28.0,
+          "standardDeviation": 7.575545
+        },
+        "sampleCount": 24,
+        "sentenceCount": {
+          "count": 24,
+          "maximum": 8.0,
+          "mean": 6.583333,
+          "median": 7.0,
+          "minimum": 4.0,
+          "standardDeviation": 0.812233
+        },
+        "use": "soft_reference_only"
+      },
+      "title": {
+        "applicableCount": 24,
+        "connectiveDensityPer100Tokens": {
+          "count": 24,
+          "maximum": 4.642857,
+          "mean": 2.554574,
+          "median": 2.494717,
+          "minimum": 0.387597,
+          "standardDeviation": 1.28666
+        },
+        "maximumSentenceLength": {
+          "count": 24,
+          "maximum": 61.0,
+          "mean": 39.875,
+          "median": 37.5,
+          "minimum": 26.0,
+          "standardDeviation": 10.005467
+        },
+        "sampleCount": 24,
+        "sentenceCount": {
+          "count": 24,
+          "maximum": 20.0,
+          "mean": 10.208333,
+          "median": 10.5,
+          "minimum": 5.0,
+          "standardDeviation": 3.328903
+        },
+        "use": "soft_reference_only"
+      },
+      "vocabulary": {
+        "applicableCount": 24,
+        "connectiveDensityPer100Tokens": {
+          "count": 24,
+          "maximum": 4.642857,
+          "mean": 2.601219,
+          "median": 2.718918,
+          "minimum": 0.0,
+          "standardDeviation": 1.224938
+        },
+        "maximumSentenceLength": {
+          "count": 24,
+          "maximum": 56.0,
+          "mean": 37.583333,
+          "median": 37.5,
+          "minimum": 25.0,
+          "standardDeviation": 8.79828
+        },
+        "sampleCount": 24,
+        "sentenceCount": {
+          "count": 24,
+          "maximum": 20.0,
+          "mean": 10.666667,
+          "median": 11.0,
+          "minimum": 6.0,
+          "standardDeviation": 3.210227
+        },
+        "use": "soft_reference_only"
+      }
+    }
+  },
+  "syntaxDiscourseGuidance": {
+    "automaticFailureOnRangeDeviation": false,
+    "discourseDevelopment": [
+      "Prioritize the actual relation between sentences over connective count.",
+      "Allow clear implicit progression without an explicit connective.",
+      "Use contrast, cause, example, condition, and other cues only when semantically warranted.",
+      "Do not repeat connectives or require one in every paragraph.",
+      "Connect the passage's central relation to the evidence needed for the answer."
+    ],
+    "formatApplication": [
+      "Use prose aggregates for ordinary exposition and the matching format aggregate for letters, notices, charts, or narratives.",
+      "Do not force not_applicable prose metrics onto structural practical-information material.",
+      "Design a shared passage once and keep each linked question's evidence separate.",
+      "Treat format differences as references, not templates to reproduce verbatim."
+    ],
+    "postGenerationSoftChecks": [
+      "Is sentence length unusually outside the observed range without a request or structural reason?",
+      "Does every complex construction contribute to the logic?",
+      "Are connectives semantically justified rather than excessive?",
+      "Does the selected statistic match the passage format?",
+      "Was a shared passage generated only once?",
+      "Was naturalness harmed merely to match a statistic?"
+    ],
+    "sentenceConstruction": [
+      "Vary sentence shape naturally within observed ranges; never copy the mean as a target.",
+      "Do not alternate long and short sentences mechanically.",
+      "A long sentence must contribute a real conceptual, logical, or modifying relation.",
+      "Do not disguise difficulty with rare words or unnecessary sentence length.",
+      "Do not use participles, relatives, insertions, apposition, or parallelism as quotas."
+    ]
+  },
+  "unsupported": [
+    "human_verified_semantic_distributions",
+    "absolute_difficulty_calibration",
+    "relative_difficulty_percentile",
+    "observed_question_accuracy",
+    "grade_cut_prediction",
+    "student_response_modeling",
+    "authoritative_kice_intention",
+    "implicit_discourse_relation_distribution",
+    "true_syntax_tree_depth",
+    "dependency_parsing",
+    "antecedent_resolution",
+    "long_term_historical_trend",
+    "ebs_vocabulary_importance_or_necessity",
+    "semantic_extrapolation_beyond_gold35_candidate"
+  ],
+  "vocabularyReferenceBoundary": {
+    "completeHeadwordsOrKoreanMeaningsIncluded": false,
+    "coverageIsTargetRatio": false,
+    "ebsListingEvidence": "observed_reference",
+    "ebsListingImpliesImportanceOrNecessity": false,
+    "examFrequencyEvidence": "observed_surface",
+    "semanticDifficulty": "unsupported",
+    "tokenCoverage": 0.066602,
+    "typeCoverage": 0.154938
+  }
+}

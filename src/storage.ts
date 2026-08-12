@@ -6,15 +6,21 @@ const PRINCIPLES_KEY = 'english-question-lab-principles-v1'
 
 export const DEFAULT_UI_SETTINGS: UiSettings = { screen: 'sets', activeMode: 'csat' }
 
+export function normalizeUiSettings(value: unknown): UiSettings {
+  if (!value || typeof value !== 'object') return DEFAULT_UI_SETTINGS
+  const input = value as Partial<UiSettings>
+  return {
+    // Print preview is a transient, data-heavy screen. Always reopen the app in
+    // the set editor so a stale or malformed exam cannot block startup.
+    screen: input.screen === 'verification' || input.screen === 'assembly' ? input.screen : 'sets',
+    activeMode: input.activeMode === 'school' || input.activeMode === 'custom' ? input.activeMode : 'csat',
+  }
+}
+
 export function loadUiSettings(): UiSettings {
   try {
     const value: unknown = JSON.parse(localStorage.getItem(UI_KEY) ?? 'null')
-    if (!value || typeof value !== 'object') return DEFAULT_UI_SETTINGS
-    const input = value as Partial<UiSettings>
-    return {
-      screen: input.screen === 'assembly' || input.screen === 'preview' ? input.screen : 'sets',
-      activeMode: input.activeMode === 'school' || input.activeMode === 'custom' ? input.activeMode : 'csat',
-    }
+    return normalizeUiSettings(value)
   } catch { return DEFAULT_UI_SETTINGS }
 }
 

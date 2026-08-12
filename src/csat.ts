@@ -252,8 +252,17 @@ export function collapseCsatProseParagraphs(text: string, templateId?: CsatNumbe
 }
 
 export function decorateCsatMaterialText(text: string, templateId?: CsatNumberTemplateId, variantId: CsatVariantId = 'standard') {
-  if (templateId !== '43-45' || variantId !== 'standard') return text
-  return text.replace(/\(([a-e])\)\s+(?!\[\[밑줄:)([A-Za-z][A-Za-z'-]*)/g, '($1) [[밑줄:$2]]')
+  if (variantId !== 'standard') return text
+  if (templateId === '41-42') {
+    let underlineIndex = 0
+    return text.replace(/\[\[밑줄:([^\]]+)\]\]/g, (marker, _target, offset: number, source: string) => {
+      const label = String.fromCharCode(97 + underlineIndex)
+      underlineIndex += 1
+      return new RegExp(`\\(${label}\\)\\s*$`).test(source.slice(Math.max(0, offset - 8), offset)) ? marker : `(${label}) ${marker}`
+    })
+  }
+  if (templateId === '43-45') return text.replace(/\(([a-e])\)\s+(?!\[\[밑줄:)([A-Za-z][A-Za-z'-]*)/g, '($1) [[밑줄:$2]]')
+  return text
 }
 
 const field = (key: string, label: string, placeholder: string, multiline = false) => ({ key, label, placeholder, multiline })
@@ -564,6 +573,17 @@ export function expectedCsatItemQuestions(item: CsatItemDesign) {
   return blueprintsFor(getCsatTemplate(item.design.templateId), item.design.variantId)
 }
 
+export const MAX_CSAT_SET_QUESTIONS = 4
+
+export function plannedCsatItemQuestionCount(item: CsatItemDesign) {
+  const expected = expectedCsatItemQuestions(item)
+  return expected.length || Math.max(1, item.questions.length)
+}
+
+export function plannedCsatSetQuestionCount(items: CsatItemDesign[]) {
+  return items.reduce((total, item) => total + plannedCsatItemQuestionCount(item), 0)
+}
+
 export const resolvedCsatItem = (set: EnglishQuestionSet, item: CsatItemDesign) => ({
   targetLevel: item.targetLevel?.trim() || set.targetLevel,
   difficulty: item.difficulty ?? set.difficulty,
@@ -693,6 +713,7 @@ export function buildCsatPromptSection(set: EnglishQuestionSet) {
   const items = getCsatItems(set)
   return `[수능형 다중 문항 일괄 제작]
 - 문항 설계 카드 수: ${items.length}개
+- 실제 생성 문항 수: ${plannedCsatSetQuestionCount(items)}개 / 최대 ${MAX_CSAT_SET_QUESTIONS}개
 - 모든 카드를 독립 지문으로 만들고 itemId, templateId, variantId를 입력과 동일하게 반환한다.
 - 41~42와 43~45는 하나의 공유 지문을 가진 고정 묶음으로 유지한다.
 - 전체 실제 문항의 정답 위치를 고르게 분산한다.
@@ -726,9 +747,11 @@ ${CSAT_GPT_APPROVAL_PROTOCOL}
 - 정답 위치 통계나 풀이 꼼수를 사용하지 않고 정답 번호를 고르게 분산한다.
 - 모든 오답은 서로 다른 명백한 오류 근거를 갖는다.
 - evidenceRefs에는 지문에 실제로 존재하는 연속된 직접 인용만 넣는다.
+- 한 세트의 실제 생성 문항은 최대 4개다. 일반 카드는 1개, 41~42번 묶음은 2개, 43~45번 묶음은 3개로 계산한다.
 - 여러 카드 요청은 하나의 items 배열로 반환하며 각 itemId, templateId, variantId를 입력과 정확히 일치시킨다.
 - 35·38·39번형은 지문 안 ①~⑤를 고르는 유형이므로 별도의 내용 선지를 만들지 않는다. 호환용 choices는 ["①","②","③","④","⑤"]로 반환한다.
 - 25번 도표형은 material에 영어 도입부 1~2문장만 쓰고, 도표와 비교할 완전한 영어 진술 5개를 번호 없이 choices에 반환한다. 앱이 도입부 뒤에 ①~⑤를 붙여 하나의 영어 지문으로 조판하므로 material에 번호 진술을 중복 작성하거나 한국어 선지를 만들지 않는다.
+- 41~42번 기본형의 어휘 표적은 지문 안에서 "(a) [[밑줄:단어]]"부터 "(e) [[밑줄:단어]]"까지 순서대로 정확히 5곳 표시한다.
 - 43~45번 기본형의 (a)~(e)는 각 표적 대명사·지칭어를 "(a) [[밑줄:She]]" 형식으로 정확히 5곳 표시한다.
 - 일반 영어 지문은 마지막 문장까지 빈 줄 없이 하나의 연속 문단으로 작성한다. 순서·삽입·요약·복합 장문은 문항 풀이에 필요한 필수 구획만 분리하고 각 구획 내부의 문단은 나누지 않는다.
 - 명시적 승인 전에는 설계안만, 승인 후에는 설명이나 마크다운이 없는 유효한 JSON 객체 하나만 출력한다.

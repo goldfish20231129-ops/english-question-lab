@@ -38,6 +38,7 @@ function qualityReview(slot = '33'): CsatQualityReview {
 
 function importPayload(item: CsatItemDesign, review?: CsatQualityReview) {
   return {
+    title: 'Quality review fixture',
     items: [{
       itemId: item.id, templateId: '33', variantId: 'standard', materialTitle: '',
       material: `${Array.from({ length: 145 }, (_, index) => `word${index}`).join(' ')} [[빈칸]]`, materialSpec: null,
@@ -45,7 +46,7 @@ function importPayload(item: CsatItemDesign, review?: CsatQualityReview) {
         type: '빈칸 추론', stem: '다음 빈칸에 들어갈 말로 가장 적절한 것을 고르시오.',
         choices: ['compare several explanations carefully', 'memorize every detail immediately', 'avoid all uncertain conclusions', 'prefer a simpler unrelated account', 'accept the first answer passively'],
         answerIndex: 1, explanation: 'The passage supports comparison.', intention: '논리 종합',
-        evidenceRefs: [], distractorReasons: ['정보량 중심', '불확실성 회피', '무관한 단순화', '수동적 수용'], score: 3,
+        evidenceRefs: ['word1 word2'], distractorReasons: ['정보량 중심', '불확실성 회피', '무관한 단순화', '수동적 수용'], score: 3,
       }],
       qualityReview: review,
     }],
@@ -102,16 +103,14 @@ describe('품질 검수 JSON과 경고', () => {
     expect(instructions).toContain('qualityReview')
   })
 
-  it('품질 검수를 파싱·저장하고, 없는 기존 JSON은 가져온 뒤 경고한다', () => {
+  it('품질 검수를 파싱·저장하고, 누락된 qualityReview는 엄격히 거부한다', () => {
     const first = configured33()
     const imported = parseEnglishSetJson(JSON.stringify(importPayload(first.item, qualityReview())), first.set)
     expect(imported.csatItems?.[0].qualityReview?.passage.templateFidelity).toBe(9)
     expect(imported.lastImportedJson).toContain('qualityReview')
 
     const legacy = configured33()
-    const withoutReview = parseEnglishSetJson(JSON.stringify(importPayload(legacy.item)), legacy.set)
-    expect(withoutReview.csatItems?.[0].qualityReview).toBeUndefined()
-    expect(validateEnglishSet(withoutReview).some((issue) => issue.label === '카드 1 · AI 품질 검수 누락')).toBe(true)
+    expect(() => parseEnglishSetJson(JSON.stringify(importPayload(legacy.item)), legacy.set)).toThrow(/qualityReview|필수 필드 누락/)
   })
 
   it('길이 이탈·기준 미달·잘못된 강력한 오답과 정답 직접 재현을 경고한다', () => {

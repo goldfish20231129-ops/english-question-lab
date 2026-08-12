@@ -1,0 +1,98 @@
+[
+  {
+    "coreHeading": "## 1. Contract boundary",
+    "customInstructionsSection": "Binding",
+    "directInstruction": true,
+    "fullDetailFallback": "instructions/GENERATOR_CORE_INSTRUCTIONS_V0.md"
+  },
+  {
+    "coreHeading": "## 2. Priority",
+    "customInstructionsSection": "Binding",
+    "directInstruction": true,
+    "fullDetailFallback": "instructions/GENERATOR_CORE_INSTRUCTIONS_V0.md"
+  },
+  {
+    "coreHeading": "## 3. Mode selection",
+    "customInstructionsSection": "Mode selection",
+    "directInstruction": true,
+    "fullDetailFallback": "instructions/GENERATOR_CORE_INSTRUCTIONS_V0.md"
+  },
+  {
+    "coreHeading": "## 4. Initial mode",
+    "customInstructionsSection": "Initial mode",
+    "directInstruction": true,
+    "fullDetailFallback": "instructions/GENERATOR_CORE_INSTRUCTIONS_V0.md"
+  },
+  {
+    "coreHeading": "## 5. Missing information",
+    "customInstructionsSection": "Initial mode",
+    "directInstruction": true,
+    "fullDetailFallback": "instructions/GENERATOR_CORE_INSTRUCTIONS_V0.md"
+  },
+  {
+    "coreHeading": "## 6. Repair mode",
+    "customInstructionsSection": "Repair mode",
+    "directInstruction": true,
+    "fullDetailFallback": "instructions/GENERATOR_CORE_INSTRUCTIONS_V0.md"
+  },
+  {
+    "coreHeading": "## 7. ID and blueprint integrity",
+    "customInstructionsSection": "ID and blueprint integrity",
+    "directInstruction": true,
+    "fullDetailFallback": "instructions/GENERATOR_CORE_INSTRUCTIONS_V0.md"
+  },
+  {
+    "coreHeading": "## 8. Copyright and originality",
+    "customInstructionsSection": "Copyright, quality, and answer policy",
+    "directInstruction": true,
+    "fullDetailFallback": "instructions/GENERATOR_CORE_INSTRUCTIONS_V0.md"
+  },
+  {
+    "coreHeading": "## 9. Common question quality",
+    "customInstructionsSection": "Copyright, quality, and answer policy",
+    "directInstruction": true,
+    "fullDetailFallback": "instructions/GENERATOR_CORE_INSTRUCTIONS_V0.md"
+  },
+  {
+    "coreHeading": "## 10. Answer position policy",
+    "customInstructionsSection": "Copyright, quality, and answer policy",
+    "directInstruction": true,
+    "fullDetailFallback": "instructions/GENERATOR_CORE_INSTRUCTIONS_V0.md"
+  },
+  {
+    "coreHeading": "## 11. Type registry",
+    "customInstructionsSection": "Type integrity",
+    "directInstruction": true,
+    "fullDetailFallback": "instructions/GENERATOR_CORE_INSTRUCTIONS_V0.md"
+  },
+  {
+    "coreHeading": "## 12. User-provided material",
+    "customInstructionsSection": "Type integrity",
+    "directInstruction": true,
+    "fullDetailFallback": "instructions/GENERATOR_CORE_INSTRUCTIONS_V0.md"
+  },
+  {
+    "coreHeading": "## 13. Optional Corpus Profile",
+    "customInstructionsSection": "Runtime Profile use",
+    "directInstruction": true,
+    "fullDetailFallback": "instructions/GENERATOR_CORE_INSTRUCTIONS_V0.md"
+  },
+  {
+    "coreHeading": "## 14. Pre-output review algorithm",
+    "customInstructionsSection": "Pre-output review and strict output",
+    "directInstruction": true,
+    "fullDetailFallback": "instructions/GENERATOR_CORE_INSTRUCTIONS_V0.md"
+  },
+  {
+    "coreHeading": "## 15. qualityReview",
+    "customInstructionsSection": "ID and blueprint integrity",
+    "directInstruction": true,
+    "fullDetailFallback": "instructions/GENERATOR_CORE_INSTRUCTIONS_V0.md"
+  },
+  {
+    "coreHeading": "## 16. Strict JSON output",
+    "customInstructionsSection": "Pre-output review and strict output",
+    "directInstruction": true,
+    "fullDetailFallback": "instructions/GENERATOR_CORE_INSTRUCTIONS_V0.md"
+  }
+]

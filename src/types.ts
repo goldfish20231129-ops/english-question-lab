@@ -2,7 +2,7 @@ export type EnglishMode = 'school' | 'csat' | 'custom'
 export type MaterialMode = 'provided' | 'generated'
 export type SourceKind = 'textbook' | 'supplement' | 'external' | 'generated' | 'custom'
 export type ValidationLevel = 'error' | 'warning' | 'pass'
-export type StudioScreen = 'sets' | 'assembly' | 'preview'
+export type StudioScreen = 'sets' | 'verification' | 'assembly' | 'preview'
 export type LayoutPreset = 'csat' | 'school' | 'worksheet' | 'custom'
 
 export type CsatQuestionFamilyId =
@@ -134,6 +134,75 @@ export interface EnglishQuestion {
   csatItemId?: string
 }
 
+export type VerificationScope = 'set' | 'exam'
+export type VerificationStatus = 'in-progress' | 'needs-review' | 'complete'
+export type VerificationSeverity = 'error' | 'warning'
+export type VerificationDecision = 'approve' | 'revise' | 'ignore' | 'defer'
+export type VerificationChoiceVerdict = 'correct' | 'incorrect' | 'ambiguous'
+
+export interface VerificationChoiceAssessment {
+  choiceIndex: number
+  verdict: VerificationChoiceVerdict
+  reason: string
+}
+
+export interface VerificationReferentAssessment {
+  marker: string
+  entityId: string
+  evidence: string
+}
+
+export interface CsatQuestionVerification {
+  setId: string
+  csatItemId: string
+  questionId: string
+  slot: string
+  predictedAnswerIndex: number
+  confidence: number
+  choiceAssessments: VerificationChoiceAssessment[]
+  evidence: string[]
+  explanationConsistent: boolean
+  explanationNote: string
+  strongestDistractorIndex?: number
+  referents?: VerificationReferentAssessment[]
+}
+
+export interface CsatVerificationFinding {
+  id: string
+  setId: string
+  csatItemId: string
+  questionId: string
+  slot: string
+  severity: VerificationSeverity
+  category: string
+  summary: string
+  evidence: string
+  suggestedRepair: string
+  decision: VerificationDecision
+  userNote: string
+}
+
+export interface CsatVerificationRun {
+  id: string
+  scope: VerificationScope
+  targetId: string
+  targetTitle: string
+  sourceFingerprint: string
+  sourceRevision: string
+  status: VerificationStatus
+  createdAt: string
+  importedAt?: string
+  overallSummary: string
+  questionReviews: CsatQuestionVerification[]
+  findings: CsatVerificationFinding[]
+  overallUserNote: string
+}
+
+export interface VerificationTarget {
+  scope: VerificationScope
+  id: string
+}
+
 export interface SetLayoutOverride {
   columns?: 1 | 2
   marginTop?: number
@@ -172,6 +241,7 @@ export interface EnglishQuestionSet {
   validatedRevision: number
   lastImportedJson: string
   layoutOverride?: SetLayoutOverride
+  verificationRuns?: CsatVerificationRun[]
   createdAt: string
   updatedAt: string
 }
@@ -210,6 +280,7 @@ export interface EnglishExamDocument {
   layout: ExamLayoutSettings
   setOverrides: Record<string, SetLayoutOverride>
   entryOverrides?: Record<string, SetLayoutOverride>
+  verificationRuns?: CsatVerificationRun[]
   createdAt: string
   updatedAt: string
 }

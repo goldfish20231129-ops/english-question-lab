@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { applyCsatItemTemplate, createCsatItem } from './csat'
-import { buildExamFlowBlocks, contentEntriesForSet, geometryKey, getOversizedQuestionIssues, normalizeExamDocument, paginateExamBlocks } from './examLayout'
+import { buildExamFlowBlocks, contentEntriesForSet, examFlowMeasurementKey, geometryKey, getOversizedQuestionIssues, moveExamContentEntry, normalizeExamDocument, paginateExamBlocks } from './examLayout'
 import { createEnglishSet, createExamLayout } from './english'
 import type { EnglishExamDocument, EnglishQuestionSet } from './types'
 
@@ -66,6 +66,64 @@ describe('문항 카드별 시험지 조립', () => {
     expect(normalized.contentEntries).toHaveLength(2)
   })
 
+  it('손상된 참조·중복 항목·잘못된 조판값을 안전하게 정리한다', () => {
+    const set = csatSet('recoverable', '18', '33')
+    const [first] = contentEntriesForSet(set)
+    const damaged = {
+      ...exam(),
+      setIds: undefined,
+      layout: { preset: 'csat', columns: 7, fontSize: Number.NaN },
+      contentEntries: [first, first, null, { id: 'missing-entry', setId: 'missing-set' }],
+      entryOverrides: { [first.id]: { fontScale: 0.9 }, 'missing-entry': { columns: 2 } },
+    } as unknown as EnglishExamDocument
+
+    const normalized = normalizeExamDocument(damaged, [set])
+    expect(normalized.contentEntries).toEqual([first])
+    expect(normalized.setIds).toEqual([set.id])
+    expect(normalized.layout.columns).toBe(1)
+    expect(Number.isFinite(normalized.layout.fontSize)).toBe(true)
+    expect(normalized.entryOverrides).toEqual({ [first.id]: { fontScale: 0.9 } })
+  })
+
+  it('표시 순서가 아니라 문항 고유 ID로 안전하게 이동한다', () => {
+    const set = csatSet('reorder', '18', '33', '41-42')
+    const entries = contentEntriesForSet(set)
+    const moved = moveExamContentEntry(entries, entries[1].id, -1)
+
+    expect(moved.map((entry) => entry.id)).toEqual([entries[1].id, entries[0].id, entries[2].id])
+    expect(moveExamContentEntry(entries, 'unknown-entry', 1)).toBe(entries)
+    expect(moveExamContentEntry(entries, entries[0].id, -1)).toBe(entries)
+  })
+
+  it('같은 문항을 빠르게 연속 이동해도 직전 순서를 이어서 적용한다', () => {
+    const set = csatSet('rapid-reorder', '33', '40', '41-42')
+    const entries = contentEntriesForSet(set)
+    const movingId = entries[0].id
+
+    const movedOnce = moveExamContentEntry(entries, movingId, 1)
+    const movedTwice = moveExamContentEntry(movedOnce, movingId, 1)
+
+    expect(movedTwice.map((entry) => entry.id)).toEqual([
+      entries[1].id,
+      entries[2].id,
+      movingId,
+    ])
+  })
+
+  it('문항 순서가 바뀌면 기존 조판 측정값을 재사용하지 않는다', () => {
+    const set = csatSet('measurement-reset', '33', '40', '41-42')
+    const doc = exam()
+    doc.contentEntries = contentEntriesForSet(set)
+    doc.setIds = [set.id]
+    const before = buildExamFlowBlocks(doc, [set], [])
+
+    doc.contentEntries = moveExamContentEntry(doc.contentEntries, doc.contentEntries[1].id, -1)
+    const after = buildExamFlowBlocks(doc, [set], [])
+
+    expect(examFlowMeasurementKey(after)).not.toBe(examFlowMeasurementKey(before))
+    expect(after[0].setId).toBe(doc.contentEntries[0].id)
+  })
+
   it('카드별 조판 덮어쓰기로 페이지 구조를 분리한다', () => {
     const set = csatSet('layout', '18', '33')
     const doc = exam()
@@ -76,6 +134,29 @@ describe('문항 카드별 시험지 조립', () => {
     const pages = paginateExamBlocks(buildExamFlowBlocks(doc, [set], []))
     expect(pages[0].layout.columns).toBe(1)
     expect(pages.at(-1)?.layout.columns).toBe(2)
+  })
+})
+
+describe('실측 기반 페이지 분할 회귀', () => {
+  it('새 페이지에서도 같은 조판의 실측 칼럼 높이를 사용해 장문 블록을 자르지 않는다', () => {
+    const set = csatSet('long-pagination', '43-45')
+    const doc = exam()
+    doc.layout = createExamLayout('csat')
+    doc.contentEntries = contentEntriesForSet(set)
+    doc.setIds = [set.id]
+    const blocks = buildExamFlowBlocks(doc, [set], [])
+    const blockHeights = Object.fromEntries(blocks.map((block) => [block.id, 60]))
+    const capacity = 100
+    const pages = paginateExamBlocks(blocks, {
+      blockHeights,
+      columnHeights: { '0-0': capacity, '0-1': capacity },
+      layoutHeights: { [geometryKey(doc.layout)]: capacity },
+    })
+
+    expect(pages.length).toBeGreaterThan(1)
+    pages.forEach((page) => page.columns.forEach((column) => {
+      expect(column.reduce((sum, block) => sum + blockHeights[block.id], 0)).toBeLessThanOrEqual(capacity)
+    }))
   })
 })
 

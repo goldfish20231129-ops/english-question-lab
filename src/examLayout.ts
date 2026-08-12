@@ -32,27 +32,80 @@ export function contentEntriesForSet(set: EnglishQuestionSet): ExamContentEntry[
   return [{ id: `set:${set.id}`, setId: set.id }]
 }
 
+function finiteNumber(value: unknown, fallback: number) {
+  return typeof value === 'number' && Number.isFinite(value) ? value : fallback
+}
+
+function normalizeExamLayout(value: unknown): ExamLayoutSettings {
+  const fallback = examFallbackLayout()
+  const input = value && typeof value === 'object' ? value as Partial<ExamLayoutSettings> : {}
+  const preset = input.preset === 'csat' || input.preset === 'school' || input.preset === 'worksheet' || input.preset === 'custom' ? input.preset : fallback.preset
+  return {
+    ...fallback,
+    ...input,
+    preset,
+    columns: input.columns === 2 ? 2 : 1,
+    answerColumns: input.answerColumns === 2 ? 2 : 1,
+    marginTop: finiteNumber(input.marginTop, fallback.marginTop),
+    marginRight: finiteNumber(input.marginRight, fallback.marginRight),
+    marginBottom: finiteNumber(input.marginBottom, fallback.marginBottom),
+    marginLeft: finiteNumber(input.marginLeft, fallback.marginLeft),
+    fontSize: finiteNumber(input.fontSize, fallback.fontSize),
+    lineHeight: finiteNumber(input.lineHeight, fallback.lineHeight),
+    questionGap: finiteNumber(input.questionGap, fallback.questionGap),
+    passageBorder: typeof input.passageBorder === 'boolean' ? input.passageBorder : fallback.passageBorder,
+    institution: typeof input.institution === 'string' ? input.institution : '',
+    gradeLabel: typeof input.gradeLabel === 'string' ? input.gradeLabel : '',
+    dateLabel: typeof input.dateLabel === 'string' ? input.dateLabel : '',
+    footerText: typeof input.footerText === 'string' ? input.footerText : '',
+    showPageNumbers: typeof input.showPageNumbers === 'boolean' ? input.showPageNumbers : fallback.showPageNumbers,
+  }
+}
+
 export function normalizeExamDocument(exam: EnglishExamDocument, sets: EnglishQuestionSet[]): EnglishExamDocument {
-  const entries = exam.contentEntries?.length
+  const setById = new Map(sets.map((set) => [set.id, set]))
+  const storedEntries = Array.isArray(exam.contentEntries) && exam.contentEntries.length
     ? exam.contentEntries
-    : exam.setIds.flatMap((setId) => {
+    : (Array.isArray(exam.setIds) ? exam.setIds : []).flatMap((setId) => {
       const set = sets.find((candidate) => candidate.id === setId)
       return set ? contentEntriesForSet(set) : []
     })
-  const entryOverrides = { ...(exam.entryOverrides ?? {}) }
-  entries.forEach((entry) => {
-    if (!entryOverrides[entry.id] && exam.setOverrides[entry.setId]) entryOverrides[entry.id] = { ...exam.setOverrides[entry.setId] }
+  const seenEntries = new Set<string>()
+  const entries = storedEntries.filter((entry): entry is ExamContentEntry => {
+    if (!entry || typeof entry !== 'object' || typeof entry.id !== 'string' || typeof entry.setId !== 'string') return false
+    if (seenEntries.has(entry.id)) return false
+    const set = setById.get(entry.setId)
+    if (!set) return false
+    if (entry.csatItemId && !getCsatItems(set).some((item) => item.id === entry.csatItemId)) return false
+    seenEntries.add(entry.id)
+    return true
   })
-  const layout = exam.layout.preset === 'csat' && (exam.layout.layoutRevision ?? 1) < 2
+  const setOverrides = exam.setOverrides && typeof exam.setOverrides === 'object' ? exam.setOverrides : {}
+  const storedEntryOverrides = exam.entryOverrides && typeof exam.entryOverrides === 'object' ? exam.entryOverrides : {}
+  const entryOverrides = Object.fromEntries(Object.entries(storedEntryOverrides).filter(([entryId]) => seenEntries.has(entryId)))
+  entries.forEach((entry) => {
+    if (!entryOverrides[entry.id] && setOverrides[entry.setId]) entryOverrides[entry.id] = { ...setOverrides[entry.setId] }
+  })
+  const normalizedLayout = normalizeExamLayout(exam.layout)
+  const layout = normalizedLayout.preset === 'csat' && (normalizedLayout.layoutRevision ?? 1) < 2
     ? {
-      ...exam.layout,
+      ...normalizedLayout,
       layoutRevision: 2,
-      fontSize: Math.abs(exam.layout.fontSize - 10.2) < 0.001 ? 8.6 : exam.layout.fontSize,
-      lineHeight: Math.abs(exam.layout.lineHeight - 1.62) < 0.001 ? 1.32 : exam.layout.lineHeight,
-      questionGap: Math.abs(exam.layout.questionGap - 6) < 0.001 ? 3.5 : exam.layout.questionGap,
+      fontSize: Math.abs(normalizedLayout.fontSize - 10.2) < 0.001 ? 8.6 : normalizedLayout.fontSize,
+      lineHeight: Math.abs(normalizedLayout.lineHeight - 1.62) < 0.001 ? 1.32 : normalizedLayout.lineHeight,
+      questionGap: Math.abs(normalizedLayout.questionGap - 6) < 0.001 ? 3.5 : normalizedLayout.questionGap,
     }
-    : exam.layout
-  return { ...exam, layout, contentEntries: entries, entryOverrides, setIds: [...new Set(entries.map((entry) => entry.setId))] }
+    : normalizedLayout
+  return { ...exam, layout, setOverrides, contentEntries: entries, entryOverrides, setIds: [...new Set(entries.map((entry) => entry.setId))] }
+}
+
+export function moveExamContentEntry(entries: ExamContentEntry[], entryId: string, direction: -1 | 1) {
+  const index = entries.findIndex((entry) => entry.id === entryId)
+  const target = index + direction
+  if (index < 0 || target < 0 || target >= entries.length) return entries
+  const next = [...entries]
+  ;[next[index], next[target]] = [next[target], next[index]]
+  return next
 }
 
 export function examSetIds(exam: EnglishExamDocument) {
@@ -78,6 +131,7 @@ export interface ExamLayoutPage {
 export interface ExamLayoutMetrics {
   blockHeights: Record<string, number>
   columnHeights: Record<string, number>
+  layoutHeights?: Record<string, number>
 }
 
 export function renderEnglishMarkup(value: string) {
@@ -108,6 +162,17 @@ export function effectiveSetLayout(base: ExamLayoutSettings, override: SetLayout
     lineHeight: override.lineHeight ?? base.lineHeight,
     passageBorder: override.passageBorder ?? base.passageBorder,
   }
+}
+
+export function examFlowMeasurementKey(blocks: ExamFlowBlock[]) {
+  return blocks
+    .map((block) => {
+      const questionLength = block.question
+        ? block.question.stem.length + block.question.choices.reduce((sum, choice) => sum + choice.length, 0)
+        : 0
+      return `${block.id}@${geometryKey(block.effectiveLayout)}#${block.units}#${block.text?.length ?? 0}#${block.summaryText?.length ?? 0}#${questionLength}`
+    })
+    .join('|')
 }
 
 export function geometryKey(layout: ExamLayoutSettings) {
@@ -284,7 +349,10 @@ export function paginateExamBlocks(blocks: ExamFlowBlock[], metrics?: ExamLayout
     if (!page || requestedPage) startPage(block.effectiveLayout)
     else if (requestedColumn) advanceColumn(block.effectiveLayout)
 
-    const capacity = metrics?.columnHeights[`${pages.length - 1}-${columnIndex}`] ?? estimatedCapacity(block.effectiveLayout)
+    const measuredColumnHeights = metrics ? Object.values(metrics.columnHeights) : []
+    const capacity = metrics?.layoutHeights?.[geometryKey(block.effectiveLayout)]
+      ?? (measuredColumnHeights.length ? Math.max(...measuredColumnHeights) : undefined)
+      ?? estimatedCapacity(block.effectiveLayout)
     const size = group.reduce((sum, candidate) => sum + (metrics?.blockHeights[candidate.id] ?? candidate.units), 0)
     const next = group.length === 1 && block.keepWithNext ? blocks[blockIndex + 1] : undefined
     const nextSize = next && next.setId === block.setId ? metrics?.blockHeights[next.id] ?? next.units : 0
@@ -303,7 +371,7 @@ function examFallbackLayout(): ExamLayoutSettings {
 
 export function getOversizedQuestionIssues(blocks: ExamFlowBlock[], metrics?: ExamLayoutMetrics) {
   if (!metrics) return []
-  const maxCapacity = Math.max(0, ...Object.values(metrics.columnHeights))
+  const maxCapacity = Math.max(0, ...Object.values(metrics.layoutHeights ?? {}), ...Object.values(metrics.columnHeights))
   const grouped = new Map<string, ExamFlowBlock[]>()
   blocks.forEach((block) => {
     if (!block.keepTogetherId) return
