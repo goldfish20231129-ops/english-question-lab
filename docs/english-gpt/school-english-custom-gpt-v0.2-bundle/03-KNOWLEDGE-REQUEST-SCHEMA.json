@@ -51,7 +51,7 @@
     },
     "item": {
       "type": "object", "additionalProperties": false,
-      "required": ["itemId", "templateId", "variantId", "questionType", "choiceLanguage", "vocabularyLevel", "contentMatchPolarity", "grammarTarget", "grammarMode", "targetLevel", "score", "requiredCandidateBoundaryCount"],
+      "required": ["itemId", "templateId", "variantId", "questionType", "choiceLanguage", "vocabularyLevel", "contentMatchPolarity", "grammarTarget", "grammarMode", "requiredStem", "targetLevel", "score", "requiredCandidateBoundaryCount"],
       "properties": {
         "itemId": { "type": "string", "minLength": 1 },
         "templateId": { "enum": ["school-content-match", "school-content-inference", "school-sentence-insertion", "school-grammar"] },
@@ -62,6 +62,7 @@
         "contentMatchPolarity": { "enum": ["match", "mismatch", null] },
         "grammarTarget": { "enum": ["relative_clause", "appositive_that", "subject_verb_agreement", "participle_clause", "nonrestrictive_relative", "pronoun_agreement", "dummy_it", "cleft_it_that", null] },
         "grammarMode": { "enum": ["source_form_check", "controlled_error_variant", null] },
+        "requiredStem": { "type": "string", "minLength": 1 },
         "targetLevel": { "type": "string", "minLength": 1 }, "score": { "type": "number", "minimum": 1, "maximum": 10 },
         "requiredCandidateBoundaryCount": { "enum": [5, null] }
       }

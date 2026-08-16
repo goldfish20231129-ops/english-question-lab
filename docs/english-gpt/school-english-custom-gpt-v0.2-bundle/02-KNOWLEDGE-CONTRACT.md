@@ -23,7 +23,7 @@ Provided Passage V0.2는 `school_english_provided_passage`와 `English`만 지�
 
 ## 문항별 계획
 
-각 item은 독립된 `itemId`, `questionType`, `choiceLanguage`, `vocabularyLevel`, `contentMatchPolarity`, `grammarTarget`, `grammarMode`를 가진다. Response의 items는 요청한 item과 정확히 일대일로 대응해야 한다.
+각 item은 독립된 `itemId`, `questionType`, `choiceLanguage`, `vocabularyLevel`, `contentMatchPolarity`, `grammarTarget`, `grammarMode`, `requiredStem`을 가진다. Response의 items는 요청한 item과 정확히 일대일로 대응해야 하며 `question.stem`은 `requiredStem`과 정확히 같아야 한다.
 
 ## 어법 태그
 
@@ -36,7 +36,7 @@ Provided Passage V0.2는 `school_english_provided_passage`와 `English`만 지�
 - `dummy_it`: 가주어 it과 뒤의 진주어
 - `cleft_it_that`: 강조 대상과 잔여 절, 가주어 구문과의 구별
 
-어법 문항은 `testedSpan`, `sourceForm`, `presentedForm`, `ruleCheck`를 반환한다. `ruleCheck.isUniquelyDetermined`는 반드시 true다. 근거가 모호하면 해당 문항을 생성하지 않고 설계 단계에서 검토 필요를 알린다.
+어법 문항은 `testedSpan`, `sourceForm`, `presentedForm`, `ruleCheck`를 반환한다. `testedSpan`은 실제로 밑줄 칠 최소 어법 표현만 가리키고 문장 전체를 범위로 사용하지 않는다. 근거 문장 전체는 `question.evidenceSpans`에 둘 수 있다. `ruleCheck.isUniquelyDetermined`는 반드시 true다. 근거가 모호하면 해당 문항을 생성하지 않고 설계 단계에서 검토 필요를 알린다.
 
 ## 문법 모드
 

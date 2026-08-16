@@ -38,6 +38,8 @@ source.passage의 단어, 문장, 순서, 철자, 구두점을 고치지 않는�
 
 Provided Passage에서는 각 itemId에 정확히 하나의 문항을 반환한다. 새 자료 작성에서는 프롬프트의 문항 순서를 보존한다. 모든 경로에서 각 문항은 정답이 하나뿐이어야 하고 선택지는 다섯 개이며 중복되지 않아야 한다. 외부 상식이나 사전 지식이 없어도 제시 자료로 판정할 수 있어야 한다.
 
+Provided Passage의 각 `question.stem`은 Request item의 `requiredStem`과 공백·문장부호까지 정확히 같아야 한다. 발문을 더 자연스럽다고 판단해 임의로 바꾸지 않는다.
+
 ## 내용 일치·불일치
 
 choiceLanguage가 ko이면 모든 선지는 한국어, en이면 모든 선지는 영어다. mismatch는 정답 하나만 불일치하고 나머지는 일치한다. match는 정답 하나만 일치하고 나머지는 불일치한다. 부분 일치, 범위 변화, 주체·시점 변경, 인과·관계 역전을 분산한다. materialOperation은 null이다.
@@ -65,7 +67,7 @@ choiceLanguage가 ko이면 모든 선지는 한국어, en이면 모든 선지는
 
 `source_form_check`에서는 원문을 그대로 출제하므로 sourceForm과 presentedForm이 같아야 한다. `controlled_error_variant`에서는 오류를 원문에 넣지 않고 presentedForm에만 최소한으로 만든다. 변형은 선택한 문법 포인트 하나만 바꾸며 의미·어휘·철자를 동시에 흔들지 않는다. sourceTextModified는 항상 false다.
 
-grammar_check에는 grammarTarget, grammarMode, testedSpan, sourceForm, presentedForm, ruleCheck를 모두 반환한다. ruleCheck에는 실제 판정 규칙, 혼동 가능한 구문, 유일 정답 여부를 기록한다. 유일하지 않으면 JSON을 생성하지 말고 설계 재검토를 요청한다.
+grammar_check에는 grammarTarget, grammarMode, testedSpan, sourceForm, presentedForm, ruleCheck를 모두 반환한다. `testedSpan`은 실제 시험지에서 밑줄 칠 낱말·구·절의 최소 정확 범위만 가리켜야 하며 문장 전체를 넣지 않는다. 근거 문장 전체가 필요하면 `question.evidenceSpans`에 둔다. sourceForm은 testedSpan.text와 정확히 같아야 한다. ruleCheck에는 실제 판정 규칙, 혼동 가능한 구문, 유일 정답 여부를 기록한다. 유일하지 않으면 JSON을 생성하지 말고 설계 재검토를 요청한다.
 
 ## 어휘 수준
 

@@ -89,7 +89,10 @@ describe('Provided Passage V0.2', () => {
     const second = { ...createProvidedPassageV02Plan('grammar-1', 'grammar'), grammarTarget: 'relative_clause' as const }
     const request = buildProvidedPassageV02Request(configured([first, second]))
     expect(request.items).toHaveLength(2)
-    expect(request.items[1]).toMatchObject({ templateId: 'school-grammar', grammarTarget: 'relative_clause', grammarMode: 'source_form_check' })
+    expect(request.items[1]).toMatchObject({
+      templateId: 'school-grammar', grammarTarget: 'relative_clause', grammarMode: 'source_form_check',
+      requiredStem: '밑줄 친 관계절의 문법적 구조에 대한 설명으로 가장 적절한 것은?',
+    })
     expect(request.source.passage).toBe(PASSAGE)
   })
 
@@ -143,6 +146,17 @@ describe('Provided Passage V0.2', () => {
     expect(() => adaptProvidedPassageV02Response(invalid, set)).toThrow(/sourceForm/)
   })
 
+  it('rejects a whole sentence grammar underline and explains the exact span requirement', () => {
+    const set = configured([createProvidedPassageV02Plan('content-1', 'content_match'), createProvidedPassageV02Plan('grammar-1', 'grammar')])
+    const invalid = response(set)
+    const sentence = set.providedPassageV02!.sentences[0]
+    const operation = invalid.items[1].materialOperation as { testedSpan: { sentenceId: string; start: number; end: number; text: string }; sourceForm: string; presentedForm: string }
+    operation.testedSpan = { sentenceId: sentence.id, start: sentence.start, end: sentence.end, text: sentence.text }
+    operation.sourceForm = sentence.text
+    operation.presentedForm = sentence.text
+    expect(() => adaptProvidedPassageV02Response(invalid, set)).toThrow(/testedSpan이 문장 전체/)
+  })
+
   it('allows sentence insertion to be mixed while keeping every operation item-specific', () => {
     const plans = [createProvidedPassageV02Plan('content-1', 'content_match'), createProvidedPassageV02Plan('insert-1', 'sentence_insertion'), createProvidedPassageV02Plan('grammar-1', 'grammar')]
     const set = configured(plans)
@@ -191,8 +205,15 @@ describe('Provided Passage V0.2', () => {
     const grammar = createProvidedPassageV02Plan('grammar', 'grammar')
     const questions = syncProvidedPassageV02Questions(set, [content, grammar])
     expect(questions[0].stem).toBe('다음 글의 내용과 일치하는 것은?')
-    expect(questions[1].stem).toBe('다음 글의 밑줄 친 부분 중, 어법상 틀린 것은?')
+    expect(questions[1].stem).toBe('밑줄 친 관계절의 문법적 구조에 대한 설명으로 가장 적절한 것은?')
     expect(questions.map((question) => question.stem).join(' ')).not.toContain('문맥상 낱말')
+  })
+
+  it('keeps legacy grammar stems usable while emitting the new explicit required stem', () => {
+    const set = configured([createProvidedPassageV02Plan('grammar', 'grammar')])
+    set.questions[0].stem = '다음 글의 밑줄 친 부분 중, 어법상 틀린 것은?'
+    const request = buildProvidedPassageV02Request(set)
+    expect(request.items[0].requiredStem).toBe('밑줄 친 관계절의 문법적 구조에 대한 설명으로 가장 적절한 것은?')
   })
 
   it('blocks unsupported legacy ordering items without deleting them', () => {
