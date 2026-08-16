@@ -61,10 +61,16 @@ export function createProvidedPassageV02Plan(itemId: string = crypto.randomUUID(
   }
 }
 
+export function orderedProvidedPassageV02Plans(plans: ProvidedPassageV02ItemPlan[]) {
+  const regular = plans.filter((plan) => plan.questionType !== 'sentence_insertion')
+  const insertion = plans.filter((plan) => plan.questionType === 'sentence_insertion')
+  return [...regular, ...insertion]
+}
+
 export function createProvidedPassageV02State(text: string, plans: ProvidedPassageV02ItemPlan[] = [createProvidedPassageV02Plan()]): ProvidedPassageV02State {
   const sourceFingerprint = fingerprintProvidedPassage(text)
   const { sentences, boundaries } = segmentProvidedPassage(text)
-  return { version: '0.2', sourcePassageId: `source-${sourceFingerprint.slice(7, 23)}`, sourceFingerprint, originalText: text, normalizedForFingerprint: normalizeProvidedPassageForFingerprint(text), sentences, boundaries, itemPlans: plans }
+  return { version: '0.2', sourcePassageId: `source-${sourceFingerprint.slice(7, 23)}`, sourceFingerprint, originalText: text, normalizedForFingerprint: normalizeProvidedPassageForFingerprint(text), sentences, boundaries, itemPlans: orderedProvidedPassageV02Plans(plans) }
 }
 
 export function transitionSchoolProvidedPassageV02(set: EnglishQuestionSet, mode: 'provided' | 'generated'): EnglishQuestionSet {
@@ -73,8 +79,9 @@ export function transitionSchoolProvidedPassageV02(set: EnglishQuestionSet, mode
   if (blocked) throw new Error(blocked)
   const currentQuestions = set.questions.length ? set.questions : [{ id: crypto.randomUUID(), ...questionShape('content_match'), explanation: '', intention: '', evidenceRefs: [], distractorReasons: [], score: 2 }]
   const replacePristineDefault = currentQuestions.length === 1 && questionTypeFromExisting(currentQuestions[0]) === undefined && isPristineQuestion(currentQuestions[0])
-  const plans = currentQuestions.map((question) => createProvidedPassageV02Plan(question.id, replacePristineDefault ? 'content_match' : questionTypeFromExisting(question)!))
-  const questions = currentQuestions.map((question, index) => ({ ...question, ...questionShape(plans[index].questionType, plans[index].contentMatchPolarity), id: plans[index].itemId }))
+  const plans = orderedProvidedPassageV02Plans(currentQuestions.map((question) => createProvidedPassageV02Plan(question.id, replacePristineDefault ? 'content_match' : questionTypeFromExisting(question)!)))
+  const questionById = new Map(currentQuestions.map((question) => [question.id, question]))
+  const questions = plans.map((plan) => ({ ...questionById.get(plan.itemId)!, ...questionShape(plan.questionType, plan.contentMatchPolarity), id: plan.itemId }))
   return { ...set, materialMode: 'provided', sourceKind: set.sourceKind === 'generated' ? 'external' : set.sourceKind, choiceCount: 5, providedPassage: undefined, providedPassageV02: createProvidedPassageV02State(set.material, plans), questions }
 }
 
@@ -106,7 +113,7 @@ export function updateProvidedPassageV02Material(state: ProvidedPassageV02State,
 
 export function syncProvidedPassageV02Questions(set: EnglishQuestionSet, plans: ProvidedPassageV02ItemPlan[]): EnglishQuestion[] {
   const existing = new Map(set.questions.map((question) => [question.id, question]))
-  return plans.map((plan) => {
+  return orderedProvidedPassageV02Plans(plans).map((plan) => {
     const previous = existing.get(plan.itemId)
     const shape = questionShape(plan.questionType, plan.contentMatchPolarity)
     return { id: plan.itemId, ...shape, explanation: previous?.explanation ?? '', intention: previous?.intention ?? '', evidenceRefs: previous?.evidenceRefs ?? [], distractorReasons: previous?.distractorReasons ?? [], score: previous?.score ?? 2 }
@@ -122,6 +129,15 @@ export function repairProvidedPassageV02QuestionStems(set: EnglishQuestionSet): 
     const shape = questionShape(plan.questionType, plan.contentMatchPolarity)
     return { ...question, type: shape.type, stem: shape.stem }
   })
+}
+
+export function orderedProvidedPassageV02Questions(set: EnglishQuestionSet) {
+  const plans = set.providedPassageV02?.itemPlans
+  if (!plans) return set.questions
+  const questionById = new Map(set.questions.map((question) => [question.id, question]))
+  const ordered = orderedProvidedPassageV02Plans(plans).map((plan) => questionById.get(plan.itemId)).filter((question): question is EnglishQuestion => Boolean(question))
+  const known = new Set(ordered.map((question) => question.id))
+  return [...ordered, ...set.questions.filter((question) => !known.has(question.id))]
 }
 
 export function providedPassageV02GrammarPresentation(set: EnglishQuestionSet, questionId: string) {
@@ -163,10 +179,11 @@ const SUPPORTED_TYPES = new Set<ProvidedPassageV02QuestionType>(['content_match'
 
 function rawProvidedPassageV02Request(set: EnglishQuestionSet, state: ProvidedPassageV02State) {
   const questionById = new Map(set.questions.map((question) => [question.id, question]))
+  const orderedPlans = orderedProvidedPassageV02Plans(state.itemPlans)
   return {
     schemaId: PROVIDED_PASSAGE_V02_REQUEST_SCHEMA_ID, mode: 'school_english_provided_passage', subject: 'English',
     source: { sourcePassageId: state.sourcePassageId, sourceFingerprint: state.sourceFingerprint, title: set.materialTitle, passage: state.originalText, sentences: state.sentences, boundaries: state.boundaries },
-    items: state.itemPlans.map((plan) => ({
+    items: orderedPlans.map((plan) => ({
       itemId: plan.itemId, templateId: templateId(plan.questionType), variantId: 'standard', questionType: plan.questionType,
       choiceLanguage: plan.questionType === 'content_match' ? plan.choiceLanguage : null, vocabularyLevel: plan.vocabularyLevel,
       contentMatchPolarity: plan.questionType === 'content_match' ? plan.contentMatchPolarity : null,
@@ -200,6 +217,7 @@ export function providedPassageV02BlockingReason(set: EnglishQuestionSet) {
   if (state.itemPlans.some((plan) => !plan.itemId?.trim())) return '모든 문항 계획에 itemId가 필요합니다.'
   if (state.itemPlans.some((plan) => !SUPPORTED_TYPES.has(plan.questionType))) return 'V0.2에서 지원하지 않는 문항 유형이 포함되어 있습니다.'
   if (new Set(state.itemPlans.map((plan) => plan.itemId)).size !== state.itemPlans.length) return '문항 itemId가 중복되었습니다.'
+  if (state.itemPlans.filter((plan) => plan.questionType === 'sentence_insertion').length > 1) return '문장 삽입은 한 세트에 최대 한 문항만 추가할 수 있습니다.'
   if (state.itemPlans.some((plan) => plan.questionType === 'sentence_insertion') && state.boundaries.length < 6) return '문장 삽입에는 내부 후보 경계 5개가 필요합니다.'
   if (set.questions.length !== state.itemPlans.length) return '문항 계획과 편집 문항 수가 일치하지 않습니다.'
   const questionById = new Map(set.questions.map((question) => [question.id, question]))
@@ -225,7 +243,7 @@ export function buildProvidedPassageV02Request(set: EnglishQuestionSet) {
 export function generateProvidedPassageV02Prompt(set: EnglishQuestionSet) {
   const request = buildProvidedPassageV02Request(set)
   const grammar = request.items.filter((item) => item.questionType === 'grammar').map((item) => `- ${item.itemId}: ${item.grammarTarget ? PROVIDED_PASSAGE_GRAMMAR_RULES[item.grammarTarget] : ''} 모드는 ${item.grammarMode}. 원문의 testedSpan과 sourceForm은 그대로 보존하고 오류 변형은 presentedForm에만 둔다.`).join('\n')
-  return `[PROVIDED_PASSAGE_GENERATION_V0.2]\n당신은 사용자가 제공한 영어 원문을 수정하지 않고 여러 내신형 문항을 설계·생성하는 영어 출제자다.\n\n[절대 원칙]\n- source.passage는 유일한 권위 원문이며 응답에 전체를 반환하지 않는다.\n- sourcePassageId, sourceFingerprint와 모든 itemId를 그대로 반환한다.\n- sentence ID·offset과 boundary ID·offset은 Request에 있는 값만 사용하며 새로 만들거나 바꾸지 않는다.\n- items마다 요청된 유형·언어·어휘 수준·문법 태그를 독립적으로 지킨다.\n- 문장 삽입의 generatedSentence, 후보 경계와 표식은 해당 itemId의 materialOperation에만 둔다. 다른 문항이나 공통 원문에 전파하지 않는다.\n- 정답은 문항마다 정확히 하나이며 외부 사실로 판정하지 않는다.\n- 어법 문항은 원문 근거가 하나로 결정될 때만 만든다. source_form_check는 sourceForm과 presentedForm이 같고, controlled_error_variant는 원문을 고치지 않은 채 presentedForm에만 최소 변형을 둔다.\n- 관계대명사는 선행사와 관계절 성분, 동격 that은 완전한 절과 명사 내용 관계, 수 일치는 실제 주어, 분사구문은 의미상 주어와 태, 계속적 관계대명사는 쉼표·that 금지, 대명사 일치는 선행사, 가주어는 진주어, 강조 it-that은 강조 대상과 잔여 절을 반드시 확인한다.\n${grammar || '- 어법 문항 없음'}\n\n[유효성 실패 처리]\nRequest의 Schema·원문 identity·item 계약·지원 조합 중 하나라도 유효하지 않으면 오류 목록만 출력한다. 이 경우 설계안, 임시 JSON, 승인 문장, 지원 유형으로의 임의 변경을 출력하지 않는다.\n\n[승인 절차]\n유효한 Request의 첫 응답은 한국어 [내신 영어 기존 지문 다문항 설계안]만 출력한다. 카드별 유형, 정답 근거 sentenceId, 오답 원리, 어법 태그·판정 규칙·변형 여부를 쓰되 완성 선지나 JSON은 공개하지 않는다. 마지막 문장은 Request의 approvalSentence와 정확히 같아야 한다. 승인 후에는 ${PROVIDED_PASSAGE_V02_RESPONSE_SCHEMA_ID} JSON 객체 하나만 출력한다.\n\n[Request JSON]\n${JSON.stringify(request, null, 2)}`
+  return `[PROVIDED_PASSAGE_GENERATION_V0.2]\n당신은 사용자가 제공한 영어 원문을 수정하지 않고 여러 내신형 문항을 설계·생성하는 영어 출제자다.\n\n[절대 원칙]\n- source.passage는 유일한 권위 원문이며 응답에 전체를 반환하지 않는다.\n- 문장 삽입이 아닌 모든 items는 동일한 source.passage 한 지문을 공유한다. 같은 지문을 문항별로 새로 만들거나 반복 반환하지 않는다.\n- 내용 일치·불일치 문항이 여러 개면 같은 원문에서 서로 다른 근거와 오답 원리로 각각 독립된 문항을 만든다.\n- 문장 삽입 item은 최대 하나이며 항상 items 배열의 마지막에 둔다.\n- sourcePassageId, sourceFingerprint와 모든 itemId를 그대로 반환한다.\n- sentence ID·offset과 boundary ID·offset은 Request에 있는 값만 사용하며 새로 만들거나 바꾸지 않는다.\n- items마다 요청된 유형·언어·어휘 수준·문법 태그를 독립적으로 지킨다.\n- 문장 삽입의 generatedSentence, 후보 경계와 표식은 해당 itemId의 materialOperation에만 둔다. 다른 문항이나 공통 원문에 전파하지 않는다.\n- 정답은 문항마다 정확히 하나이며 외부 사실로 판정하지 않는다.\n- 어법 문항은 원문 근거가 하나로 결정될 때만 만든다. source_form_check는 sourceForm과 presentedForm이 같고, controlled_error_variant는 원문을 고치지 않은 채 presentedForm에만 최소 변형을 둔다.\n- 관계대명사는 선행사와 관계절 성분, 동격 that은 완전한 절과 명사 내용 관계, 수 일치는 실제 주어, 분사구문은 의미상 주어와 태, 계속적 관계대명사는 쉼표·that 금지, 대명사 일치는 선행사, 가주어는 진주어, 강조 it-that은 강조 대상과 잔여 절을 반드시 확인한다.\n${grammar || '- 어법 문항 없음'}\n\n[유효성 실패 처리]\nRequest의 Schema·원문 identity·item 계약·지원 조합 중 하나라도 유효하지 않으면 오류 목록만 출력한다. 이 경우 설계안, 임시 JSON, 승인 문장, 지원 유형으로의 임의 변경을 출력하지 않는다.\n\n[승인 절차]\n유효한 Request의 첫 응답은 한국어 [내신 영어 기존 지문 다문항 설계안]만 출력한다. 카드별 유형, 정답 근거 sentenceId, 오답 원리, 어법 태그·판정 규칙·변형 여부를 쓰되 완성 선지나 JSON은 공개하지 않는다. 마지막 문장은 Request의 approvalSentence와 정확히 같아야 한다. 승인 후에는 ${PROVIDED_PASSAGE_V02_RESPONSE_SCHEMA_ID} JSON 객체 하나만 출력한다.\n\n[Request JSON]\n${JSON.stringify(request, null, 2)}`
 }
 
 function validateSpan(span: ProvidedPassageEvidenceSpan, state: ProvidedPassageV02State, label: string) {
@@ -257,7 +275,8 @@ export function adaptProvidedPassageV02Response(value: unknown, base: EnglishQue
   const questions: EnglishQuestion[] = []
   const results: ProvidedPassageV02ItemResult[] = []
   const reviews: CsatQualityReview[] = []
-  for (const plan of state.itemPlans) {
+  const orderedPlans = orderedProvidedPassageV02Plans(state.itemPlans)
+  for (const plan of orderedPlans) {
     const record = recordById.get(plan.itemId)
     if (!record) throw new Error(`요청한 itemId가 응답에 없습니다: ${plan.itemId}`)
     if (record.templateId !== templateId(plan.questionType) || record.questionType !== plan.questionType || record.vocabularyLevel !== plan.vocabularyLevel) throw new Error(`${plan.itemId}: 문항 계약이 요청과 일치하지 않습니다.`)
@@ -301,7 +320,7 @@ export function adaptProvidedPassageV02Response(value: unknown, base: EnglishQue
     results.push({ itemId: plan.itemId, evidenceSpans, materialOperation: operation })
     reviews.push(record.qualityReview as CsatQualityReview)
   }
-  return { ...base, title: String(root.title || base.title), material: state.originalText, questions, providedPassageV02: { ...state, results }, providedPassageQualityReview: { passage: reviews[0]?.passage ?? {}, questions: reviews.flatMap((review) => review.questions ?? []) }, aiRevision: base.aiRevision + 1, validatedRevision: 0, lastImportedJson: JSON.stringify(value, null, 2), updatedAt: new Date().toISOString() }
+  return { ...base, title: String(root.title || base.title), material: state.originalText, questions, providedPassageV02: { ...state, itemPlans: orderedPlans, results }, providedPassageQualityReview: { passage: reviews[0]?.passage ?? {}, questions: reviews.flatMap((review) => review.questions ?? []) }, aiRevision: base.aiRevision + 1, validatedRevision: 0, lastImportedJson: JSON.stringify(value, null, 2), updatedAt: new Date().toISOString() }
 }
 
 export function parseProvidedPassageV02Json(raw: string, base: EnglishQuestionSet) {
@@ -344,4 +363,24 @@ export function providedPassageV02QuestionMaterialText(set: EnglishQuestionSet, 
   const { start, end, text } = operation.testedSpan
   if (state.originalText.slice(start, end) !== text || operation.sourceForm !== text) return state.originalText
   return `${state.originalText.slice(0, start)}[[밑줄:${operation.presentedForm}]]${state.originalText.slice(end)}`
+}
+
+export function providedPassageV02SharedMaterialText(set: EnglishQuestionSet) {
+  const state = set.providedPassageV02
+  if (!state || !orderedProvidedPassageV02Questions(set).some((question) => question.type !== '문장 삽입')) return undefined
+  const operations = (state.results ?? []).flatMap((result) => {
+    const operation = result.materialOperation
+    if (!operation || operation.kind !== 'grammar_check') return []
+    const { start, end, text } = operation.testedSpan
+    if (state.originalText.slice(start, end) !== text || operation.sourceForm !== text) return []
+    return [{ start, end, presentedForm: operation.presentedForm }]
+  }).sort((left, right) => right.start - left.start)
+  let material = state.originalText
+  let nextStart = state.originalText.length
+  operations.forEach((operation) => {
+    if (operation.end > nextStart) return
+    material = `${material.slice(0, operation.start)}[[밑줄:${operation.presentedForm}]]${material.slice(operation.end)}`
+    nextStart = operation.start
+  })
+  return material
 }

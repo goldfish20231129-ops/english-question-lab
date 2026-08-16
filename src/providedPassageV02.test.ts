@@ -3,9 +3,9 @@ import { createEnglishSet, generateEnglishPrompt } from './english'
 import { transitionSchoolProvidedPassageMode } from './providedPassage'
 import {
   adaptProvidedPassageV02Response, buildProvidedPassageV02Request, createProvidedPassageV02Plan,
-  generateProvidedPassageV02Prompt, providedPassageV02BlockingReason, providedPassageV02DefaultStem, providedPassageV02GrammarPresentation,
+  generateProvidedPassageV02Prompt, orderedProvidedPassageV02Plans, providedPassageV02BlockingReason, providedPassageV02DefaultStem, providedPassageV02GrammarPresentation,
   providedPassageV02PresentationSpec, providedPassageV02QuestionMaterialText, providedPassageV02TransitionBlockingReason,
-  syncProvidedPassageV02Questions, transitionSchoolProvidedPassageV02,
+  providedPassageV02SharedMaterialText, syncProvidedPassageV02Questions, transitionSchoolProvidedPassageV02,
 } from './providedPassageV02'
 import type { EnglishQuestionSet, ProvidedPassageV02ItemPlan } from './types'
 
@@ -117,8 +117,8 @@ describe('Provided Passage V0.2', () => {
     const set = configured(plans)
     expect(providedPassageV02BlockingReason(set)).toBeUndefined()
     const next = adaptProvidedPassageV02Response(mixedResponse(), set)
-    expect(next.questions.map((question) => question.type)).toEqual(['내용 일치 및 불일치', '문장 삽입', '어법'])
-    expect(next.providedPassageV02?.results?.map((result) => result.itemId)).toEqual(['content-1', 'insert-1', 'grammar-1'])
+    expect(next.questions.map((question) => question.type)).toEqual(['내용 일치 및 불일치', '어법', '문장 삽입'])
+    expect(next.providedPassageV02?.results?.map((result) => result.itemId)).toEqual(['content-1', 'grammar-1', 'insert-1'])
   })
 
   it('includes all eight grammar distinctions and the approval gate in the prompt', () => {
@@ -129,6 +129,7 @@ describe('Provided Passage V0.2', () => {
     expect(prompt).toContain('가주어')
     expect(prompt).toContain('강조 it-that')
     expect(prompt).toContain('[내신 영어 기존 지문 다문항 설계안]')
+    expect(prompt).toContain('동일한 source.passage 한 지문을 공유')
   })
 
   it('starts with the V0.2 marker and carries source identity without a legacy material output contract', () => {
@@ -192,6 +193,8 @@ describe('Provided Passage V0.2', () => {
     expect(providedPassageV02QuestionMaterialText(next, 'grammar-1')).toContain('[[밑줄:who]]')
     expect(providedPassageV02QuestionMaterialText(next, 'grammar-1')).not.toContain('[[삽입위치:')
     expect(next.providedPassageV02?.originalText).toBe(PASSAGE)
+    expect(providedPassageV02SharedMaterialText(next)).toContain('[[밑줄:who]]')
+    expect(providedPassageV02SharedMaterialText(next)).not.toContain('[[삽입위치:')
   })
 
   it('rejects a response that repeats the authoritative passage', () => {
@@ -284,7 +287,14 @@ describe('Provided Passage V0.2', () => {
       { ...seed.questions[0], id: 'grammar', type: '어법', stem: providedPassageV02DefaultStem('grammar') },
     ]
     const next = transitionSchoolProvidedPassageV02(seed, 'provided')
-    expect(next.questions.map((question) => question.id)).toEqual(['content', 'insert', 'grammar'])
-    expect(next.providedPassageV02?.itemPlans.map((plan) => plan.questionType)).toEqual(['content_match', 'sentence_insertion', 'grammar'])
+    expect(next.questions.map((question) => question.id)).toEqual(['content', 'grammar', 'insert'])
+    expect(next.providedPassageV02?.itemPlans.map((plan) => plan.questionType)).toEqual(['content_match', 'grammar', 'sentence_insertion'])
+  })
+
+  it('keeps regular plan order and always places the single insertion plan last', () => {
+    const content = createProvidedPassageV02Plan('content', 'content_match')
+    const insertion = createProvidedPassageV02Plan('insert', 'sentence_insertion')
+    const grammar = createProvidedPassageV02Plan('grammar', 'grammar')
+    expect(orderedProvidedPassageV02Plans([insertion, content, grammar]).map((plan) => plan.itemId)).toEqual(['content', 'grammar', 'insert'])
   })
 })

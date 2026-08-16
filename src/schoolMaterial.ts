@@ -21,6 +21,13 @@ export function orderedGeneratedSchoolQuestions(set: EnglishQuestionSet) {
   return [...regular, ...insertion]
 }
 
+export function orderedSchoolQuestions(set: EnglishQuestionSet) {
+  if (set.mode !== 'school' || (!isGeneratedSchoolSet(set) && !set.providedPassageV02)) return set.questions
+  const regular = set.questions.filter((question) => !isSchoolInsertionQuestion(question))
+  const insertion = set.questions.filter(isSchoolInsertionQuestion)
+  return [...regular, ...insertion]
+}
+
 export function usesQuestionScopedSchoolMaterial(set: EnglishQuestionSet) {
   return isGeneratedSchoolSet(set) && set.questions.some(isSchoolInsertionQuestion)
 }
@@ -57,6 +64,10 @@ export function generatedSchoolInsertionMarkupIssues(set: EnglishQuestionSet) {
     issues.push('삽입 위치는 [[삽입위치:①]]부터 [[삽입위치:⑤]]까지 순서대로 각각 한 번씩 필요합니다.')
   }
   return issues
+}
+
+export function usesInlineSchoolChoices(set: EnglishQuestionSet | undefined, question: EnglishQuestion) {
+  return Boolean(set && set.mode === 'school' && isSchoolInsertionQuestion(question) && (usesQuestionScopedSchoolMaterial(set) || set.providedPassageV02))
 }
 
 export function usesInlineGeneratedSchoolChoices(set: EnglishQuestionSet | undefined, question: EnglishQuestion) {

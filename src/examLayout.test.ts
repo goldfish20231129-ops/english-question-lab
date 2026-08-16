@@ -294,7 +294,7 @@ describe('공통 조판 회귀', () => {
     expect(buildExamFlowBlocks(doc, [school], []).every((block) => !block.keepTogetherId)).toBe(true)
   })
 
-  it('기존 지문 V0.2 복수 문항은 공통 material 블록 대신 문항별 지문 공간을 계산한다', () => {
+  it('기존 지문 V0.2 복수 문항은 공통 지문을 한 번만 두고 삽입 문항만 독립 지문 공간을 계산한다', () => {
     const seed = createEnglishSet('school')
     seed.material = 'First sentence explains the topic. Second sentence adds evidence. Third sentence gives a contrast. Fourth sentence states a result. Fifth sentence closes the discussion. Sixth sentence confirms the point.'
     let set = transitionSchoolProvidedPassageV02(seed, 'provided')
@@ -303,9 +303,10 @@ describe('공통 조판 회귀', () => {
     const doc = exam(); doc.contentEntries = contentEntriesForSet(set); doc.setIds = [set.id]
     const blocks = buildExamFlowBlocks(doc, [set], [])
     const questions = blocks.filter((block) => block.kind === 'question')
-    expect(blocks.some((block) => block.kind === 'material' || block.kind === 'structured-material')).toBe(false)
+    expect(blocks.filter((block) => block.kind === 'material')).toHaveLength(1)
     expect(questions).toHaveLength(2)
-    expect(questions.every((block) => block.units > 10)).toBe(true)
+    expect(questions.map((block) => block.question?.type)).toEqual(['내용 일치 및 불일치', '문장 삽입'])
+    expect(questions[0].units).toBeLessThan(questions[1].units)
   })
 
   it('새 자료 문장 삽입 혼합 세트는 공통 지문을 한 번만 두고 삽입 문항을 마지막에 계산한다', () => {
