@@ -191,6 +191,8 @@ describe('Provided Passage V0.2', () => {
     expect(prompt).toContain('강조 it-that')
     expect(prompt).toContain('[내신 영어 기존 지문 다문항 설계안]')
     expect(prompt).toContain('동일한 source.passage 한 지문을 공유')
+    expect(prompt).toContain('items[].requiredStem은 additional property가 아니라')
+    expect(prompt).toContain('item.required와 item.properties에 모두 정의된 정식 필수 필드')
   })
 
   it('starts with the V0.2 marker and carries source identity without a legacy material output contract', () => {
