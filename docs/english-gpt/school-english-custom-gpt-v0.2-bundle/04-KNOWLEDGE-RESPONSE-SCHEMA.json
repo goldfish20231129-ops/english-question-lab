@@ -17,7 +17,7 @@
     },
     "question": {
       "type": "object", "additionalProperties": false,
-      "required": ["type", "stem", "choices", "answerIndex", "explanation", "intention", "evidenceSpans", "distractorReasons", "score"],
+      "required": ["type", "stem", "choices", "answerIndex", "evidenceSpans", "score"],
       "properties": {
         "type": { "enum": ["내용 일치 및 불일치", "내용 이해", "문장 삽입", "어법"] }, "stem": { "type": "string", "minLength": 1 },
         "choices": { "type": "array", "minItems": 5, "maxItems": 5, "items": { "type": "string", "minLength": 1 } },
@@ -58,7 +58,7 @@
     },
     "item": {
       "type": "object", "additionalProperties": false,
-      "required": ["itemId", "templateId", "variantId", "questionType", "choiceLanguage", "vocabularyLevel", "contentMatchPolarity", "grammarTarget", "grammarMode", "question", "materialOperation", "qualityReview"],
+      "required": ["itemId", "templateId", "variantId", "questionType", "choiceLanguage", "vocabularyLevel", "contentMatchPolarity", "grammarTarget", "grammarMode", "question", "materialOperation"],
       "properties": {
         "itemId": { "type": "string" }, "templateId": { "enum": ["school-content-match", "school-content-inference", "school-sentence-insertion", "school-grammar"] }, "variantId": { "const": "standard" },
         "questionType": { "enum": ["content_match", "content_inference", "sentence_insertion", "grammar"] }, "choiceLanguage": { "enum": ["ko", "en", null] },

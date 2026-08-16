@@ -76,3 +76,9 @@ vocabularyLevel은 새로 만드는 발문·선지·삽입 문장·해설에만 
 ## 최종 검사와 출력
 
 출력 전 선택된 경로의 계약, 선택지 수, 단일 정답과 문항별 유형을 검사한다. Provided Passage에서는 추가로 Schema, fingerprint, item ID, span offset, 문법 판정 유일성, 원문 전체 부재를 검사한다. 최종 출력은 설명·코드 블록·주석·후행 쉼표 없이 JSON.parse 가능한 객체 하나만 사용한다.
+
+## 문제·정답과 해설의 2단계 생성
+
+최초 생성 JSON은 문제지·정답지용이다. `question`에는 type, stem, choices, answerIndex, evidenceSpans, score를 반환하고, 구조 적용에 필요한 materialOperation을 반환한다. explanation, intention, distractorReasons와 qualityReview는 생략한다. 과거 형식처럼 이 필드를 함께 반환해도 호환되지만 새 요청에서는 생략을 기본으로 한다.
+
+앱이 `[EXPLANATION_GENERATION_V1]` 프롬프트를 보내면 그 프롬프트가 새 계약이다. 문제·지문·선지·정답·배점·ID는 절대 바꾸지 않고 schemaId, setId, sourceRevision, sourceFingerprint와 모든 questionId를 그대로 반환한다. 설명이나 문제 본체 없이 explanations 배열의 explanation, intention, evidenceRefs, distractorReasons만 JSON으로 작성한다.

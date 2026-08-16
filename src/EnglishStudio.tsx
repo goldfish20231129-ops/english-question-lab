@@ -13,6 +13,7 @@ import { includesValue, toggleUniqueValue } from './utils'
 import { VerificationStudio } from './VerificationStudio'
 import { VERIFICATION_STATUS_LABELS, verificationDisplayStatus } from './verification'
 import { ENGLISH_DIFFICULTY_LEVELS, englishDifficultyLabel, englishDifficultySummary } from './difficulty'
+import { EXPLANATION_STATUS_LABELS, explanationSourceFingerprint, explanationStatus, generateExplanationPrompt, parseExplanationJson } from './explanation'
 
 interface Props {
   screen: StudioScreen
@@ -126,6 +127,8 @@ function SetWorkspace({ mode, bundle, setBundle, notify, onOpenVerification }: P
   const filtered = bundle.questionSets.filter((set) => set.mode === mode)
   const [activeId, setActiveId] = useState(filtered[0]?.id ?? '')
   const [jsonInput, setJsonInput] = useState('')
+  const [explanationInput, setExplanationInput] = useState('')
+  const [explanationPrompt, setExplanationPrompt] = useState('')
   const [issues, setIssues] = useState<ValidationIssue[]>([])
   const [reviewPrompt, setReviewPrompt] = useState('')
   const [gptConfig, setGptConfig] = useState<EnglishGptConfig>({ school: '', csat: '', custom: '', csatVerifier: '' })
@@ -138,9 +141,10 @@ function SetWorkspace({ mode, bundle, setBundle, notify, onOpenVerification }: P
   const schoolProvidedBlockingReason = active && schoolProvidedV02 ? providedPassageV02BlockingReason(active) : active && schoolProvided ? providedPassageBlockingReason(active) : schoolProvidedMode ? '기존 지문 상태가 없습니다. 원문과 기존 문항은 유지되며 V0.2 연결 준비가 필요합니다.' : undefined
   const schoolProvidedTransitionReason = active?.mode === 'school' ? providedPassageV02TransitionBlockingReason(active) : undefined
   const activeVerificationStatus = active?.mode === 'csat' ? verificationDisplayStatus({ scope: 'set', id: active.id }, active.verificationRuns, bundle) : undefined
+  const activeExplanationStatus = active ? explanationStatus(active) : 'not-ready'
   const imageInput = useRef<HTMLInputElement>(null)
   useEffect(() => { if (!active) setActiveId(filtered[0]?.id ?? '') }, [mode, active, filtered])
-  useEffect(() => { setJsonInput(''); setIssues([]); setReviewPrompt('') }, [activeId])
+  useEffect(() => { setJsonInput(''); setExplanationInput(''); setExplanationPrompt(''); setIssues([]); setReviewPrompt('') }, [activeId])
   useEffect(() => { void loadEnglishGptConfig().then(setGptConfig) }, [])
 
   const addSet = () => {
@@ -150,7 +154,9 @@ function SetWorkspace({ mode, bundle, setBundle, notify, onOpenVerification }: P
   }
   const updateSet = (patch: Partial<EnglishQuestionSet>) => {
     if (!active) return
-    const next = { ...active, ...patch, updatedAt: new Date().toISOString() }
+    const candidate = { ...active, ...patch }
+    const sourceChanged = explanationSourceFingerprint(candidate) !== explanationSourceFingerprint(active)
+    const next = { ...candidate, explanationSourceFingerprint: sourceChanged ? undefined : candidate.explanationSourceFingerprint, updatedAt: new Date().toISOString() }
     setBundle((value) => ({ ...value, questionSets: value.questionSets.map((set) => set.id === next.id ? next : set) }))
     persistLocally(saveQuestionSet(next), '세트 변경 사항', notify)
   }
@@ -250,6 +256,21 @@ function SetWorkspace({ mode, bundle, setBundle, notify, onOpenVerification }: P
       notify(`AI 결과 리비전 ${next.aiRevision}을 가져왔습니다. 최신 결과를 검사해 주세요.`)
     } catch (error) { notify(error instanceof Error ? error.message : 'JSON을 읽지 못했습니다.') }
   }
+  const createExplanation = () => {
+    if (!active) return
+    try { setExplanationPrompt(generateExplanationPrompt(active)); notify('현재 문제·정답에 맞는 해설 제작 프롬프트를 만들었습니다.') }
+    catch (error) { notify(error instanceof Error ? error.message : '해설 프롬프트를 만들지 못했습니다.') }
+  }
+  const importExplanation = () => {
+    if (!active) return
+    try {
+      const next = parseExplanationJson(explanationInput, active)
+      setBundle((value) => ({ ...value, questionSets: value.questionSets.map((set) => set.id === next.id ? next : set) }))
+      persistLocally(saveQuestionSet(next), '해설 결과', notify)
+      setExplanationInput(''); setExplanationPrompt('')
+      notify('문제와 정답은 그대로 유지하고 해설지를 완성했습니다.')
+    } catch (error) { notify(error instanceof Error ? error.message : '해설 JSON을 읽지 못했습니다.') }
+  }
   const uploadImage = (file?: File, csatItemId?: string) => {
     if (!active || !file) return
     if (!file.type.startsWith('image/')) { notify('이미지 파일만 추가할 수 있습니다.'); return }
@@ -333,9 +354,10 @@ function SetWorkspace({ mode, bundle, setBundle, notify, onOpenVerification }: P
         </section>}
 
         <section className="editor-card"><div className="card-title-row"><div><h3>{hasProvidedPassage ? '3. 기존 지문 문항 제작 프롬프트' : mode === 'csat' ? '3. 일괄 AI 제작 프롬프트' : '3. 외부 AI용 제작 프롬프트'}</h3><p>{hasProvidedPassage ? '원문과 문장 경계를 한 번만 전달하고, AI는 원문을 반환하지 않은 채 문항 데이터만 생성합니다.' : mode === 'csat' ? '빈 주제·소재는 빠른 선택 후보에서 카드별로 자동 배정한 뒤 하나의 프롬프트와 JSON으로 생성합니다.' : 'API 연결 없이 프롬프트를 복사해 원하는 외부 AI에서 사용합니다.'}</p></div><button className="primary" disabled={Boolean(schoolProvidedBlockingReason)} title={schoolProvidedBlockingReason} onClick={createPrompt}>프롬프트 생성</button></div><textarea className="prompt-output" value={active.prompt} onChange={(event) => updateSet({ prompt: event.target.value })} placeholder="프롬프트 생성 버튼을 누르세요." /><div className="button-row"><button onClick={() => void copy(active.prompt, '프롬프트를 복사했습니다.')}>프롬프트 복사</button>{mode === 'csat' && !hasProvidedPassage && <button onClick={() => void copy(generateCsatGptInstructions(), '수능형 GPT 전체 지침을 복사했습니다.')}>수능형 GPT 지침 복사</button>}<button disabled={!gptConfig[mode]} onClick={() => { if (gptConfig[mode]) { void copy(active.prompt, '프롬프트를 복사하고 전용 GPT를 열었습니다.'); window.open(gptConfig[mode], '_blank', 'noopener,noreferrer') } }}>{gptConfig[mode] ? `${MODE_LABELS[mode]} GPT 열기` : 'GPT 링크 미설정'}</button></div></section>
-        <section className="editor-card"><h3>{hasProvidedPassage ? '4. 문항 전용 AI JSON 가져오기' : mode === 'csat' ? '4. 일괄 AI 결과 JSON 가져오기' : '4. AI 결과 JSON 가져오기'}</h3><textarea className="json-input" value={jsonInput} onChange={(event) => setJsonInput(event.target.value)} placeholder={schoolProvidedV02 ? '{"schemaId":"english-question-lab-provided-passage-generation-v0.2","mode":"school_english_provided_passage","subject":"English","sourcePassageId":"...","sourceFingerprint":"sha256:...","items":[...]}' : hasProvidedPassage ? '{"schemaId":"english-question-lab-provided-passage-generation-v0.1","mode":"school_english_provided_passage","subject":"English","sourcePassageId":"...","sourceFingerprint":"sha256:...","items":[...]}' : mode === 'csat' ? '{"title":"...","items":[{"itemId":"...","templateId":"18","variantId":"standard","material":"...","questions":[...]}]}' : '{"title":"...","material":"...","questions":[...]}'}/><button className="primary wide" onClick={importJson}>JSON 분석하여 가져오기</button></section>
-        <section className="editor-card"><div className="card-title-row"><div><h3>{mode === 'csat' ? '5. 최신 일괄 결과 검사와 재검토' : '5. 최신 결과 검사와 재검토'}</h3><p>현재 AI 결과 v{active.aiRevision} · 마지막 검사 v{active.validatedRevision || '-'}{activeVerificationStatus ? ` · AI 검증 ${VERIFICATION_STATUS_LABELS[activeVerificationStatus]}` : ''}</p></div><div className="button-row"><button onClick={() => { const nextIssues = validateEnglishSet(active); const next = { ...active, validatedRevision: active.aiRevision, updatedAt: new Date().toISOString() }; setIssues(nextIssues); setReviewPrompt(generateReviewPrompt(next, nextIssues)); updateSet({ validatedRevision: active.aiRevision }) }}>최신 AI 결과 검사</button>{mode === 'csat' && <button className="primary" disabled={!active.aiRevision} onClick={() => onOpenVerification?.({ scope: 'set', id: active.id })}>선택적으로 AI 검증하기</button>}</div></div>{mode === 'csat' && <p className="optional-verification-hint">별도 검증 AI는 선택 사항입니다. 실행하지 않아도 시험지 조립·인쇄·PDF 저장에 제한이 없습니다.</p>}{issues.length > 0 && <div className="validation-list">{issues.map((issue) => <article className={issue.level} key={issue.id}><strong>{issue.level === 'error' ? '오류' : issue.level === 'warning' ? '확인' : '통과'} · {issue.label}</strong><span>{issue.detail}</span></article>)}</div>}{reviewPrompt && <><textarea className="review-output" value={reviewPrompt} onChange={(event) => setReviewPrompt(event.target.value)} /><button className="wide" onClick={() => void copy(reviewPrompt, '재검토 프롬프트를 복사했습니다.')}>재검토 프롬프트 복사</button></>}</section>
-        {mode !== 'csat' && <section className="editor-card"><div className="card-title-row"><div><h3>6. 이미지 자료</h3><p>파일당 3MB 이하를 권장합니다.</p></div><button onClick={() => imageInput.current?.click()}>이미지 추가</button><input ref={imageInput} type="file" accept="image/*" hidden onChange={(event) => { uploadImage(event.target.files?.[0]); event.currentTarget.value = '' }} /></div><AssetGrid assets={bundle.mediaAssets.filter((asset) => asset.setId === active.id)} updateAsset={updateAsset} removeAsset={removeAsset} /></section>}
+        <section className="editor-card"><h3>{hasProvidedPassage ? '4. 문항·정답 전용 AI JSON 가져오기' : mode === 'csat' ? '4. 일괄 문제·정답 JSON 가져오기' : '4. 문제·정답 JSON 가져오기'}</h3><p className="field-help">1차 결과에는 지문·문항·선지·정답·배점만 있으면 됩니다. 기존처럼 해설까지 포함된 JSON도 계속 가져올 수 있습니다.</p><textarea className="json-input" value={jsonInput} onChange={(event) => setJsonInput(event.target.value)} placeholder={schoolProvidedV02 ? '{"schemaId":"english-question-lab-provided-passage-generation-v0.2","mode":"school_english_provided_passage","subject":"English","sourcePassageId":"...","sourceFingerprint":"sha256:...","items":[...]}' : hasProvidedPassage ? '{"schemaId":"english-question-lab-provided-passage-generation-v0.1","mode":"school_english_provided_passage","subject":"English","sourcePassageId":"...","sourceFingerprint":"sha256:...","items":[...]}' : mode === 'csat' ? '{"title":"...","items":[{"itemId":"...","templateId":"18","variantId":"standard","material":"...","questions":[...]}]}' : '{"title":"...","material":"...","questions":[...]}'}/><button className="primary wide" onClick={importJson}>문제·정답 JSON 분석하여 가져오기</button></section>
+        <section className="editor-card explanation-stage"><div className="card-title-row"><div><h3>5. 선택형 해설지 완성</h3><p>문제·정답을 먼저 완성한 뒤, 필요할 때만 해설을 별도로 생성합니다.</p></div><span className={`explanation-status ${activeExplanationStatus}`}>{EXPLANATION_STATUS_LABELS[activeExplanationStatus]}</span></div><div className="button-row"><button className="primary" disabled={activeExplanationStatus === 'not-ready'} onClick={createExplanation}>해설 제작 프롬프트 만들기</button><button disabled={!explanationPrompt} onClick={() => void copy(explanationPrompt, '해설 제작 프롬프트를 복사했습니다.')}>해설 프롬프트 복사</button><button disabled={!gptConfig[mode] || !explanationPrompt} onClick={() => { if (gptConfig[mode]) { void copy(explanationPrompt, '해설 프롬프트를 복사하고 전용 GPT를 열었습니다.'); window.open(gptConfig[mode], '_blank', 'noopener,noreferrer') } }}>전용 GPT 열기</button></div>{explanationPrompt && <textarea className="prompt-output" value={explanationPrompt} onChange={(event) => setExplanationPrompt(event.target.value)} />}<label>해설 AI 결과 JSON<small className="field-help">해설 프롬프트에 대한 JSON 결과를 붙여넣으세요. 문제·선지·정답은 수정하지 않고 해설 정보만 추가합니다.</small><textarea className="json-input" value={explanationInput} onChange={(event) => setExplanationInput(event.target.value)} placeholder='{"schemaId":"english-question-lab-explanation-v1","setId":"...","sourceRevision":1,"sourceFingerprint":"fnv1a32:...","explanations":[...]}' /></label><button className="primary wide" disabled={!explanationInput.trim()} onClick={importExplanation}>해설 JSON 분석하여 추가하기</button></section>
+        <section className="editor-card"><div className="card-title-row"><div><h3>{mode === 'csat' ? '6. 최신 일괄 결과 검사와 재검토' : '6. 최신 결과 검사와 재검토'}</h3><p>현재 AI 결과 v{active.aiRevision} · 마지막 검사 v{active.validatedRevision || '-'}{activeVerificationStatus ? ` · AI 검증 ${VERIFICATION_STATUS_LABELS[activeVerificationStatus]}` : ''}</p></div><div className="button-row"><button onClick={() => { const nextIssues = validateEnglishSet(active); const next = { ...active, validatedRevision: active.aiRevision, updatedAt: new Date().toISOString() }; setIssues(nextIssues); setReviewPrompt(generateReviewPrompt(next, nextIssues)); updateSet({ validatedRevision: active.aiRevision }) }}>최신 AI 결과 검사</button>{mode === 'csat' && <button className="primary" disabled={!active.aiRevision} onClick={() => onOpenVerification?.({ scope: 'set', id: active.id })}>선택적으로 AI 검증하기</button>}</div></div>{mode === 'csat' && <p className="optional-verification-hint">별도 검증 AI는 선택 사항입니다. 실행하지 않아도 시험지 조립·인쇄·PDF 저장에 제한이 없습니다.</p>}{issues.length > 0 && <div className="validation-list">{issues.map((issue) => <article className={issue.level} key={issue.id}><strong>{issue.level === 'error' ? '오류' : issue.level === 'warning' ? '확인' : '통과'} · {issue.label}</strong><span>{issue.detail}</span></article>)}</div>}{reviewPrompt && <><textarea className="review-output" value={reviewPrompt} onChange={(event) => setReviewPrompt(event.target.value)} /><button className="wide" onClick={() => void copy(reviewPrompt, '재검토 프롬프트를 복사했습니다.')}>재검토 프롬프트 복사</button></>}</section>
+        {mode !== 'csat' && <section className="editor-card"><div className="card-title-row"><div><h3>7. 이미지 자료</h3><p>파일당 3MB 이하를 권장합니다.</p></div><button onClick={() => imageInput.current?.click()}>이미지 추가</button><input ref={imageInput} type="file" accept="image/*" hidden onChange={(event) => { uploadImage(event.target.files?.[0]); event.currentTarget.value = '' }} /></div><AssetGrid assets={bundle.mediaAssets.filter((asset) => asset.setId === active.id)} updateAsset={updateAsset} removeAsset={removeAsset} /></section>}
       </section>
       <aside className="live-preview-panel"><div className="sticky-preview"><span className="eyebrow">LIVE PREVIEW</span><h3>실시간 미리보기</h3><details open><summary>현재 세트 시험지</summary><DragPreviewViewport className="live-preview-scroll" label="현재 세트 시험지 미리보기"><SetLivePreview set={active} assets={bundle.mediaAssets.filter((asset) => asset.setId === active.id)} /></DragPreviewViewport></details></div></aside>
     </>}
@@ -567,7 +589,7 @@ function NumberField({ label, value, step = 1, onChange }: { label: string; valu
 
 function ExamPreview({ bundle, notify }: Props) {
   const [activeId, setActiveId] = useState(bundle.exams[0]?.id ?? '')
-  const [sheet, setSheet] = useState<'questions' | 'answers'>('questions')
+  const [sheet, setSheet] = useState<'questions' | 'answers' | 'solutions'>('questions')
   const [saving, setSaving] = useState(false)
   const [layoutIssues, setLayoutIssues] = useState<string[]>([])
   const rawActive = bundle.exams.find((exam) => exam.id === activeId) ?? bundle.exams[0]
@@ -586,5 +608,5 @@ function ExamPreview({ bundle, notify }: Props) {
     finally { setSaving(false) }
   }
   if (!active) return <section className="empty-editor"><h2>인쇄 미리보기</h2><p>먼저 시험지 조립에서 시험지를 만드세요.</p></section>
-  return <section className="preview-screen"><div className="preview-toolbar"><label>시험지<select value={active.id} onChange={(event) => setActiveId(event.target.value)}>{bundle.exams.map((exam) => <option value={exam.id} key={exam.id}>{exam.title}</option>)}</select></label><div className="segmented"><button className={sheet === 'questions' ? 'active' : ''} onClick={() => setSheet('questions')}>문제지</button><button className={sheet === 'answers' ? 'active' : ''} onClick={() => setSheet('answers')}>정답·해설지</button></div><div className="button-row"><button disabled={!sets.length || !!layoutIssues.length} onClick={() => window.print()}>인쇄</button><button className="primary" disabled={!sets.length || saving || !!layoutIssues.length} onClick={() => void savePdf()}>{saving ? 'PDF 만드는 중…' : 'PDF 저장'}</button></div></div>{layoutIssues.length > 0 && <div className="export-blocker"><strong>한 칸보다 긴 문항이 있어 내보낼 수 없습니다.</strong><ul>{layoutIssues.map((issue) => <li key={issue}>{issue}</li>)}</ul></div>}{!sets.length ? <div className="empty-editor">시험지에 세트를 추가해 주세요.</div> : <div className="preview-page-stack">{sheet === 'questions' ? <ExamQuestionPages exam={active} sets={sets} assets={bundle.mediaAssets} onLayoutIssuesChange={setLayoutIssues} /> : <ExamAnswerPages exam={active} sets={sets} />}</div>}</section>
+  return <section className="preview-screen"><div className="preview-toolbar"><label>시험지<select value={active.id} onChange={(event) => setActiveId(event.target.value)}>{bundle.exams.map((exam) => <option value={exam.id} key={exam.id}>{exam.title}</option>)}</select></label><div className="segmented"><button className={sheet === 'questions' ? 'active' : ''} onClick={() => setSheet('questions')}>문제지</button><button className={sheet === 'answers' ? 'active' : ''} onClick={() => setSheet('answers')}>정답지</button><button className={sheet === 'solutions' ? 'active' : ''} onClick={() => setSheet('solutions')}>정답·해설지</button></div><div className="button-row"><button disabled={!sets.length || !!layoutIssues.length} onClick={() => window.print()}>인쇄</button><button className="primary" disabled={!sets.length || saving || !!layoutIssues.length} onClick={() => void savePdf()}>{saving ? 'PDF 만드는 중…' : 'PDF 저장'}</button></div></div>{layoutIssues.length > 0 && <div className="export-blocker"><strong>한 칸보다 긴 문항이 있어 내보낼 수 없습니다.</strong><ul>{layoutIssues.map((issue) => <li key={issue}>{issue}</li>)}</ul></div>}{!sets.length ? <div className="empty-editor">시험지에 세트를 추가해 주세요.</div> : <div className="preview-page-stack">{sheet === 'questions' ? <ExamQuestionPages exam={active} sets={sets} assets={bundle.mediaAssets} onLayoutIssuesChange={setLayoutIssues} /> : <ExamAnswerPages exam={active} sets={sets} sheet={sheet} />}</div>}</section>
 }

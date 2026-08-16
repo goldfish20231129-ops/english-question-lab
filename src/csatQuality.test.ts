@@ -96,21 +96,20 @@ describe('품질 검수 JSON과 경고', () => {
     item.passageLength = 'long'
     const prompt = generateEnglishPrompt(set)
     expect(prompt).toContain('김 168~179단어')
-    expect(prompt).toContain('distractorPlausibility')
-    expect(prompt).toContain('어느 점수든 8점 미만')
+    expect(prompt).toContain('상세 해설·출제 의도·근거 인용·오답 사유·qualityReview는 출력하지 않는다')
     const instructions = generateCsatGptInstructions()
     expect(instructions).toContain('조사 단어 수 126/156.1/179')
     expect(instructions).toContain('qualityReview')
   })
 
-  it('품질 검수를 파싱·저장하고, 누락된 qualityReview는 엄격히 거부한다', () => {
+  it('품질 검수를 파싱·저장하고, 1차 문제·정답 단계에서는 누락을 허용한다', () => {
     const first = configured33()
     const imported = parseEnglishSetJson(JSON.stringify(importPayload(first.item, qualityReview())), first.set)
     expect(imported.csatItems?.[0].qualityReview?.passage.templateFidelity).toBe(9)
     expect(imported.lastImportedJson).toContain('qualityReview')
 
     const legacy = configured33()
-    expect(() => parseEnglishSetJson(JSON.stringify(importPayload(legacy.item)), legacy.set)).toThrow(/qualityReview|필수 필드 누락/)
+    expect(parseEnglishSetJson(JSON.stringify(importPayload(legacy.item)), legacy.set).csatItems?.[0].qualityReview).toBeUndefined()
   })
 
   it('길이 이탈·기준 미달·잘못된 강력한 오답과 정답 직접 재현을 경고한다', () => {

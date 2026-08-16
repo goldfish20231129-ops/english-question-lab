@@ -43,7 +43,9 @@ describe('영어 세트 공통 흐름', () => {
   })
 
   it('내신형과 맞춤설정형의 기존 프롬프트 흐름을 유지한다', () => {
-    expect(generateEnglishPrompt(createEnglishSet('school'))).toContain('서술형은 만들지 않고 객관식만')
+    const prompt = generateEnglishPrompt(createEnglishSet('school'))
+    expect(prompt).toContain('서술형은 만들지 않고 객관식만')
+    expect(prompt).toContain('explanation, intention, evidenceRefs, distractorReasons는 출력하지 않는다')
     expect(generateEnglishPrompt(createEnglishSet('custom'))).toContain('맞춤설정형')
   })
 

@@ -7,6 +7,8 @@
 - [CSAT_GPT_INSTRUCTIONS.md](./CSAT_GPT_INSTRUCTIONS.md): GPT Instructions에 붙여 넣는 전체 지침
 - [CSAT_STYLE_MANUAL.md](./CSAT_STYLE_MANUAL.md): 11개 평가원 시험지 분석을 통합한 Knowledge
 - [csat-output-schema.json](./csat-output-schema.json): 앱 호환 최종 JSON Knowledge
+- [EXPLANATION_WORKFLOW_V1.md](./EXPLANATION_WORKFLOW_V1.md): 문제·정답 우선, 선택형 해설 생성 흐름
+- [explanation-output-schema-v1.json](./explanation-output-schema-v1.json): 문제 본체를 바꾸지 않는 해설 추가 JSON 형식
 - [GPT_SETUP_GUIDE.md](./GPT_SETUP_GUIDE.md): 생성·업로드·공유·사용 순서
 - [GPT_TEST_CASES.md](./GPT_TEST_CASES.md): 비공개 상태에서 실행할 검수 시나리오
 
@@ -15,4 +17,3 @@
 `앱 프롬프트 붙여 넣기 → 한국어 세트 제작 설계안 → 사용자 수정·승인 → 최종 JSON → 앱 가져오기 → 검사·재검토`
 
 GPT 공유 링크는 사용자가 GPT를 만든 뒤 `public/english-gpt-config.json`의 `csat`에 별도로 등록한다. 현재는 빈 값을 유지한다. 웹 검색, 이미지 생성, Actions, 외부 API는 필요하지 않다.
-

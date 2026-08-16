@@ -202,6 +202,8 @@ ${modeInstructions.csat.map((item) => `- ${item}`).join('\n')}
 - 각 문항 설계 카드는 서로 독립된 지문을 사용한다.
 - 41~42번과 43~45번은 각각 하나의 공유 지문을 가진 고정 묶음이다.
 - 모든 문항은 객관식 5지선다이며 정답은 하나다.
+- 이번 승인 후 1차 JSON은 문제지와 정답지 완성이 목적이다. 상세 해설·출제 의도·근거 인용·오답 사유·qualityReview는 출력하지 않는다.
+- 기존 방식대로 위 해설 필드나 qualityReview를 함께 출력해도 앱은 호환하여 가져올 수 있다.
 - templateId와 variantId는 입력에 제시된 문자열을 그대로 반환한다. 예: "templateId": "33"
 - 첫 응답에서는 지문·문항·선지·JSON을 생성하지 않고 아래 승인 절차에 따른다.
 ${savedPrinciplesSection()}
@@ -234,33 +236,9 @@ ${buildCsatPromptSection(normalized)}
           "stem": "발문",
           "choices": ["선지 1", "선지 2", "선지 3", "선지 4", "선지 5"],
           "answerIndex": 1,
-          "explanation": "정답 근거를 포함한 해설",
-          "intention": "출제 의도",
-          "evidenceRefs": ["지문에 실제로 존재하는 직접 인용"],
-          "distractorReasons": ["오답 1", "오답 2", "오답 3", "오답 4"],
           "score": 2
         }
-      ],
-      "qualityReview": {
-        "passage": {
-          "naturalness": 9,
-          "logicStructure": 9,
-          "vocabularyLevel": 9,
-          "templateFidelity": 9
-        },
-        "questions": [
-          {
-            "slot": "고정 문항 역할",
-            "answerInference": 9,
-            "distractorPlausibility": 9,
-            "choiceBalance": 9,
-            "directAnswerOverlap": false,
-            "strongestDistractorIndex": 2,
-            "decisiveReason": "정답과 가장 강력한 오답을 가르는 결정적 지문 근거",
-            "expectedDifficulty": ${normalized.difficulty}
-          }
-        ]
-      }
+      ]
     }
   ]
 }
@@ -326,7 +304,9 @@ ${MODE_LABELS[set.mode]}
 ${activeModeInstructions.map((item) => `- ${item}`).join('\n')}
 - 외부 배경지식 없이 제시 자료로 정답을 판단할 수 있게 한다.
 - 객관식 ${set.choiceCount}지선다만 만들고 정답은 하나만 둔다.
-- 모든 오답에 서로 다른 명백한 오류 근거를 둔다.
+- 이번 1차 응답은 문제지와 정답지 완성이 목적이다. 상세 해설·출제 의도·근거 인용·오답 사유는 생성하지 않는다.
+- explanation, intention, evidenceRefs, distractorReasons는 출력하지 않는다. 기존 방식대로 함께 출력해도 앱은 호환하여 가져올 수 있다.
+- 모든 오답은 내부적으로 서로 다른 명백한 오류 근거를 갖게 설계한다.
 - 일반 영어 지문은 마지막 문장까지 빈 줄이나 문단 구분 없이 하나의 연속 문단으로 작성한다. 순서·삽입·요약·복합 장문은 문제 풀이에 필요한 필수 구획만 분리하고 각 구획 내부는 나누지 않는다.
 - 설명이나 마크다운 없이 유효한 JSON 하나만 출력한다.
 ${principlesSection}
@@ -372,10 +352,6 @@ ${plan}
       "stem": "발문",
       "choices": ["선지 1", "선지 2", "선지 3", "선지 4", "선지 5"],
       "answerIndex": 1,
-      "explanation": "정답 근거를 포함한 해설",
-      "intention": "출제 의도",
-      "evidenceRefs": ["지문에 실제로 존재하는 직접 인용"],
-      "distractorReasons": ["2번 오답 이유", "3번 오답 이유", "4번 오답 이유", "5번 오답 이유"],
       "score": 2
     }
   ]
@@ -526,7 +502,7 @@ export function parseEnglishSetJson(raw: string, base: EnglishQuestionSet): Engl
   const snapshot = { title: input.title, materialTitle: input.materialTitle, material: input.material, materialSpec: input.materialSpec, questions: inputQuestions }
   return {
     ...base, title: typeof input.title === 'string' ? input.title : base.title, materialTitle: typeof input.materialTitle === 'string' ? input.materialTitle : base.materialTitle,
-    material: input.material, materialSpec, questions, choiceCount, aiRevision: nextRevision, validatedRevision: 0, lastImportedJson: JSON.stringify(snapshot, null, 2), updatedAt: new Date().toISOString(),
+    material: input.material, materialSpec, questions, choiceCount, aiRevision: nextRevision, validatedRevision: 0, lastImportedJson: JSON.stringify(snapshot, null, 2), explanationSourceFingerprint: undefined, updatedAt: new Date().toISOString(),
   }
 }
 
@@ -554,8 +530,6 @@ function parseQuestionArray(values: unknown[], expected: ReturnType<typeof expec
     const blueprint = expected[index]
     if (canonicalCsatQuestionType(input.type) !== blueprint.type) throw new Error(`문항 카드 ${itemId}의 ${index + 1}번 문항 type이 예상값 '${blueprint.type}'과 다릅니다.`)
     assertRequiredQuestionText(input.stem, 'stem', itemId, index)
-    assertRequiredQuestionText(input.explanation, 'explanation', itemId, index)
-    assertRequiredQuestionText(input.intention, 'intention', itemId, index)
     const providedChoices = cleanStrings(input.choices)
     if (providedChoices.length !== 5 || providedChoices.some((choice) => !choice)) throw new Error(`문항 카드 ${itemId}의 ${index + 1}번 문항은 내용이 채워진 선지 5개가 필요합니다.`)
     if (isInlinePositionTemplate(templateId) && providedChoices.some((choice, choiceIndex) => choice !== CSAT_INLINE_POSITION_CHOICES[choiceIndex])) {
@@ -565,8 +539,8 @@ function parseQuestionArray(values: unknown[], expected: ReturnType<typeof expec
     return {
       id: fallback[index]?.id ?? crypto.randomUUID(), type: blueprint.type, stem: input.stem.trim(), choices,
       answerIndex: strictCsatAnswerIndex(input.answerIndex, itemId, index),
-      explanation: input.explanation.trim(),
-      intention: input.intention.trim(),
+      explanation: typeof input.explanation === 'string' ? input.explanation.trim() : '',
+      intention: typeof input.intention === 'string' ? input.intention.trim() : '',
       evidenceRefs: cleanStrings(input.evidenceRefs), distractorReasons: cleanStrings(input.distractorReasons),
       score: input.score as number,
       csatTemplateId: templateId ?? fallback[index]?.csatTemplateId, csatSlot: blueprint.slot, csatItemId: itemId,
@@ -644,7 +618,7 @@ function parseCsatBatchJson(input: Record<string, unknown>, base: EnglishQuestio
   }
   return {
     ...normalized, title: typeof input.title === 'string' ? input.title : base.title, csatItems: nextItems,
-    aiRevision: nextRevision, validatedRevision: 0, lastImportedJson: JSON.stringify(snapshot, null, 2), updatedAt: new Date().toISOString(),
+    aiRevision: nextRevision, validatedRevision: 0, lastImportedJson: JSON.stringify(snapshot, null, 2), explanationSourceFingerprint: undefined, updatedAt: new Date().toISOString(),
   }
 }
 
@@ -721,7 +695,7 @@ function validateCsatItemQuality(item: ReturnType<typeof getCsatItems>[number], 
   item.questions.forEach((question) => validateChoiceBalance(question, item.materialSpec && item.materialSpec.kind !== 'chart' ? csatPrintableMaterialText('', item.materialSpec) : item.material, add))
 
   const review = item.qualityReview
-  if (!review) { add({ level: 'warning', label: 'AI 품질 검수 누락', detail: '가져오기는 완료되었지만 qualityReview가 없습니다. 재검토 프롬프트로 품질 점수와 판단 근거를 보완하세요.' }); return }
+  if (!review) return
   const passageScores = [
     ['자연스러움', review.passage.naturalness, false],
     ['논리 구조', review.passage.logicStructure, false],
@@ -886,12 +860,12 @@ export function validateEnglishSet(set: EnglishQuestionSet): ValidationIssue[] {
     const normalizedChoices = question.choices.map((choice) => choice.replace(/\s+/g, ' ').trim().toLowerCase())
     if (new Set(normalizedChoices).size !== normalizedChoices.length) add({ level: 'error', questionId: question.id, label: '중복 선지', detail: `${prefix}에 동일한 선지가 있습니다.` })
     if (question.answerIndex < 1 || question.answerIndex > set.choiceCount) add({ level: 'error', questionId: question.id, label: '정답 범위', detail: `${prefix}의 정답 번호가 선지 범위를 벗어났습니다.` })
-    if (!question.explanation.trim()) add({ level: 'warning', questionId: question.id, label: '해설 없음', detail: `${prefix}의 상세 해설이 비어 있습니다.` })
-    if (!question.evidenceRefs.length) add({ level: 'warning', questionId: question.id, label: '정답 근거 없음', detail: `${prefix}의 지문 직접 인용 근거가 없습니다.` })
+    const explanationStarted = Boolean(question.explanation.trim() || question.intention.trim() || question.distractorReasons.length)
+    if (explanationStarted && !question.evidenceRefs.length) add({ level: 'warning', questionId: question.id, label: '정답 근거 없음', detail: `${prefix}의 지문 직접 인용 근거가 없습니다.` })
     question.evidenceRefs.forEach((evidence) => {
       if (normalizeEvidence(evidence) && !comparableMaterial.includes(normalizeEvidence(evidence))) add({ level: 'error', questionId: question.id, label: '정답 근거 불일치', detail: `${prefix}의 근거 “${evidence.slice(0, 48)}”를 지문에서 찾을 수 없습니다.` })
     })
-    if (question.distractorReasons.length < Math.max(1, set.choiceCount - 1)) add({ level: 'warning', questionId: question.id, label: '오답 근거 부족', detail: `${prefix}의 오답별 오류 근거를 확인하세요.` })
+    if (explanationStarted && question.distractorReasons.length < Math.max(1, set.choiceCount - 1)) add({ level: 'warning', questionId: question.id, label: '오답 근거 부족', detail: `${prefix}의 오답별 오류 근거를 확인하세요.` })
     const type = question.type
     const boxVocabulary = false
     if (/어법|어휘|함축/.test(type) && !boxVocabulary && !set.material.includes('[[밑줄:')) add({ level: 'warning', questionId: question.id, label: '밑줄 표식 없음', detail: `${prefix} 유형은 지문에 [[밑줄:대상 표현]] 표식을 권장합니다.` })
@@ -916,12 +890,12 @@ function validateQuestionCollection(set: EnglishQuestionSet, questions: EnglishQ
     const normalizedChoices = question.choices.map((choice) => choice.replace(/\s+/g, ' ').trim().toLowerCase())
     if (new Set(normalizedChoices).size !== normalizedChoices.length) add({ level: 'error', questionId: question.id, label: '중복 선지', detail: `${questionLabel}에 동일한 선지가 있습니다.` })
     if (question.answerIndex < 1 || question.answerIndex > 5) add({ level: 'error', questionId: question.id, label: '정답 범위', detail: `${questionLabel}의 정답 번호가 선지 범위를 벗어났습니다.` })
-    if (!question.explanation.trim()) add({ level: 'warning', questionId: question.id, label: '해설 없음', detail: `${questionLabel}의 상세 해설이 비어 있습니다.` })
-    if (!question.evidenceRefs.length) add({ level: 'warning', questionId: question.id, label: '정답 근거 없음', detail: `${questionLabel}의 지문 직접 인용 근거가 없습니다.` })
+    const explanationStarted = Boolean(question.explanation.trim() || question.intention.trim() || question.distractorReasons.length)
+    if (explanationStarted && !question.evidenceRefs.length) add({ level: 'warning', questionId: question.id, label: '정답 근거 없음', detail: `${questionLabel}의 지문 직접 인용 근거가 없습니다.` })
     question.evidenceRefs.forEach((evidence) => {
       if (normalizeEvidence(evidence) && !comparableMaterial.includes(normalizeEvidence(evidence))) add({ level: 'error', questionId: question.id, label: '정답 근거 불일치', detail: `${questionLabel}의 근거 “${evidence.slice(0, 48)}”를 지문에서 찾을 수 없습니다.` })
     })
-    if (question.distractorReasons.length < 4) add({ level: 'warning', questionId: question.id, label: '오답 근거 부족', detail: `${questionLabel}의 오답별 오류 근거를 확인하세요.` })
+    if (explanationStarted && question.distractorReasons.length < 4) add({ level: 'warning', questionId: question.id, label: '오답 근거 부족', detail: `${questionLabel}의 오답별 오류 근거를 확인하세요.` })
     const boxVocabulary = set.csatDesign?.variantId === 'vocabulary-box'
     if (/어법|어휘|함축/.test(question.type) && !boxVocabulary && !material.includes('[[밑줄:')) add({ level: 'warning', questionId: question.id, label: '밑줄 표식 없음', detail: `${questionLabel} 유형은 지문에 [[밑줄:대상 표현]] 표식이 필요합니다.` })
   })

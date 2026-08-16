@@ -103,24 +103,24 @@ describe('수능형 Generation Contract v0 strict import', () => {
     expect(() => parseEnglishSetJson(JSON.stringify(payload), base)).toThrow(/answerIndex/)
   })
 
-  it('missing explanation rejected', () => {
+  it('missing explanation is accepted for the question-and-answer phase', () => {
     const base = configuredSet('33'); const payload = validPayload(base); delete firstQuestion(payload).explanation
-    expect(() => parseEnglishSetJson(JSON.stringify(payload), base)).toThrow(/explanation|필수 필드 누락/)
+    expect(parseEnglishSetJson(JSON.stringify(payload), base).csatItems?.[0].questions[0].explanation).toBe('')
   })
 
-  it('missing evidenceRefs rejected', () => {
+  it('missing evidenceRefs is accepted for the question-and-answer phase', () => {
     const base = configuredSet('33'); const payload = validPayload(base); delete firstQuestion(payload).evidenceRefs
-    expect(() => parseEnglishSetJson(JSON.stringify(payload), base)).toThrow(/evidenceRefs|필수 필드 누락/)
+    expect(parseEnglishSetJson(JSON.stringify(payload), base).csatItems?.[0].questions[0].evidenceRefs).toEqual([])
   })
 
-  it('missing distractorReasons rejected', () => {
+  it('missing distractorReasons is accepted for the question-and-answer phase', () => {
     const base = configuredSet('33'); const payload = validPayload(base); delete firstQuestion(payload).distractorReasons
-    expect(() => parseEnglishSetJson(JSON.stringify(payload), base)).toThrow(/distractorReasons|필수 필드 누락/)
+    expect(parseEnglishSetJson(JSON.stringify(payload), base).csatItems?.[0].questions[0].distractorReasons).toEqual([])
   })
 
-  it('missing qualityReview rejected', () => {
+  it('missing qualityReview is accepted for the question-and-answer phase', () => {
     const base = configuredSet('33'); const payload = validPayload(base); delete (payload.items[0] as Partial<typeof payload.items[0]>).qualityReview
-    expect(() => parseEnglishSetJson(JSON.stringify(payload), base)).toThrow(/qualityReview|필수 필드 누락/)
+    expect(parseEnglishSetJson(JSON.stringify(payload), base).csatItems?.[0].qualityReview).toBeUndefined()
   })
 
   it('unsupported additional field rejected', () => {

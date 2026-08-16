@@ -1,8 +1,9 @@
-export type ExamPdfSheet = 'questions' | 'answers'
+export type ExamPdfSheet = 'questions' | 'answers' | 'solutions'
 
 export function makeExamPdfFilename(title: string, sheet: ExamPdfSheet) {
   const safeTitle = title.replace(/[\\/:*?"<>|]/g, '-').replace(/\s+/g, ' ').trim() || '영어 시험지'
-  return `${safeTitle}-${sheet === 'questions' ? '문제지' : '정답-해설지'}.pdf`
+  const suffix = sheet === 'questions' ? '문제지' : sheet === 'answers' ? '정답지' : '정답-해설지'
+  return `${safeTitle}-${suffix}.pdf`
 }
 
 export async function downloadExamPdf(element: HTMLElement, filename: string) {

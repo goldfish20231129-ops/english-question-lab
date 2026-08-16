@@ -363,6 +363,7 @@ export interface EnglishQuestionSet {
   aiRevision: number
   validatedRevision: number
   lastImportedJson: string
+  explanationSourceFingerprint?: string
   layoutOverride?: SetLayoutOverride
   verificationRuns?: CsatVerificationRun[]
   createdAt: string

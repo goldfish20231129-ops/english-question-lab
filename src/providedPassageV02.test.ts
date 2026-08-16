@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { createEnglishSet, generateEnglishPrompt } from './english'
+import { createEnglishSet, generateEnglishPrompt, validateEnglishSet } from './english'
 import { transitionSchoolProvidedPassageMode } from './providedPassage'
 import {
   adaptProvidedPassageV02Response, buildProvidedPassageV02Request, createProvidedPassageV02Plan,
@@ -137,6 +137,22 @@ describe('Provided Passage V0.2', () => {
     expect(next.providedPassageV02?.results?.[1].materialOperation?.kind).toBe('grammar_check')
     expect(providedPassageV02GrammarPresentation(next, 'content-1')).toBeUndefined()
     expect(providedPassageV02GrammarPresentation(next, 'grammar-1')).toMatchObject({ sentenceId: 's1', displayForm: 'who', sourceForm: 'who' })
+  })
+
+  it('accepts a first-phase response without explanations or quality review', () => {
+    const plans = [createProvidedPassageV02Plan('content-1', 'content_match'), createProvidedPassageV02Plan('grammar-1', 'grammar')]
+    const set = configured(plans)
+    const payload = response(set)
+    payload.items.forEach((item) => {
+      delete (item.question as Partial<typeof item.question>).explanation
+      delete (item.question as Partial<typeof item.question>).intention
+      delete (item.question as Partial<typeof item.question>).distractorReasons
+      delete (item as Partial<typeof item>).qualityReview
+    })
+    const next = adaptProvidedPassageV02Response(payload, set)
+    expect(next.questions.every((question) => question.explanation === '')).toBe(true)
+    expect(next.providedPassageQualityReview).toBeUndefined()
+    expect(validateEnglishSet(next).some((issue) => issue.label === '오답 근거 부족')).toBe(false)
   })
 
   it('rejects a grammar operation whose source form is not the exact original span', () => {

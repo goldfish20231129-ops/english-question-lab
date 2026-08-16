@@ -8,6 +8,7 @@ import { generatedSchoolSharedMaterialPresentation, isSchoolInsertionQuestion, o
 import { schoolQuestionChoiceLayout } from './schoolCatalog'
 import type { CsatItemDesign, EnglishExamDocument, EnglishQuestion, EnglishQuestionSet, ExamLayoutSettings, LayoutPreset, MediaAsset } from './types'
 import { englishDifficultyLabel } from './difficulty'
+import { explanationSourceFingerprint } from './explanation'
 
 const MARKUP = /\[\[(밑줄|빈칸|요약빈칸|삽입문장|삽입위치|선택|보기)(?::([^\]]+))?\]\]/g
 const CIRCLED = ['①', '②', '③', '④', '⑤']
@@ -211,16 +212,26 @@ export function ExamQuestionPages({ exam, sets, assets, onLayoutIssuesChange }: 
   </article>)}</div>
 }
 
-export function ExamAnswerPages({ exam, sets }: { exam: EnglishExamDocument; sets: EnglishQuestionSet[] }) {
+export function ExamAnswerPages({ exam, sets, sheet = 'solutions' }: { exam: EnglishExamDocument; sets: EnglishQuestionSet[]; sheet?: 'answers' | 'solutions' }) {
   const questions = resolveExamEntries(exam, sets).flatMap(({ set, csatItem }) => (csatItem?.questions ?? orderedSchoolQuestions(set)).map((question) => ({ set, question, csatItem })))
   const totalScore = questions.reduce((sum, item) => sum + (Number.isFinite(item.question.score ?? Number.NaN) ? (item.question.score ?? 0) : 0), 0)
+  if (sheet === 'answers') {
+    const perPage = 50
+    const chunks = Array.from({ length: Math.max(1, Math.ceil(questions.length / perPage)) }, (_, index) => questions.slice(index * perPage, (index + 1) * perPage))
+    return <div className="exam-answer-pages answer-key-pages">{chunks.map((chunk, pageIndex) => <article className={`exam-page answer-page print-page preset-${exam.layout.preset}`} style={paperStyle(exam.layout)} key={pageIndex}>
+      <Header exam={exam} pageNumber={pageIndex + 1} layout={exam.layout} questionCount={questions.length} totalScore={totalScore} />
+      <h2>정답지</h2><div className="answer-key-grid">{chunk.map(({ question }, index) => <span key={question.id}><b>{pageIndex * perPage + index + 1}</b> {CIRCLED[question.answerIndex - 1] ?? question.answerIndex}</span>)}</div>
+      <Footer layout={exam.layout} pageNumber={pageIndex + 1} total={chunks.length} />
+    </article>)}</div>
+  }
   const perPage = exam.layout.answerColumns === 2 ? 8 : 5
   const chunks = Array.from({ length: Math.max(1, Math.ceil(questions.length / perPage)) }, (_, index) => questions.slice(index * perPage, (index + 1) * perPage))
   return <div className="exam-answer-pages">{chunks.map((chunk, pageIndex) => <article className={`exam-page answer-page print-page preset-${exam.layout.preset}`} style={paperStyle(exam.layout)} key={pageIndex}>
     <Header exam={exam} pageNumber={pageIndex + 1} layout={exam.layout} questionCount={questions.length} totalScore={totalScore} />
     <h2>정답 및 해설</h2><div className={`answer-columns columns-${exam.layout.answerColumns}`}>{chunk.map(({ set, question, csatItem }, index) => {
       const number = pageIndex * perPage + index + 1
-      return <section key={question.id}><h3>{number}. 정답 {CIRCLED[question.answerIndex - 1] ?? question.answerIndex} <small>{set.title}</small></h3><p>{question.explanation || '해설이 입력되지 않았습니다.'}</p><dl><dt>정답 근거</dt><dd>{question.evidenceRefs.join(' / ') || '미입력'}</dd><dt>출제 의도</dt><dd>{question.intention || csatItem?.intention || set.intention || '미입력'}</dd></dl></section>
+      const stale = Boolean(set.explanationSourceFingerprint && set.explanationSourceFingerprint !== explanationSourceFingerprint(set))
+      return <section key={question.id}><h3>{number}. 정답 {CIRCLED[question.answerIndex - 1] ?? question.answerIndex} <small>{set.title}</small></h3><p>{stale ? '문제가 수정되어 해설을 다시 생성해야 합니다.' : question.explanation || '해설을 아직 생성하지 않았습니다.'}</p><dl><dt>정답 근거</dt><dd>{stale ? '재생성 필요' : question.evidenceRefs.join(' / ') || '미입력'}</dd><dt>출제 의도</dt><dd>{stale ? '재생성 필요' : question.intention || csatItem?.intention || set.intention || '미입력'}</dd>{!stale && question.distractorReasons.length > 0 && <><dt>선지별 해설</dt><dd>{question.distractorReasons.join(' / ')}</dd></>}</dl></section>
     })}</div><Footer layout={exam.layout} pageNumber={pageIndex + 1} total={chunks.length} />
   </article>)}</div>
 }

@@ -2,6 +2,10 @@ import Ajv2020, { type ErrorObject } from 'ajv/dist/2020'
 import csatOutputSchema from '../docs/english-gpt/csat-output-schema.json'
 
 const generationSchemaValidator = new Ajv2020({ allErrors: true, strict: true }).compile(csatOutputSchema)
+const problemAnswerSchema = JSON.parse(JSON.stringify(csatOutputSchema)) as typeof csatOutputSchema
+problemAnswerSchema.$defs.item.required = problemAnswerSchema.$defs.item.required.filter((field) => field !== 'qualityReview')
+problemAnswerSchema.$defs.question.required = problemAnswerSchema.$defs.question.required.filter((field) => !['explanation', 'intention', 'evidenceRefs', 'distractorReasons'].includes(field))
+const problemAnswerSchemaValidator = new Ajv2020({ allErrors: true, strict: true }).compile(problemAnswerSchema)
 
 function errorPath(error: ErrorObject) {
   return error.instancePath || '$'
@@ -29,7 +33,7 @@ function formatSchemaError(error: ErrorObject) {
 }
 
 export function assertCsatGenerationSchema(value: unknown): asserts value is Record<string, unknown> {
-  if (generationSchemaValidator(value)) return
-  const details = (generationSchemaValidator.errors ?? []).map(formatSchemaError)
+  if (generationSchemaValidator(value) || problemAnswerSchemaValidator(value)) return
+  const details = (problemAnswerSchemaValidator.errors ?? generationSchemaValidator.errors ?? []).map(formatSchemaError)
   throw new Error(details.length ? details.join(' / ') : '수능형 Generation JSON이 공식 Schema와 일치하지 않습니다.')
 }

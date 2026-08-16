@@ -713,7 +713,6 @@ ${materialSpecGuidance(template.id)}
 
 [지문·선지 품질 규칙]
 ${csatQualityRulesForTemplate(template.id).map((rule) => `- ${rule}`).join('\n')}
-${CSAT_QUALITY_REVIEW_INSTRUCTIONS}
 
 - 실제 기출 지문·선지·인물·수치·고유 사례를 복제하지 않는다.
 - 정답 번호 통계나 풀이 요령을 규칙으로 사용하지 말고, 여러 문항을 만들 때 정답 위치를 고르게 분산한다.
@@ -766,6 +765,8 @@ ${CSAT_GPT_APPROVAL_PROTOCOL}
 - 43~45번 기본형의 (a)~(e)는 각 표적 대명사·지칭어를 "(a) [[밑줄:She]]" 형식으로 정확히 5곳 표시한다.
 - 일반 영어 지문은 마지막 문장까지 빈 줄 없이 하나의 연속 문단으로 작성한다. 순서·삽입·요약·복합 장문은 문항 풀이에 필요한 필수 구획만 분리하고 각 구획 내부의 문단은 나누지 않는다.
 - 명시적 승인 전에는 설계안만, 승인 후에는 설명이나 마크다운이 없는 유효한 JSON 객체 하나만 출력한다.
+- 승인 후 1차 JSON은 문제지·정답지용으로 material, questions의 type·stem·choices·answerIndex·score만 생성한다. explanation·intention·evidenceRefs·distractorReasons·qualityReview는 별도 [EXPLANATION_GENERATION_V1] 요청에서만 작성한다.
+- [EXPLANATION_GENERATION_V1] 요청을 받으면 원본 문제·선지·정답·ID를 바꾸지 않고 요청된 해설 JSON만 반환한다.
 - 각 카드의 passageLength 목표 구간을 지키고 실제 출력되는 영어 텍스트의 단어 수를 직접 다시 센다.
 - 정답을 본문에서 직접 재현하지 않고 매력적인 오답과 단일 정답을 유형별 논리로 검수한다.
 
@@ -787,8 +788,8 @@ ${catalog}
 5. 실제 기출의 표현이나 사례를 재사용하지 않았는가?
 6. 선택한 passageLength의 목표 단어 수 범위 안에 있는가?
 7. 정답만 길이·문법 구조·추상도에서 두드러지지 않고, 가장 강력한 오답과 구분하는 근거가 분명한가?
-8. JSON이 {title, items:[{itemId, templateId, variantId, materialTitle, material, materialSpec, questions, qualityReview}]} 구조와 일치하는가?
+8. 1차 JSON이 {title, items:[{itemId, templateId, variantId, materialTitle, material, materialSpec, questions}]} 구조와 일치하는가?
 
-## 품질 검수 JSON
-${CSAT_QUALITY_REVIEW_INSTRUCTIONS}`
+## 2차 해설 작성
+앱이 [EXPLANATION_GENERATION_V1] 프롬프트를 보내면 그 프롬프트의 schemaId, setId, sourceRevision, sourceFingerprint와 모든 questionId를 그대로 반환한다. 문제 본체를 다시 출력하거나 수정하지 않고 explanation, intention, evidenceRefs, distractorReasons만 작성한다.`
 }
