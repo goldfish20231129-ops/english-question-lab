@@ -189,11 +189,11 @@ export function assertProvidedPassageResponseSchema(value: unknown): asserts val
 }
 
 export function isProvidedPassageSet(set: EnglishQuestionSet) {
-  return set.mode === 'school' && Boolean(set.providedPassage)
+  return set.mode === 'school' && set.materialMode === 'provided' && Boolean(set.providedPassage)
 }
 
 export function transitionSchoolProvidedPassageMode(set: EnglishQuestionSet, mode: 'provided' | 'generated'): EnglishQuestionSet {
-  if (mode === 'generated') return { ...set, materialMode: 'generated', sourceKind: 'generated', providedPassage: undefined, providedPassageQualityReview: undefined, questions: set.questions.map((question) => ({ ...question, csatTemplateId: undefined, csatSlot: undefined, csatItemId: undefined })) }
+  if (mode === 'generated') return { ...set, materialMode: 'generated', sourceKind: set.sourceKind === 'generated' ? 'textbook' : set.sourceKind, providedPassage: undefined, providedPassageV02: undefined, providedPassageQualityReview: undefined, questions: set.questions.map((question) => ({ ...question, csatTemplateId: undefined, csatSlot: undefined, csatItemId: undefined })) }
   const current = set.questions[0]
   const questionType: ProvidedPassageQuestionType = current?.type === '문장 삽입' ? 'sentence_insertion' : 'content_match'
   const type = questionType === 'sentence_insertion' ? '문장 삽입' : '내용 일치 및 불일치'

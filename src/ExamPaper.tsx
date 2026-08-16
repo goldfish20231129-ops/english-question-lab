@@ -3,6 +3,8 @@ import { collapseCsatProseParagraphs, csatLongExpositoryText, csatLongNarrativeS
 import { CsatMaterialView } from './CsatMaterialView'
 import { buildExamFlowBlocks, examFlowMeasurementKey, geometryKey, getOversizedQuestionIssues, paginateExamBlocks, resolveExamEntries, type ExamFlowBlock, type ExamLayoutMetrics } from './examLayout'
 import { providedPassagePresentationSpec } from './providedPassage'
+import { providedPassageV02PresentationSpec, providedPassageV02QuestionMaterialText } from './providedPassageV02'
+import { generatedSchoolSharedMaterialPresentation, orderedGeneratedSchoolQuestions, schoolQuestionMaterialPresentation, usesInlineGeneratedSchoolChoices, usesQuestionScopedSchoolMaterial } from './schoolMaterial'
 import type { CsatItemDesign, EnglishExamDocument, EnglishQuestion, EnglishQuestionSet, ExamLayoutSettings, MediaAsset } from './types'
 import { englishDifficultyLabel } from './difficulty'
 
@@ -103,15 +105,29 @@ function AssetBlock({ block }: { block: ExamFlowBlock }) {
   return <figure className="paper-asset" data-flow-id={block.id}><img src={block.asset?.dataUrl} alt={block.asset?.caption || block.asset?.name} />{block.asset?.caption && <figcaption>{block.asset.caption}</figcaption>}</figure>
 }
 
-export function QuestionContent({ question, number, part = 'full' }: { question: EnglishQuestion; number: number; part?: 'full' | 'lead' | 'choices' }) {
+function QuestionScopedMaterial({ set, question }: { set?: EnglishQuestionSet; question: EnglishQuestion }) {
+  if (!set) return null
+  const presentationSpec = set.providedPassageV02
+    ? providedPassageV02PresentationSpec(set, question.id)
+    : usesQuestionScopedSchoolMaterial(set) ? schoolQuestionMaterialPresentation(set, question).spec : undefined
+  if (presentationSpec?.kind === 'insertion') {
+    return <div className="paper-structured-material provided-v02-question-material"><CsatMaterialView spec={presentationSpec} collapseParagraphs renderText={(text) => <EnglishText text={collapseCsatProseParagraphs(text)} />} /></div>
+  }
+  if (!set.providedPassageV02 && !usesQuestionScopedSchoolMaterial(set)) return null
+  const text = set.providedPassageV02 ? providedPassageV02QuestionMaterialText(set, question.id) : schoolQuestionMaterialPresentation(set, question).text
+  if (!presentationSpec && !text) return null
+  return <div className={`paper-material provided-v02-question-material${set.layoutOverride?.passageBorder === false ? '' : ' bordered'}`}><p><EnglishText text={collapseCsatProseParagraphs(text)} /></p></div>
+}
+
+export function QuestionContent({ question, number, part = 'full', set }: { question: EnglishQuestion; number: number; part?: 'full' | 'lead' | 'choices'; set?: EnglishQuestionSet }) {
   const showLead = part === 'full' || part === 'lead'
-  const showChoices = (part === 'full' || part === 'choices') && !isInlinePositionTemplate(question.csatTemplateId)
-  return <>{showLead && <h4><b>{number}.</b> <EnglishText text={question.stem} />{question.score && question.score !== 2 && <em>[{question.score}점]</em>}</h4>}{showChoices && <ol>{question.choices.map((choice, index) => <li key={index}><span>{CIRCLED[index] ?? `${index + 1}.`}</span><EnglishText text={choice || '(선지 미입력)'} /></li>)}</ol>}</>
+  const showChoices = (part === 'full' || part === 'choices') && !isInlinePositionTemplate(question.csatTemplateId) && !usesInlineGeneratedSchoolChoices(set, question)
+  return <>{showLead && <h4><b>{number}.</b> <EnglishText text={question.stem} />{question.score && question.score !== 2 && <em>[{question.score}점]</em>}</h4>}{showLead && <QuestionScopedMaterial set={set} question={question} />}{showChoices && <ol>{question.choices.map((choice, index) => <li key={index}><span>{CIRCLED[index] ?? `${index + 1}.`}</span><EnglishText text={choice || '(선지 미입력)'} /></li>)}</ol>}</>
 }
 
 function QuestionBlock({ block }: { block: ExamFlowBlock }) {
   const part = block.questionPart ?? 'full'
-  return <article className={`paper-question question-${part}`} data-flow-id={block.id}><QuestionContent question={block.question!} number={block.questionNumber!} part={part} /></article>
+  return <article className={`paper-question question-${part}`} data-flow-id={block.id}><QuestionContent question={block.question!} number={block.questionNumber!} part={part} set={block.set} /></article>
 }
 
 function FlowBlock({ block }: { block: ExamFlowBlock }) {
@@ -172,7 +188,7 @@ export function ExamQuestionPages({ exam, sets, assets, onLayoutIssuesChange }: 
 }
 
 export function ExamAnswerPages({ exam, sets }: { exam: EnglishExamDocument; sets: EnglishQuestionSet[] }) {
-  const questions = resolveExamEntries(exam, sets).flatMap(({ set, csatItem }) => (csatItem?.questions ?? set.questions).map((question) => ({ set, question, csatItem })))
+  const questions = resolveExamEntries(exam, sets).flatMap(({ set, csatItem }) => (csatItem?.questions ?? orderedGeneratedSchoolQuestions(set)).map((question) => ({ set, question, csatItem })))
   const perPage = exam.layout.answerColumns === 2 ? 8 : 5
   const chunks = Array.from({ length: Math.max(1, Math.ceil(questions.length / perPage)) }, (_, index) => questions.slice(index * perPage, (index + 1) * perPage))
   return <div className="exam-answer-pages">{chunks.map((chunk, pageIndex) => <article className={`exam-page answer-page print-page preset-${exam.layout.preset}`} style={paperStyle(exam.layout)} key={pageIndex}>
@@ -193,11 +209,14 @@ export function SetLivePreview({ set, assets = [] }: { set: EnglishQuestionSet; 
       return <CsatItemPreview key={item.id} set={set} item={item} index={index} startNumber={start} assets={assets.filter((asset) => asset.csatItemId === item.id || (!asset.csatItemId && index === 0))} />
     })}</div>
   }
-  const presentationSpec = providedPassagePresentationSpec(set)
+  const scopedMaterial = Boolean(set.providedPassageV02) || usesQuestionScopedSchoolMaterial(set)
+  const generatedSharedMaterial = generatedSchoolSharedMaterialPresentation(set)
+  const presentationSpec = scopedMaterial ? undefined : providedPassagePresentationSpec(set)
   const structuredReplacesText = structuredMaterialReplacesPlainText(presentationSpec)
   const plainMaterial = <div className={`live-material${set.layoutOverride?.passageBorder === false ? '' : ' bordered'}`}><p><EnglishText text={collapseCsatProseParagraphs(set.material || '지문 또는 자료를 입력하면 여기에 즉시 표시됩니다.')} /></p></div>
   const structuredMaterial = presentationSpec && <CsatMaterialView spec={presentationSpec} collapseParagraphs={presentationSpec.kind === 'prose' || presentationSpec.kind === 'longExpository'} renderText={(text) => <EnglishText text={collapseCsatProseParagraphs(text)} />} />
-  return <div className="live-paper"><header><span>{set.mode === 'school' ? '내신형 영어' : '맞춤설정형 영어'}</span><strong>{set.title}</strong></header>{set.materialTitle && <h4>{set.materialTitle}</h4>}{presentationSpec?.kind === 'summary' && plainMaterial}{structuredMaterial}{(!structuredReplacesText && presentationSpec?.kind !== 'summary') && plainMaterial}{assets.map((asset) => <figure key={asset.id}><img src={asset.dataUrl} alt={asset.caption || asset.name} /><figcaption>{asset.caption}</figcaption></figure>)}{set.questions.map((question, index) => <article key={question.id}><QuestionContent question={question} number={index + 1} /></article>)}</div>
+  const generatedSharedBlock = generatedSharedMaterial && <div className={`live-material${set.layoutOverride?.passageBorder === false ? '' : ' bordered'}`}><p><EnglishText text={collapseCsatProseParagraphs(generatedSharedMaterial.text)} /></p></div>
+  return <div className="live-paper"><header><span>{set.mode === 'school' ? '내신형 영어' : '맞춤설정형 영어'}</span><strong>{set.title}</strong></header>{set.materialTitle && <h4>{set.materialTitle}</h4>}{generatedSharedBlock}{!scopedMaterial && presentationSpec?.kind === 'summary' && plainMaterial}{!scopedMaterial && structuredMaterial}{!scopedMaterial && (!structuredReplacesText && presentationSpec?.kind !== 'summary') && plainMaterial}{assets.map((asset) => <figure key={asset.id}><img src={asset.dataUrl} alt={asset.caption || asset.name} /><figcaption>{asset.caption}</figcaption></figure>)}{orderedGeneratedSchoolQuestions(set).map((question, index) => <article key={question.id}><QuestionContent question={question} number={index + 1} set={set} /></article>)}</div>
 }
 
 function CsatItemPreview({ set, item, index, startNumber, assets }: { set: EnglishQuestionSet; item: CsatItemDesign; index: number; startNumber: number; assets: MediaAsset[] }) {

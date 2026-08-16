@@ -78,6 +78,58 @@ export interface ProvidedPassageState {
   result?: ProvidedPassageGenerationResult
 }
 
+export type ProvidedPassageV02QuestionType = 'content_match' | 'sentence_insertion' | 'grammar'
+export type ProvidedPassageGrammarTarget =
+  | 'relative_clause' | 'appositive_that' | 'subject_verb_agreement' | 'participle_clause'
+  | 'nonrestrictive_relative' | 'pronoun_agreement' | 'dummy_it' | 'cleft_it_that'
+export type ProvidedPassageGrammarMode = 'source_form_check' | 'controlled_error_variant'
+
+export interface ProvidedPassageV02ItemPlan {
+  itemId: string
+  questionType: ProvidedPassageV02QuestionType
+  choiceLanguage: ProvidedPassageChoiceLanguage | null
+  vocabularyLevel: ProvidedPassageVocabularyLevel
+  contentMatchPolarity: ProvidedPassageContentPolarity | null
+  grammarTarget: ProvidedPassageGrammarTarget | null
+  grammarMode: ProvidedPassageGrammarMode | null
+}
+
+export interface ProvidedPassageGrammarOperation {
+  kind: 'grammar_check'
+  grammarTarget: ProvidedPassageGrammarTarget
+  grammarMode: ProvidedPassageGrammarMode
+  testedSpan: ProvidedPassageEvidenceSpan
+  sourceForm: string
+  presentedForm: string
+  ruleCheck: {
+    classification: ProvidedPassageGrammarTarget
+    decisionRule: string
+    contrastWith: string
+    isUniquelyDetermined: boolean
+  }
+  sourceTextModified: false
+}
+
+export type ProvidedPassageV02MaterialOperation = ProvidedPassageInsertionOperation | ProvidedPassageGrammarOperation | null
+
+export interface ProvidedPassageV02ItemResult {
+  itemId: string
+  evidenceSpans: ProvidedPassageEvidenceSpan[]
+  materialOperation: ProvidedPassageV02MaterialOperation
+}
+
+export interface ProvidedPassageV02State {
+  version: '0.2'
+  sourcePassageId: string
+  sourceFingerprint: string
+  originalText: string
+  normalizedForFingerprint: string
+  sentences: ProvidedPassageSentence[]
+  boundaries: ProvidedPassageBoundary[]
+  itemPlans: ProvidedPassageV02ItemPlan[]
+  results?: ProvidedPassageV02ItemResult[]
+}
+
 export interface CsatPassageQualityReview {
   naturalness?: number
   logicStructure?: number
@@ -294,6 +346,7 @@ export interface EnglishQuestionSet {
   csatItems?: CsatItemDesign[]
   materialSpec?: CsatMaterialSpec
   providedPassage?: ProvidedPassageState
+  providedPassageV02?: ProvidedPassageV02State
   providedPassageQualityReview?: CsatQualityReview
   questions: EnglishQuestion[]
   prompt: string

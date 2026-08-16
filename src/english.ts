@@ -1,6 +1,8 @@
 import { CSAT_FAMILIES, CSAT_GPT_APPROVAL_PROTOCOL, CSAT_INLINE_POSITION_CHOICES, CSAT_PASSAGE_LENGTH_LABELS, CSAT_QUALITY_REVIEW_INSTRUCTIONS, MAX_CSAT_SET_QUESTIONS, buildCsatPromptSection, countCsatPassageWords, createCsatItem, csatPrintableMaterialText, decorateCsatMaterialText, effectiveCsatDesign, embedCsatChartChoices, expectedCsatItemQuestions, expectedCsatQuestions, generateCsatGptInstructions, getCsatItems, getCsatPassageLengthRange, getCsatTemplate, hasUnnecessaryPassageBreaks, isInlinePositionTemplate, normalizeCsatPassageLength, normalizeCsatSet, plannedCsatSetQuestionCount, resolvedCsatItem } from './csat'
 import { assertCsatGenerationSchema } from './generationContract'
 import { generateProvidedPassagePrompt, isProvidedPassageSet, parseProvidedPassageJson, providedPassageValidationMessages } from './providedPassage'
+import { generateProvidedPassageV02Prompt, parseProvidedPassageV02Json, providedPassageV02ValidationMessages } from './providedPassageV02'
+import { generatedSchoolInsertionMarkupIssues, orderedGeneratedSchoolQuestions } from './schoolMaterial'
 import type { CsatMaterialSpec, CsatQualityReview, EnglishMode, EnglishQuestion, EnglishQuestionSet, ExamLayoutSettings, LayoutPreset, SourceKind, ValidationIssue } from './types'
 import { englishDifficultyLabel, englishDifficultyPrompt } from './difficulty'
 
@@ -92,9 +94,13 @@ const DEFAULT_STEMS: Record<string, string> = {
   '내용 이해': '다음 글의 내용과 일치하는 것은?',
 }
 
+export function defaultQuestionStem(type: string) {
+  return DEFAULT_STEMS[type] ?? '다음 글을 읽고 물음에 답하시오.'
+}
+
 export function createQuestion(type: string, choiceCount = 5): EnglishQuestion {
   return {
-    id: crypto.randomUUID(), type, stem: DEFAULT_STEMS[type] ?? '다음 글을 읽고 물음에 답하시오.',
+    id: crypto.randomUUID(), type, stem: defaultQuestionStem(type),
     choices: Array.from({ length: choiceCount }, () => ''), answerIndex: 1, explanation: '', intention: '', evidenceRefs: [], distractorReasons: [], score: 2,
   }
 }
@@ -109,7 +115,7 @@ export function createEnglishSet(mode: EnglishMode = 'csat'): EnglishQuestionSet
   const sourceKind: SourceKind = mode === 'school' ? 'textbook' : mode === 'csat' ? 'generated' : 'custom'
   return {
     id: crypto.randomUUID(), title: `새 ${MODE_LABELS[mode]} 영어 세트`, mode, targetLevel: mode === 'csat' ? '고3·수능 대비' : '고등학교',
-    sourceKind, materialMode: sourceKind === 'generated' ? 'generated' : 'provided', materialTitle: '', material: '', topic: '', difficulty: mode === 'custom' ? 3 : 4,
+    sourceKind, materialMode: mode === 'custom' ? 'provided' : 'generated', materialTitle: '', material: '', topic: '', difficulty: mode === 'custom' ? 3 : 4,
     difficultyScaleVersion: mode === 'custom' ? undefined : 2,
     intention: '', choiceCount: 5, customPreset: mode === 'custom' ? CUSTOM_PRESETS[0] : undefined,
     csatItems: mode === 'csat' ? [createCsatItem()] : undefined, questions: mode === 'csat' ? [] : [createQuestion(firstType, 5)], prompt: '', aiRevision: 0, validatedRevision: 0, lastImportedJson: '',
@@ -246,9 +252,16 @@ ${CSAT_QUALITY_REVIEW_INSTRUCTIONS}`
 }
 
 export function generateEnglishPrompt(set: EnglishQuestionSet): string {
-  if (isProvidedPassageSet(set)) return generateProvidedPassagePrompt(set)
+  if (set.mode === 'school' && set.materialMode === 'provided') {
+    if (set.providedPassageV02) return generateProvidedPassageV02Prompt(set)
+    if (isProvidedPassageSet(set)) return generateProvidedPassagePrompt(set)
+    throw new Error('기존 지문 사용 상태가 누락되어 범용 프롬프트를 만들 수 없습니다. 원문은 유지되며 V0.2 연결 준비가 필요합니다.')
+  }
   if (set.mode === 'csat') return generateCsatBatchPrompt(set)
-  const plan = set.questions.map((question, index) => `- 문항 ${index + 1}: ${question.type}\n  발문: ${question.stem || '(AI가 유형에 맞게 작성)'}\n  선지 수: ${set.choiceCount}\n  출제 의도: ${question.intention || set.intention || '(유형에 맞게 설정)'}`).join('\n')
+  const orderedQuestions = orderedGeneratedSchoolQuestions(set)
+  const generatedSchoolInsertionCount = set.mode === 'school' && set.materialMode === 'generated' ? orderedQuestions.filter((question) => question.type === '문장 삽입').length : 0
+  if (generatedSchoolInsertionCount > 1) throw new Error('새 자료 작성 세트에서는 문장 삽입을 한 문항만 포함할 수 있습니다. 서로 다른 삽입 문장은 별도 세트로 나눠 주세요.')
+  const plan = orderedQuestions.map((question, index) => `- 문항 ${index + 1}: ${question.type}\n  발문: ${question.stem || '(AI가 유형에 맞게 작성)'}\n  선지 수: ${set.choiceCount}\n  출제 의도: ${question.intention || set.intention || '(유형에 맞게 설정)'}`).join('\n')
   const materialInstruction = set.materialMode === 'provided'
     ? `아래 등록 자료를 중심 근거로 사용한다.\n\n${set.material || '(사용자가 자료를 입력해야 함)'}`
     : `주제·소재 “${set.topic || '교육적이고 중립적인 주제'}”에 맞는 새로운 영어 지문을 작성한다.`
@@ -261,14 +274,28 @@ export function generateEnglishPrompt(set: EnglishQuestionSet): string {
   }
   const principlesSection = savedPrinciples.length ? `\n[나의 영어 출제 원칙]\n${savedPrinciples.map((item) => `- ${item}`).join('\n')}\n` : ''
   const csatSection = ''
-  return `[역할]
+  const activeModeInstructions = set.mode === 'school' && set.materialMode === 'generated'
+    ? ['요청된 주제·소재와 학습 수준에 맞는 새 영어 지문을 작성한다.', ...modeInstructions.school.slice(1)]
+    : modeInstructions[set.mode]
+  const schoolGeneratedContract = set.mode === 'school' && set.materialMode === 'generated' ? `[생성 경로]
+- mode는 school_english_generated_passage다. Provided Passage의 sourcePassageId, fingerprint, sentence ID, boundary ID를 요구하지 않는다.
+- 아래 문항 구성을 한 번의 응답에 모두 생성하고 최상위 questions 배열의 순서를 그대로 지킨다.
+- 어법·내용 이해·내용 일치/불일치 등 문장 삽입이 아닌 문항은 모두 하나의 공통 material을 공유하며, 문항마다 지문을 반복 생성하지 않는다.
+- 문장 삽입은 다른 유형과 함께 만들 수 있으나 한 세트에 최대 한 문항만 두고 questions 배열의 마지막 문항으로 반환한다.
+- 문장 삽입이 있으면 material에 [[삽입문장:문장]] 1개와 [[삽입위치:①]]~[[삽입위치:⑤]]를 순서대로 각각 1개씩 표시한다. 다른 문항의 내용과 정답 근거는 같은 지문의 삽입 표식을 제외한 본문을 기준으로 한다.
+- 문장 삽입 choices는 ["①", "②", "③", "④", "⑤"]로 고정한다.
+- 설계안이나 승인 질문을 먼저 출력하지 말고, 이 프롬프트의 출력 JSON 형식에 맞는 객체 하나를 바로 반환한다.
+
+` : ''
+  const routeMarker = set.mode === 'school' && set.materialMode === 'generated' ? '[SCHOOL_ENGLISH_GENERATION_V0.2]\n' : ''
+  return `${routeMarker}${schoolGeneratedContract}[역할]
 당신은 대한민국 고등학교 영어 평가 문항을 설계하는 전문 출제자이다.
 
 [제작 유형]
 ${MODE_LABELS[set.mode]}
 
 [제작 원칙]
-${modeInstructions[set.mode].map((item) => `- ${item}`).join('\n')}
+${activeModeInstructions.map((item) => `- ${item}`).join('\n')}
 - 외부 배경지식 없이 제시 자료로 정답을 판단할 수 있게 한다.
 - 객관식 ${set.choiceCount}지선다만 만들고 정답은 하나만 둔다.
 - 모든 오답에 서로 다른 명백한 오류 근거를 둔다.
@@ -407,7 +434,11 @@ function parseAnswerIndex(value: unknown, choiceCount: number) {
 }
 
 export function parseEnglishSetJson(raw: string, base: EnglishQuestionSet): EnglishQuestionSet {
-  if (isProvidedPassageSet(base)) return parseProvidedPassageJson(raw, base)
+  if (base.mode === 'school' && base.materialMode === 'provided') {
+    if (base.providedPassageV02) return parseProvidedPassageV02Json(raw, base)
+    if (isProvidedPassageSet(base)) return parseProvidedPassageJson(raw, base)
+    throw new Error('기존 지문 사용 상태가 누락되어 AI 결과를 가져올 수 없습니다. V0.2 연결 준비가 필요합니다.')
+  }
   const parsed: unknown = JSON.parse(cleanJson(raw))
   if (!parsed || typeof parsed !== 'object') throw new Error('JSON 최상위 값은 객체여야 합니다.')
   if (base.mode === 'csat') assertCsatGenerationSchema(parsed)
@@ -415,13 +446,27 @@ export function parseEnglishSetJson(raw: string, base: EnglishQuestionSet): Engl
   if (base.mode === 'csat') return parseCsatBatchJson(input, base)
   if (typeof input.material !== 'string' || !Array.isArray(input.questions)) throw new Error('material 문자열과 questions 배열이 필요합니다.')
   if (!input.questions.length) throw new Error('최소 한 문항이 필요합니다.')
+  const generatedSchool = base.mode === 'school' && base.materialMode === 'generated'
+  const expectedQuestions = orderedGeneratedSchoolQuestions(base)
+  if (generatedSchool && input.questions.length !== expectedQuestions.length) throw new Error(`요청한 ${expectedQuestions.length}개 문항과 응답의 ${input.questions.length}개 문항 수가 다릅니다.`)
+  const inputQuestions = generatedSchool
+    ? [...input.questions].sort((left, right) => {
+      const leftInsertion = Boolean(left && typeof left === 'object' && (left as Record<string, unknown>).type === '문장 삽입')
+      const rightInsertion = Boolean(right && typeof right === 'object' && (right as Record<string, unknown>).type === '문장 삽입')
+      return Number(leftInsertion) - Number(rightInsertion)
+    })
+    : input.questions
   const choiceCount = base.choiceCount
-  const questions = input.questions.map((value, index) => {
+  const questions = inputQuestions.map((value, index) => {
     if (!value || typeof value !== 'object') throw new Error(`${index + 1}번 문항 형식이 올바르지 않습니다.`)
     const item = value as Record<string, unknown>
     const choices = cleanStrings(item.choices)
     if (choices.length !== choiceCount) throw new Error(`${index + 1}번 문항은 선지 ${choiceCount}개가 필요합니다.`)
     if (typeof item.stem !== 'string') throw new Error(`${index + 1}번 문항에 stem이 필요합니다.`)
+    const expected = expectedQuestions[index]
+    if (generatedSchool && item.type !== expected?.type) throw new Error(`${index + 1}번 문항 유형은 요청한 '${expected?.type}'이어야 합니다.`)
+    if (generatedSchool && item.stem.trim() !== expected?.stem.trim()) throw new Error(`${index + 1}번 문항 발문이 요청한 발문과 다릅니다.`)
+    if (generatedSchool && item.type === '문장 삽입' && choices.join('|') !== CSAT_INLINE_POSITION_CHOICES.join('|')) throw new Error('문장 삽입 choices는 ①~⑤ 위치 번호여야 합니다.')
     return {
       id: crypto.randomUUID(), type: typeof item.type === 'string' ? item.type : base.questions[index]?.type ?? '내용 이해',
       stem: item.stem.trim(), choices, answerIndex: parseAnswerIndex(item.answerIndex ?? item.answer, choiceCount),
@@ -430,8 +475,14 @@ export function parseEnglishSetJson(raw: string, base: EnglishQuestionSet): Engl
     }
   })
   const materialSpec = cleanMaterialSpec(input.materialSpec)
+  if (generatedSchool) {
+    const insertionCount = questions.filter((question) => question.type === '문장 삽입').length
+    if (insertionCount > 1) throw new Error('새 자료 작성 세트에는 문장 삽입을 한 문항만 포함할 수 있습니다.')
+    const markupIssues = generatedSchoolInsertionMarkupIssues({ ...base, material: input.material, materialSpec, questions })
+    if (markupIssues.length) throw new Error(markupIssues.join(' '))
+  }
   const nextRevision = base.aiRevision + 1
-  const snapshot = { title: input.title, materialTitle: input.materialTitle, material: input.material, materialSpec: input.materialSpec, questions: input.questions }
+  const snapshot = { title: input.title, materialTitle: input.materialTitle, material: input.material, materialSpec: input.materialSpec, questions: inputQuestions }
   return {
     ...base, title: typeof input.title === 'string' ? input.title : base.title, materialTitle: typeof input.materialTitle === 'string' ? input.materialTitle : base.materialTitle,
     material: input.material, materialSpec, questions, choiceCount, aiRevision: nextRevision, validatedRevision: 0, lastImportedJson: JSON.stringify(snapshot, null, 2), updatedAt: new Date().toISOString(),
@@ -776,10 +827,17 @@ export function validateEnglishSet(set: EnglishQuestionSet): ValidationIssue[] {
     return issues
   }
   if (!set.material.trim()) add({ level: 'error', label: '자료 없음', detail: '시험지에 사용할 영어 지문 또는 자료가 비어 있습니다.' })
+  if (set.mode === 'school' && set.materialMode === 'provided' && !set.providedPassage && !set.providedPassageV02) add({ level: 'error', label: '기존 지문 계약 누락', detail: '원문은 유지되어 있지만 Provided Passage 상태가 없습니다. V0.2 연결 준비 후 프롬프트를 생성해 주세요.' })
   if (set.mode === 'school' && set.providedPassage) providedPassageValidationMessages(set).forEach((message) => add(message))
+  if (set.mode === 'school' && set.providedPassageV02) providedPassageV02ValidationMessages(set).forEach((message) => add(message))
+  if (set.mode === 'school' && set.materialMode === 'generated') {
+    const insertionCount = set.questions.filter((question) => question.type === '문장 삽입').length
+    if (insertionCount > 1) add({ level: 'error', label: '문장 삽입 문항 수', detail: '새 자료 작성 세트에는 문장 삽입을 한 문항만 포함할 수 있습니다.' })
+    generatedSchoolInsertionMarkupIssues(set).forEach((detail) => add({ level: 'error', label: '문장 삽입 자료 구조', detail }))
+  }
   if (hasUnnecessaryPassageBreaks(set.material) || hasUnnecessaryStructuredBreaks(set.materialSpec)) add({ level: 'warning', label: '불필요한 문단 구분', detail: '출력에서는 자동으로 한 문단으로 합치지만, 일반 영어 지문은 빈 줄 없이 작성하는 것을 권장합니다.' })
   const comparableMaterial = normalizeEvidence(set.material)
-  set.questions.forEach((question, index) => {
+  orderedGeneratedSchoolQuestions(set).forEach((question, index) => {
     const prefix = `${index + 1}번 문항`
     if (!question.stem.trim()) add({ level: 'error', questionId: question.id, label: '발문 없음', detail: `${prefix}의 발문이 비어 있습니다.` })
     if (question.choices.length !== set.choiceCount || question.choices.some((choice) => !choice.trim())) add({ level: 'error', questionId: question.id, label: '선지 수 오류', detail: `${prefix}은 내용이 채워진 선지 ${set.choiceCount}개가 필요합니다.` })

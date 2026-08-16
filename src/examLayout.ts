@@ -1,5 +1,7 @@
 import { collapseCsatProseParagraphs, csatLongExpositoryText, csatLongNarrativeSections, csatPrintFlow, embedCsatChartChoices, getCsatItems, splitCsatSummaryMaterial } from './csat'
 import { providedPassagePresentationSpec } from './providedPassage'
+import { providedPassageV02PresentationSpec, providedPassageV02QuestionMaterialText } from './providedPassageV02'
+import { generatedSchoolSharedMaterialPresentation, orderedGeneratedSchoolQuestions, schoolQuestionMaterialPresentation, usesInlineGeneratedSchoolChoices, usesQuestionScopedSchoolMaterial } from './schoolMaterial'
 import type { CsatItemDesign, CsatMaterialSpec, EnglishExamDocument, EnglishQuestion, EnglishQuestionSet, ExamContentEntry, ExamLayoutSettings, MediaAsset, SetLayoutOverride } from './types'
 
 export type ExamFlowKind = 'set-header' | 'structured-material' | 'summary-material' | 'long-expository-material' | 'long-narrative-section' | 'material' | 'asset' | 'question' | 'question-lead' | 'question-choices'
@@ -188,15 +190,16 @@ export function buildExamFlowBlocks(exam: EnglishExamDocument, sets: EnglishQues
   resolveExamEntries(exam, sets).forEach(({ entry, set, csatItem }) => {
     const override = { ...(set.layoutOverride ?? {}), ...(exam.setOverrides[set.id] ?? {}), ...(exam.entryOverrides?.[entry.id] ?? {}) }
     const layout = effectiveSetLayout(exam.layout, override)
-    const materialSpec = csatItem?.materialSpec ?? providedPassagePresentationSpec(set)
-    const material = csatItem?.material ?? set.material
-    const questions = csatItem?.questions ?? set.questions
+    const generatedSharedMaterial = csatItem ? undefined : generatedSchoolSharedMaterialPresentation(set)
+    const materialSpec = csatItem?.materialSpec ?? generatedSharedMaterial?.spec ?? providedPassagePresentationSpec(set)
+    const material = csatItem?.material ?? generatedSharedMaterial?.text ?? set.material
+    const questions = csatItem?.questions ?? orderedGeneratedSchoolQuestions(set)
     const blockSetId = entry.id
     const printFlow = set.mode === 'csat' && csatItem ? csatPrintFlow(csatItem.design?.templateId ?? questions[0]?.csatTemplateId) : undefined
     const keepTogetherId = printFlow && printFlow !== 'material-questions' ? entry.id : undefined
     if (layout.preset !== 'csat' && previousSourceSetId !== set.id) result.push({ id: `${entry.id}-header`, sourceId: `${entry.id}-header`, setId: blockSetId, kind: 'set-header', units: 3, set, csatItem, effectiveLayout: layout, override })
 
-    const pushMaterials = () => {
+    const pushMaterials = (includeMaterial = true) => {
       const templateId = csatItem?.design?.templateId ?? questions[0]?.csatTemplateId
       const width = layout.columns === 2 ? 52 : 92
       const firstQuestionNumber = number + 1
@@ -241,21 +244,21 @@ export function buildExamFlowBlocks(exam: EnglishExamDocument, sets: EnglishQues
           effectiveLayout: layout, override,
         }))
       })
-      if (set.mode === 'csat' && templateId === '41-42') {
+      if (includeMaterial && set.mode === 'csat' && templateId === '41-42') {
         const text = csatLongExpositoryText(material, materialSpec)
         result.push({
           id: `${entry.id}-long-expository`, sourceId: `${entry.id}-long-expository`, setId: blockSetId, kind: 'long-expository-material',
           units: lines(text, width) + 5, text, groupNumberLabel, set, csatItem,
           effectiveLayout: layout, override,
         })
-      } else if (set.mode === 'csat' && templateId === '43-45') {
+      } else if (includeMaterial && set.mode === 'csat' && templateId === '43-45') {
         csatLongNarrativeSections(material, materialSpec).forEach((section, index) => result.push({
           id: `${entry.id}-long-narrative-${section.label}`, sourceId: `${entry.id}-long-narrative-${section.label}`, setId: blockSetId, kind: 'long-narrative-section',
           units: lines(section.text, width) + 5, text: section.text, sectionLabel: section.label,
           groupNumberLabel: index === 0 ? groupNumberLabel : undefined, set, csatItem,
           effectiveLayout: layout, override,
         }))
-      } else if (set.mode === 'csat' && templateId === '40') {
+      } else if (includeMaterial && set.mode === 'csat' && templateId === '40') {
         const summaryMaterial = splitCsatSummaryMaterial(material, materialSpec)
         result.push({
           id: `${entry.id}-summary-material`, sourceId: `${entry.id}-summary-material`, setId: blockSetId, kind: 'summary-material',
@@ -263,7 +266,7 @@ export function buildExamFlowBlocks(exam: EnglishExamDocument, sets: EnglishQues
           text: summaryMaterial.passage, summaryText: summaryMaterial.summary, set, csatItem, keepTogetherId,
           effectiveLayout: layout, override,
         })
-      } else {
+      } else if (includeMaterial) {
         const structuredReplacesText = Boolean(materialSpec && materialSpec.kind !== 'chart' && materialSpec.kind !== 'summary')
         if (materialSpec?.kind !== 'summary') pushStructuredMaterial()
         if (!structuredReplacesText) pushPlainMaterial()
@@ -281,11 +284,21 @@ export function buildExamFlowBlocks(exam: EnglishExamDocument, sets: EnglishQues
       if (part !== 'choices') number += 1
       const width = layout.columns === 2 ? 50 : 88
       const stemUnits = lines(question.stem, width)
-      const choiceUnits = question.choices.reduce((sum, choice) => sum + lines(choice, width), 0)
+      const choiceUnits = usesInlineGeneratedSchoolChoices(set, question) ? 0 : question.choices.reduce((sum, choice) => sum + lines(choice, width), 0)
+      const scopedGeneratedMaterial = usesQuestionScopedSchoolMaterial(set)
+      const generatedPresentation = scopedGeneratedMaterial ? schoolQuestionMaterialPresentation(set, question) : undefined
+      const questionMaterialSpec = part !== 'choices'
+        ? set.providedPassageV02 ? providedPassageV02PresentationSpec(set, question.id) : generatedPresentation?.spec
+        : undefined
+      const questionMaterialText = part === 'choices' ? ''
+        : questionMaterialSpec?.kind === 'insertion' ? `${questionMaterialSpec.givenSentence} ${questionMaterialSpec.body}`
+          : set.providedPassageV02 ? providedPassageV02QuestionMaterialText(set, question.id)
+            : generatedPresentation?.text ?? ''
+      const questionMaterialUnits = questionMaterialText ? lines(collapseCsatProseParagraphs(questionMaterialText), width) + 3 : 0
       result.push({
         id: `${entry.id}-${question.id}-${part}`, sourceId: `${entry.id}-${question.id}`, setId: blockSetId,
         kind: part === 'full' ? 'question' : part === 'lead' ? 'question-lead' : 'question-choices',
-        units: part === 'lead' ? stemUnits + 1 : part === 'choices' ? choiceUnits + 2 : stemUnits + choiceUnits + 5,
+        units: part === 'lead' ? stemUnits + questionMaterialUnits + 1 : part === 'choices' ? choiceUnits + 2 : stemUnits + questionMaterialUnits + choiceUnits + 5,
         question, questionNumber: number, questionPart: part,
         keepWithNext: part === 'lead' && (override.keepMaterialWithFirst ?? true),
         keepTogetherId,
@@ -305,7 +318,7 @@ export function buildExamFlowBlocks(exam: EnglishExamDocument, sets: EnglishQues
         if (question && flow === 'lead-material-choices') pushQuestion(question, 'choices')
       }
     } else {
-      pushMaterials()
+      pushMaterials(!set.providedPassageV02 && (!usesQuestionScopedSchoolMaterial(set) || Boolean(generatedSharedMaterial)))
       questions.forEach((question) => pushQuestion(question, 'full'))
     }
     previousSourceSetId = set.id

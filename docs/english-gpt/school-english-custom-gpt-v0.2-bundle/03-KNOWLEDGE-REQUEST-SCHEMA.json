@@ -1,0 +1,70 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://english-question-lab.local/schema/provided-passage-request-v0.2.json",
+  "title": "English Question Lab Provided Passage Request V0.2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaId", "mode", "subject", "source", "items", "sourcePreservation", "approval", "outputContract"],
+  "properties": {
+    "schemaId": { "const": "english-question-lab-provided-passage-request-v0.2" },
+    "mode": { "const": "school_english_provided_passage" },
+    "subject": { "const": "English" },
+    "source": {
+      "type": "object", "additionalProperties": false,
+      "required": ["sourcePassageId", "sourceFingerprint", "title", "passage", "sentences", "boundaries"],
+      "properties": {
+        "sourcePassageId": { "type": "string", "minLength": 1 },
+        "sourceFingerprint": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+        "title": { "type": "string" }, "passage": { "type": "string", "minLength": 1 },
+        "sentences": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/sentence" } },
+        "boundaries": { "type": "array", "minItems": 2, "items": { "$ref": "#/$defs/boundary" } }
+      }
+    },
+    "items": { "type": "array", "minItems": 1, "maxItems": 8, "items": { "$ref": "#/$defs/item" } },
+    "sourcePreservation": {
+      "type": "object", "additionalProperties": false,
+      "required": ["authority", "responsePassage", "exactFingerprintRequired", "grammarVariantStorage"],
+      "properties": {
+        "authority": { "const": "app_stored_source" }, "responsePassage": { "const": "forbidden" },
+        "exactFingerprintRequired": { "const": true }, "grammarVariantStorage": { "const": "separate_material_operation" }
+      }
+    },
+    "approval": {
+      "type": "object", "additionalProperties": false,
+      "required": ["firstResponse", "approvalSentence", "afterApproval"],
+      "properties": {
+        "firstResponse": { "const": "design_only" },
+        "approvalSentence": { "const": "이 설계로 JSON을 생성할까요? 수정할 카드가 있으면 카드 번호와 변경 사항을 알려주세요." },
+        "afterApproval": { "const": "single_json_object" }
+      }
+    },
+    "outputContract": { "const": "english-question-lab-provided-passage-generation-v0.2" }
+  },
+  "$defs": {
+    "sentence": {
+      "type": "object", "additionalProperties": false, "required": ["id", "start", "end", "text"],
+      "properties": { "id": { "type": "string", "pattern": "^s[1-9][0-9]*$" }, "start": { "type": "integer", "minimum": 0 }, "end": { "type": "integer", "minimum": 1 }, "text": { "type": "string", "minLength": 1 } }
+    },
+    "boundary": {
+      "type": "object", "additionalProperties": false, "required": ["id", "offset"],
+      "properties": { "id": { "type": "string", "pattern": "^b[0-9]+$" }, "offset": { "type": "integer", "minimum": 0 }, "beforeSentenceId": { "type": "string" }, "afterSentenceId": { "type": "string" } }
+    },
+    "item": {
+      "type": "object", "additionalProperties": false,
+      "required": ["itemId", "templateId", "variantId", "questionType", "choiceLanguage", "vocabularyLevel", "contentMatchPolarity", "grammarTarget", "grammarMode", "targetLevel", "score", "requiredCandidateBoundaryCount"],
+      "properties": {
+        "itemId": { "type": "string", "minLength": 1 },
+        "templateId": { "enum": ["school-content-match", "school-sentence-insertion", "school-grammar"] },
+        "variantId": { "const": "standard" },
+        "questionType": { "enum": ["content_match", "sentence_insertion", "grammar"] },
+        "choiceLanguage": { "enum": ["ko", "en", null] },
+        "vocabularyLevel": { "enum": ["source_matched", "grade_1", "grade_2", "grade_3_csat"] },
+        "contentMatchPolarity": { "enum": ["match", "mismatch", null] },
+        "grammarTarget": { "enum": ["relative_clause", "appositive_that", "subject_verb_agreement", "participle_clause", "nonrestrictive_relative", "pronoun_agreement", "dummy_it", "cleft_it_that", null] },
+        "grammarMode": { "enum": ["source_form_check", "controlled_error_variant", null] },
+        "targetLevel": { "type": "string", "minLength": 1 }, "score": { "type": "number", "minimum": 1, "maximum": 10 },
+        "requiredCandidateBoundaryCount": { "enum": [5, null] }
+      }
+    }
+  }
+}

@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { applyCsatItemTemplate, createCsatItem } from './csat'
 import { buildExamFlowBlocks, contentEntriesForSet, examFlowMeasurementKey, geometryKey, getOversizedQuestionIssues, moveExamContentEntry, normalizeExamDocument, paginateExamBlocks } from './examLayout'
-import { createEnglishSet, createExamLayout } from './english'
+import { createEnglishSet, createExamLayout, createQuestion } from './english'
+import { createProvidedPassageV02Plan, syncProvidedPassageV02Questions, transitionSchoolProvidedPassageV02 } from './providedPassageV02'
 import type { EnglishExamDocument, EnglishQuestionSet } from './types'
 
 function exam(): EnglishExamDocument {
@@ -291,5 +292,44 @@ describe('공통 조판 회귀', () => {
     expect(JSON.stringify(school)).toBe(before)
     const doc = exam(); doc.contentEntries = contentEntriesForSet(school); doc.setIds = [school.id]
     expect(buildExamFlowBlocks(doc, [school], []).every((block) => !block.keepTogetherId)).toBe(true)
+  })
+
+  it('기존 지문 V0.2 복수 문항은 공통 material 블록 대신 문항별 지문 공간을 계산한다', () => {
+    const seed = createEnglishSet('school')
+    seed.material = 'First sentence explains the topic. Second sentence adds evidence. Third sentence gives a contrast. Fourth sentence states a result. Fifth sentence closes the discussion. Sixth sentence confirms the point.'
+    let set = transitionSchoolProvidedPassageV02(seed, 'provided')
+    const plans = [createProvidedPassageV02Plan('content', 'content_match'), createProvidedPassageV02Plan('insert', 'sentence_insertion')]
+    set = { ...set, providedPassageV02: { ...set.providedPassageV02!, itemPlans: plans }, questions: syncProvidedPassageV02Questions(set, plans) }
+    const doc = exam(); doc.contentEntries = contentEntriesForSet(set); doc.setIds = [set.id]
+    const blocks = buildExamFlowBlocks(doc, [set], [])
+    const questions = blocks.filter((block) => block.kind === 'question')
+    expect(blocks.some((block) => block.kind === 'material' || block.kind === 'structured-material')).toBe(false)
+    expect(questions).toHaveLength(2)
+    expect(questions.every((block) => block.units > 10)).toBe(true)
+  })
+
+  it('새 자료 문장 삽입 혼합 세트는 공통 지문을 한 번만 두고 삽입 문항을 마지막에 계산한다', () => {
+    const set = createEnglishSet('school')
+    set.material = 'First sentence. [[삽입위치:①]] [[삽입문장:Given sentence.]] Second sentence. [[삽입위치:②]] Third sentence. [[삽입위치:③]] Fourth sentence. [[삽입위치:④]] Fifth sentence. [[삽입위치:⑤]]'
+    set.questions = [createQuestion('문장 삽입'), createQuestion('어법'), createQuestion('내용 이해')]
+    const doc = exam(); doc.contentEntries = contentEntriesForSet(set); doc.setIds = [set.id]
+    const blocks = buildExamFlowBlocks(doc, [set], [])
+    const materials = blocks.filter((block) => block.kind === 'material')
+    const questions = blocks.filter((block) => block.kind === 'question')
+    expect(materials).toHaveLength(1)
+    expect(materials[0].text).not.toContain('[[삽입')
+    expect(questions.map((block) => block.question?.type)).toEqual(['어법', '내용 이해', '문장 삽입'])
+    expect(questions.map((block) => block.questionNumber)).toEqual([1, 2, 3])
+    expect(questions[2].units).toBeGreaterThanOrEqual(questions[1].units)
+  })
+
+  it('새 자료 문장 삽입 단독 세트는 별도 공통 지문을 만들지 않는다', () => {
+    const set = createEnglishSet('school')
+    set.material = 'First sentence. [[삽입위치:①]] [[삽입문장:Given sentence.]] Second sentence. [[삽입위치:②]] Third sentence. [[삽입위치:③]] Fourth sentence. [[삽입위치:④]] Fifth sentence. [[삽입위치:⑤]]'
+    set.questions = [createQuestion('문장 삽입')]
+    const doc = exam(); doc.contentEntries = contentEntriesForSet(set); doc.setIds = [set.id]
+    const blocks = buildExamFlowBlocks(doc, [set], [])
+    expect(blocks.some((block) => block.kind === 'material' || block.kind === 'structured-material')).toBe(false)
+    expect(blocks.filter((block) => block.kind === 'question')).toHaveLength(1)
   })
 })

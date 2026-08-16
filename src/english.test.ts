@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { applyCsatItemTemplate, createCsatItem, createCsatQuestions } from './csat'
-import { ENGLISH_TOPIC_PRESETS, applyCustomPreset, assignAutomaticCsatTopics, createEnglishSet, createExamLayout, generateEnglishPrompt, generateReviewPrompt, layoutForFirstSelectedSet, parseEnglishSetJson, preferredExamPresetForSets } from './english'
+import { ENGLISH_TOPIC_PRESETS, applyCustomPreset, assignAutomaticCsatTopics, createEnglishSet, createExamLayout, createQuestion, defaultQuestionStem, generateEnglishPrompt, generateReviewPrompt, layoutForFirstSelectedSet, parseEnglishSetJson, preferredExamPresetForSets } from './english'
 import { createBackup, normalizeUiSettings, parseBackup } from './storage'
 
 describe('영어 세트 공통 흐름', () => {
@@ -45,6 +45,73 @@ describe('영어 세트 공통 흐름', () => {
   it('내신형과 맞춤설정형의 기존 프롬프트 흐름을 유지한다', () => {
     expect(generateEnglishPrompt(createEnglishSet('school'))).toContain('서술형은 만들지 않고 객관식만')
     expect(generateEnglishPrompt(createEnglishSet('custom'))).toContain('맞춤설정형')
+  })
+
+  it('내신형 문항 유형마다 계약에 맞는 기본 발문을 제공한다', () => {
+    expect(defaultQuestionStem('내용 이해')).toBe('다음 글의 내용과 일치하는 것은?')
+    expect(defaultQuestionStem('내용 일치 및 불일치')).toBe('다음 글의 내용과 일치하지 않는 것은?')
+    expect(defaultQuestionStem('순서 배열')).toBe('주어진 글 다음에 이어질 글의 순서로 가장 적절한 것은?')
+    expect(defaultQuestionStem('문장 삽입')).toBe('글의 흐름으로 보아, 주어진 문장이 들어가기에 가장 적절한 곳은?')
+    expect(defaultQuestionStem('어법')).toBe('다음 글의 밑줄 친 부분 중, 어법상 틀린 것은?')
+  })
+
+  it('새 자료 내신형은 문장 삽입을 포함한 다문항을 한 번의 전용 경로로 요청한다', () => {
+    const set = createEnglishSet('school')
+    set.questions = [createQuestion('내용 이해'), createQuestion('문장 삽입'), createQuestion('어법')]
+    const prompt = generateEnglishPrompt(set)
+    expect(prompt.startsWith('[SCHOOL_ENGLISH_GENERATION_V0.2]')).toBe(true)
+    expect(prompt).toContain('mode는 school_english_generated_passage다')
+    expect(prompt).toContain('- 문항 2: 어법')
+    expect(prompt).toContain('- 문항 3: 문장 삽입')
+    expect(prompt).toContain('하나의 공통 material을 공유')
+    expect(prompt).toContain('questions 배열의 마지막 문항')
+    expect(prompt).toContain('글의 흐름으로 보아, 주어진 문장이 들어가기에 가장 적절한 곳은?')
+    expect(prompt).not.toContain('sourcePassageId가 비어')
+  })
+
+  it('새 자료 한 세트에 서로 다른 문장 삽입 두 개를 요청하지 못하게 막는다', () => {
+    const set = createEnglishSet('school')
+    set.questions = [createQuestion('문장 삽입'), createQuestion('문장 삽입')]
+    expect(() => generateEnglishPrompt(set)).toThrow(/한 문항만/)
+  })
+
+  it('새 자료 내신형 JSON은 일반 문항 뒤에 삽입 문항을 정규화하고 설계 유형·발문을 보존한다', () => {
+    const set = createEnglishSet('school')
+    const content = createQuestion('내용 이해')
+    const insertion = createQuestion('문장 삽입')
+    const grammar = createQuestion('어법')
+    set.questions = [content, insertion, grammar]
+    const questionJson = (question: ReturnType<typeof createQuestion>) => ({
+      type: question.type,
+      stem: question.stem,
+      choices: question.type === '문장 삽입' ? ['①', '②', '③', '④', '⑤'] : ['a', 'b', 'c', 'd', 'e'],
+      answerIndex: 2,
+      explanation: '해설',
+      intention: '출제 의도',
+      evidenceRefs: ['First sentence.'],
+      distractorReasons: ['1', '2', '3', '4'],
+      score: 2,
+    })
+    const material = 'First sentence. [[삽입위치:①]] [[삽입문장:Given sentence.]] Second sentence. [[삽입위치:②]] Third sentence. [[삽입위치:③]] Fourth sentence. [[삽입위치:④]] Fifth sentence. [[삽입위치:⑤]] A rule [[밑줄:apply]] here.'
+    const raw = JSON.stringify({ title: 'Generated school', materialTitle: '', material, materialSpec: null, questions: [questionJson(insertion), questionJson(content), questionJson(grammar)] })
+    const imported = parseEnglishSetJson(raw, set)
+
+    expect(imported.questions.map((question) => question.type)).toEqual(['내용 이해', '어법', '문장 삽입'])
+    expect(imported.questions.map((question) => question.stem)).toEqual([content.stem, grammar.stem, insertion.stem])
+    expect(imported.material).toBe(material)
+    expect(imported.aiRevision).toBe(1)
+  })
+
+  it('새 자료 내신형 JSON의 삽입 위치가 누락되면 전체 가져오기를 거부한다', () => {
+    const set = createEnglishSet('school')
+    const insertion = createQuestion('문장 삽입')
+    set.questions = [insertion]
+    const raw = JSON.stringify({
+      title: 'Broken insertion', materialTitle: '', material: 'First. [[삽입문장:Given.]] [[삽입위치:①]] Second.', materialSpec: null,
+      questions: [{ type: insertion.type, stem: insertion.stem, choices: ['①', '②', '③', '④', '⑤'], answerIndex: 1, explanation: '해설', intention: '의도', evidenceRefs: ['First.'], distractorReasons: ['2', '3', '4', '5'], score: 2 }],
+    })
+    expect(() => parseEnglishSetJson(raw, set)).toThrow(/삽입 위치/)
+    expect(set.aiRevision).toBe(0)
   })
 
   it('수능형 세트가 있으면 새 시험지의 권장 기본 양식을 수능형으로 정한다', () => {

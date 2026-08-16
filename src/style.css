@@ -115,6 +115,18 @@ h1, h2, h3, h4, p { margin-top: 0; }
 .passage-source-mode small { color: #5d6a63; }
 .passage-source-mode label { min-width: 190px; }
 .provided-passage-panel { display: grid; gap: 16px; padding: 18px; margin: 2px 0; border: 1px solid #9eb9aa; border-radius: 14px; background: #f7fbf8; }
+.provided-plan-list { display: grid; gap: 12px; margin-top: 12px; }
+.provided-plan-card { border: 1px solid #cbd7cd; border-radius: 12px; padding: 14px; background: #fff; }
+.provided-plan-card .card-title-row { margin-bottom: 10px; }
+.grammar-plan-guidance { display: grid; gap: 4px; margin-top: 10px; padding: 10px 12px; border-left: 3px solid #527b5e; border-radius: 7px; background: #edf4ee; color: #425349; font-size: 12px; line-height: 1.5; }
+.grammar-plan-guidance strong { color: #244f38; }
+.grammar-plan-guidance small { line-height: 1.45; }
+.grammar-question-material { margin: 8px 0 10px; padding: 8px 10px; border: 1px solid #cbd7cd; border-radius: 7px; background: #f7faf7; }
+.grammar-question-material p { margin: 0; line-height: 1.65; }
+.grammar-question-material u { text-decoration-thickness: 1.5px; text-underline-offset: 2px; font-weight: 700; }
+.editor-card > .card-title-row { flex-wrap: wrap; }
+.editor-card > .card-title-row > div { min-width: 0; flex: 1 1 360px; }
+.editor-card > .card-title-row > button { flex: 0 0 auto; white-space: nowrap; }
 .provided-passage-panel > header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
 .provided-passage-panel h4 { margin: 3px 0 0; }
 .source-valid, .source-invalid { padding: 5px 9px; border-radius: 999px; font-size: .78rem; font-weight: 700; }
