@@ -2,6 +2,7 @@ import { CSAT_FAMILIES, CSAT_GPT_APPROVAL_PROTOCOL, CSAT_INLINE_POSITION_CHOICES
 import { assertCsatGenerationSchema } from './generationContract'
 import { generateProvidedPassagePrompt, isProvidedPassageSet, parseProvidedPassageJson, providedPassageValidationMessages } from './providedPassage'
 import { generateProvidedPassageV02Prompt, parseProvidedPassageV02Json, providedPassageV02ValidationMessages } from './providedPassageV02'
+import { SCHOOL_QUESTION_TEMPLATES, inferSchoolQuestionTemplate, schoolCatalogPromptSection, schoolQuestionTypes, validateSchoolTemplateMarkup } from './schoolCatalog'
 import { generatedSchoolInsertionMarkupIssues, orderedGeneratedSchoolQuestions } from './schoolMaterial'
 import type { CsatMaterialSpec, CsatQualityReview, EnglishMode, EnglishQuestion, EnglishQuestionSet, ExamLayoutSettings, LayoutPreset, SourceKind, ValidationIssue } from './types'
 import { englishDifficultyLabel, englishDifficultyPrompt } from './difficulty'
@@ -14,7 +15,7 @@ export const MODE_LABELS: Record<EnglishMode, string> = {
 
 export const CSAT_QUESTION_TYPES = CSAT_FAMILIES.map((family) => family.label)
 
-export const SCHOOL_QUESTION_TYPES = ['어휘', '어법', '내용 이해', '내용 일치 및 불일치', '순서 배열', '문장 삽입'] as const
+export const SCHOOL_QUESTION_TYPES = schoolQuestionTypes()
 export const CUSTOM_PRESETS = ['독해', '어휘', '어법', '변형 문제', '숙제용 워크시트', '단원별 미니 테스트'] as const
 export const CUSTOM_QUESTION_TYPES = [...CSAT_QUESTION_TYPES, ...SCHOOL_QUESTION_TYPES, '세부 정보', '문맥 추론'] as const
 
@@ -68,6 +69,7 @@ export const SOURCE_LABELS: Record<SourceKind, string> = {
 export const LAYOUT_PRESETS: Record<LayoutPreset, ExamLayoutSettings> = {
   csat: { layoutRevision: 2, preset: 'csat', columns: 2, answerColumns: 1, marginTop: 12, marginRight: 13, marginBottom: 11, marginLeft: 13, fontSize: 8.6, lineHeight: 1.32, questionGap: 3.5, passageBorder: false, institution: '', gradeLabel: '', dateLabel: '', footerText: '영어 문제 제작 연구소 창작 문항', showPageNumbers: true },
   school: { preset: 'school', columns: 1, answerColumns: 1, marginTop: 16, marginRight: 17, marginBottom: 15, marginLeft: 17, fontSize: 10.5, lineHeight: 1.72, questionGap: 8, passageBorder: true, institution: '', gradeLabel: '', dateLabel: '', footerText: '영어 문제 제작 연구소', showPageNumbers: true },
+  'school-exam': { layoutRevision: 1, preset: 'school-exam', columns: 2, answerColumns: 1, marginTop: 8, marginRight: 8, marginBottom: 11, marginLeft: 8, fontSize: 9.2, lineHeight: 1.42, questionGap: 3.5, passageBorder: false, institution: '', gradeLabel: '제1학년', dateLabel: '', footerText: '영어 시험 출제지', showPageNumbers: true, schoolExamHeader: { subjectName: '영어', subjectCode: '', examSession: '', authorName: '', showApprovalGrid: true } },
   worksheet: { preset: 'worksheet', columns: 1, answerColumns: 1, marginTop: 14, marginRight: 15, marginBottom: 14, marginLeft: 15, fontSize: 11, lineHeight: 1.75, questionGap: 10, passageBorder: true, institution: '', gradeLabel: '', dateLabel: '', footerText: 'English Worksheet', showPageNumbers: true },
   custom: { preset: 'custom', columns: 1, answerColumns: 1, marginTop: 14, marginRight: 14, marginBottom: 14, marginLeft: 14, fontSize: 10.5, lineHeight: 1.7, questionGap: 8, passageBorder: true, institution: '', gradeLabel: '', dateLabel: '', footerText: '영어 문제 제작 연구소', showPageNumbers: true },
 }
@@ -92,17 +94,26 @@ const DEFAULT_STEMS: Record<string, string> = {
   '요약문 완성': '다음 글의 내용을 한 문장으로 요약하고자 한다. 빈칸에 들어갈 말로 가장 적절한 것은?',
   '장문 독해': '다음 글의 내용으로 가장 적절한 것은?',
   '내용 이해': '다음 글의 내용으로부터 추론할 수 있는 것은?',
+  '어법상 옳은 표현 조합': '다음 글의 밑줄 친 부분 중, 어법상 옳은 것만을 고른 것은?',
+  '복수 빈칸 조합': '다음 빈칸 (A), (B), (C)에 들어갈 말로 가장 적절한 것은?',
+  '공통 보기 빈칸': '윗글의 빈칸에 들어갈 말로 가장 적절한 것을 <보기>에서 고른 것은?',
 }
 
 export function defaultQuestionStem(type: string) {
   return DEFAULT_STEMS[type] ?? '다음 글을 읽고 물음에 답하시오.'
 }
 
-export function createQuestion(type: string, choiceCount = 5): EnglishQuestion {
-  return {
+export function createQuestion(type: string, choiceCount = 5, mode?: EnglishMode): EnglishQuestion {
+  const question: EnglishQuestion = {
     id: crypto.randomUUID(), type, stem: defaultQuestionStem(type),
     choices: Array.from({ length: choiceCount }, () => ''), answerIndex: 1, explanation: '', intention: '', evidenceRefs: [], distractorReasons: [], score: 2,
   }
+  if (mode === 'school') {
+    const template = SCHOOL_QUESTION_TEMPLATES.find((candidate) => candidate.questionType === type)
+    question.schoolTemplateId = template?.id
+    question.schoolChoiceLayout = template?.choiceLayout
+  }
+  return question
 }
 
 export function questionTypesFor(mode: EnglishMode) {
@@ -113,12 +124,19 @@ export function createEnglishSet(mode: EnglishMode = 'csat'): EnglishQuestionSet
   const now = new Date().toISOString()
   const firstType = questionTypesFor(mode)[0]
   const sourceKind: SourceKind = mode === 'school' ? 'textbook' : mode === 'csat' ? 'generated' : 'custom'
+  const firstQuestion = createQuestion(firstType, 5, mode)
+  if (mode === 'school') {
+    const template = inferSchoolQuestionTemplate(firstQuestion)
+    firstQuestion.schoolTemplateId = template.id
+    firstQuestion.schoolChoiceLayout = template.choiceLayout
+  }
   return {
     id: crypto.randomUUID(), title: `새 ${MODE_LABELS[mode]} 영어 세트`, mode, targetLevel: mode === 'csat' ? '고3·수능 대비' : '고등학교',
     sourceKind, materialMode: mode === 'custom' ? 'provided' : 'generated', materialTitle: '', material: '', topic: '', difficulty: mode === 'custom' ? 3 : 4,
     difficultyScaleVersion: mode === 'custom' ? undefined : 2,
     intention: '', choiceCount: 5, customPreset: mode === 'custom' ? CUSTOM_PRESETS[0] : undefined,
-    csatItems: mode === 'csat' ? [createCsatItem()] : undefined, questions: mode === 'csat' ? [] : [createQuestion(firstType, 5)], prompt: '', aiRevision: 0, validatedRevision: 0, lastImportedJson: '',
+    csatItems: mode === 'csat' ? [createCsatItem()] : undefined, schoolInsertionPresentation: mode === 'school' ? 'isolated' : undefined,
+    questions: mode === 'csat' ? [] : [firstQuestion], prompt: '', aiRevision: 0, validatedRevision: 0, lastImportedJson: '',
     createdAt: now, updatedAt: now,
   }
 }
@@ -261,7 +279,9 @@ export function generateEnglishPrompt(set: EnglishQuestionSet): string {
   const orderedQuestions = orderedGeneratedSchoolQuestions(set)
   const generatedSchoolInsertionCount = set.mode === 'school' && set.materialMode === 'generated' ? orderedQuestions.filter((question) => question.type === '문장 삽입').length : 0
   if (generatedSchoolInsertionCount > 1) throw new Error('새 자료 작성 세트에서는 문장 삽입을 한 문항만 포함할 수 있습니다. 서로 다른 삽입 문장은 별도 세트로 나눠 주세요.')
-  const plan = orderedQuestions.map((question, index) => `- 문항 ${index + 1}: ${question.type}\n  발문: ${question.stem || '(AI가 유형에 맞게 작성)'}\n  선지 수: ${set.choiceCount}\n  출제 의도: ${question.intention || set.intention || '(유형에 맞게 설정)'}`).join('\n')
+  const plan = set.mode === 'school'
+    ? schoolCatalogPromptSection(orderedQuestions)
+    : orderedQuestions.map((question, index) => `- 문항 ${index + 1}: ${question.type}\n  발문: ${question.stem || '(AI가 유형에 맞게 작성)'}\n  선지 수: ${set.choiceCount}\n  출제 의도: ${question.intention || set.intention || '(유형에 맞게 설정)'}`).join('\n')
   const materialInstruction = set.materialMode === 'provided'
     ? `아래 등록 자료를 중심 근거로 사용한다.\n\n${set.material || '(사용자가 자료를 입력해야 함)'}`
     : `주제·소재 “${set.topic || '교육적이고 중립적인 주제'}”에 맞는 새로운 영어 지문을 작성한다.`
@@ -277,15 +297,21 @@ export function generateEnglishPrompt(set: EnglishQuestionSet): string {
   const activeModeInstructions = set.mode === 'school' && set.materialMode === 'generated'
     ? ['요청된 주제·소재와 학습 수준에 맞는 새 영어 지문을 작성한다.', ...modeInstructions.school.slice(1)]
     : modeInstructions[set.mode]
+  const insertionPresentationRule = set.schoolInsertionPresentation === 'shared'
+    ? '- 문장 삽입 표식이 있는 공통 material을 다른 문항도 함께 사용하고 요청된 questions 순서를 유지한다. 삽입 표식을 제거한 새 지문을 문항별로 반복하지 않는다.'
+    : '- 문장 삽입 문항은 questions 배열의 마지막 문항으로 두고, 공통 지문과 같은 내용을 사용하되 삽입 문장 상자와 위치 표시가 있는 독립 블록으로 출력할 수 있게 한다.'
   const schoolGeneratedContract = set.mode === 'school' && set.materialMode === 'generated' ? `[생성 경로]
 - mode는 school_english_generated_passage다. Provided Passage의 sourcePassageId, fingerprint, sentence ID, boundary ID를 요구하지 않는다.
 - 아래 문항 구성을 한 번의 응답에 모두 생성하고 최상위 questions 배열의 순서를 그대로 지킨다.
-- 어법·내용 이해·내용 일치/불일치 등 문장 삽입이 아닌 문항은 모두 하나의 공통 material을 공유하며, 문항마다 지문을 반복 생성하지 않는다.
+- 모든 일반 문항은 하나의 공통 material을 공유하며, 문항마다 지문을 반복 생성하지 않는다.
 - 내용 이해는 지문에 그대로 진술된 사실을 다시 찾는 문항이 아니다. 지문의 둘 이상의 단서 또는 하나의 충분한 함의를 근거로 가장 타당하게 추론할 수 있는 내용 하나를 고르게 한다.
 - 내용 이해의 정답은 외부 배경지식 없이 지문만으로 도출되어야 하며, 과도한 일반화·인과 비약·범위 왜곡·주체 변경을 오답 원리로 활용한다.
-- 문장 삽입은 다른 유형과 함께 만들 수 있으나 한 세트에 최대 한 문항만 두고 questions 배열의 마지막 문항으로 반환한다.
+- 문장 삽입은 다른 유형과 함께 만들 수 있으나 한 세트에 최대 한 문항만 둔다.
 - 문장 삽입이 있으면 material에 [[삽입문장:문장]] 1개와 [[삽입위치:①]]~[[삽입위치:⑤]]를 순서대로 각각 1개씩 표시한다. 다른 문항의 내용과 정답 근거는 같은 지문의 삽입 표식을 제외한 본문을 기준으로 한다.
 - 문장 삽입 choices는 ["①", "②", "③", "④", "⑤"]로 고정한다.
+${insertionPresentationRule}
+- 공통 보기형은 [[보기:a. word|b. word|c. word|d. word|e. word]]와 라벨 빈칸 [[빈칸:ⓐ]] 형식을 사용한다.
+- 복수 빈칸 조합형의 각 choice는 (A), (B), (C) 값을 세로줄 문자 | 로 구분한다.
 - 설계안이나 승인 질문을 먼저 출력하지 말고, 이 프롬프트의 출력 JSON 형식에 맞는 객체 하나를 바로 반환한다.
 
 ` : ''
@@ -320,10 +346,19 @@ ${plan}
 [영어 문항 표식]
 - 어법·어휘의 대상 표현은 지문에서 [[밑줄:대상 표현]]으로 표시한다.
 - 빈칸은 [[빈칸]]으로 표시한다.
+- 라벨 빈칸은 [[빈칸:A]] 또는 [[빈칸:ⓐ]]로 표시한다.
+- 공통 보기 단어는 [[보기:a. word|b. word|c. word|d. word|e. word]]로 표시한다.
 - 순서 배열 자료는 (A), (B), (C)를 명확히 구분한다.
 - 문장 삽입은 [[삽입문장:문장]]과 [[삽입위치:①]] 형식을 사용한다.
 - 요약문 완성은 [[요약빈칸:A]]와 [[요약빈칸:B]]를 사용한다.
 - 박스형 어휘는 [[선택:A|첫 단어|둘째 단어]] 형식을 사용한다.
+
+[구조화 자료 materialSpec]
+- 일반 공유 지문은 null로 둔다.
+- 글의 순서는 {"kind":"ordered","lead":"도입문","sections":[{"label":"A","text":"..."},{"label":"B","text":"..."},{"label":"C","text":"..."}]}로 둔다.
+- 문장 삽입은 {"kind":"insertion","givenSentence":"삽입 문장","body":"①~⑤ 위치 표식이 있는 본문"}로 둘 수 있다.
+- 요약문 완성은 {"kind":"summary","summary":"요약 빈칸이 있는 한 문장"}로 두어 원문 아래 별도 상자로 출력한다.
+- material과 materialSpec은 같은 원문 근거를 사용하고 서로 충돌하지 않게 한다.
 
 [출력 JSON]
 {
@@ -451,7 +486,7 @@ export function parseEnglishSetJson(raw: string, base: EnglishQuestionSet): Engl
   const generatedSchool = base.mode === 'school' && base.materialMode === 'generated'
   const expectedQuestions = orderedGeneratedSchoolQuestions(base)
   if (generatedSchool && input.questions.length !== expectedQuestions.length) throw new Error(`요청한 ${expectedQuestions.length}개 문항과 응답의 ${input.questions.length}개 문항 수가 다릅니다.`)
-  const inputQuestions = generatedSchool
+  const inputQuestions = generatedSchool && base.schoolInsertionPresentation !== 'shared'
     ? [...input.questions].sort((left, right) => {
       const leftInsertion = Boolean(left && typeof left === 'object' && (left as Record<string, unknown>).type === '문장 삽입')
       const rightInsertion = Boolean(right && typeof right === 'object' && (right as Record<string, unknown>).type === '문장 삽입')
@@ -469,11 +504,15 @@ export function parseEnglishSetJson(raw: string, base: EnglishQuestionSet): Engl
     if (generatedSchool && item.type !== expected?.type) throw new Error(`${index + 1}번 문항 유형은 요청한 '${expected?.type}'이어야 합니다.`)
     if (generatedSchool && item.stem.trim() !== expected?.stem.trim()) throw new Error(`${index + 1}번 문항 발문이 요청한 발문과 다릅니다.`)
     if (generatedSchool && item.type === '문장 삽입' && choices.join('|') !== CSAT_INLINE_POSITION_CHOICES.join('|')) throw new Error('문장 삽입 choices는 ①~⑤ 위치 번호여야 합니다.')
+    const type = typeof item.type === 'string' ? item.type : base.questions[index]?.type ?? '내용 이해'
+    const expectedTemplate = expected ? inferSchoolQuestionTemplate(expected) : SCHOOL_QUESTION_TEMPLATES.find((template) => template.questionType === type)
     return {
-      id: crypto.randomUUID(), type: typeof item.type === 'string' ? item.type : base.questions[index]?.type ?? '내용 이해',
+      id: crypto.randomUUID(), type,
       stem: item.stem.trim(), choices, answerIndex: parseAnswerIndex(item.answerIndex ?? item.answer, choiceCount),
       explanation: typeof item.explanation === 'string' ? item.explanation.trim() : '', intention: typeof item.intention === 'string' ? item.intention.trim() : '',
       evidenceRefs: cleanStrings(item.evidenceRefs), distractorReasons: cleanStrings(item.distractorReasons), score: typeof item.score === 'number' ? item.score : 2,
+      schoolTemplateId: expectedTemplate?.id,
+      schoolChoiceLayout: expected?.schoolChoiceLayout ?? expectedTemplate?.choiceLayout,
     }
   })
   const materialSpec = cleanMaterialSpec(input.materialSpec)
@@ -837,6 +876,7 @@ export function validateEnglishSet(set: EnglishQuestionSet): ValidationIssue[] {
     if (insertionCount > 1) add({ level: 'error', label: '문장 삽입 문항 수', detail: '새 자료 작성 세트에는 문장 삽입을 한 문항만 포함할 수 있습니다.' })
     generatedSchoolInsertionMarkupIssues(set).forEach((detail) => add({ level: 'error', label: '문장 삽입 자료 구조', detail }))
   }
+  if (set.mode === 'school' && set.materialMode === 'generated') validateSchoolTemplateMarkup(set).forEach((detail) => add({ level: 'error', label: '내신형 템플릿 구조', detail }))
   if (hasUnnecessaryPassageBreaks(set.material) || hasUnnecessaryStructuredBreaks(set.materialSpec)) add({ level: 'warning', label: '불필요한 문단 구분', detail: '출력에서는 자동으로 한 문단으로 합치지만, 일반 영어 지문은 빈 줄 없이 작성하는 것을 권장합니다.' })
   const comparableMaterial = normalizeEvidence(set.material)
   orderedGeneratedSchoolQuestions(set).forEach((question, index) => {

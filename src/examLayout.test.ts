@@ -333,4 +333,22 @@ describe('공통 조판 회귀', () => {
     expect(blocks.some((block) => block.kind === 'material' || block.kind === 'structured-material')).toBe(false)
     expect(blocks.filter((block) => block.kind === 'question')).toHaveLength(1)
   })
+
+  it('학교형-2단 시험은 공유 지문 범위를 묶음 제목으로 만들고 2단 기본값을 유지한다', () => {
+    const set = createEnglishSet('school')
+    set.title = '신규 창작 공유 지문'
+    set.material = 'A newly written passage supports several independent school questions.'
+    set.questions = [createQuestion('내용 이해'), createQuestion('어법'), createQuestion('주제')]
+    const doc = exam()
+    doc.layout = createExamLayout('school-exam')
+    doc.contentEntries = contentEntriesForSet(set)
+    doc.setIds = [set.id]
+
+    const normalized = normalizeExamDocument(doc, [set])
+    const blocks = buildExamFlowBlocks(normalized, [set], [])
+    expect(normalized.layout).toMatchObject({ preset: 'school-exam', columns: 2, answerColumns: 1 })
+    expect(blocks.find((block) => block.kind === 'set-header')).toMatchObject({ groupNumberLabel: '1~3', keepWithNext: true })
+    expect(blocks.filter((block) => block.kind === 'material')).toHaveLength(1)
+    expect(blocks.filter((block) => block.kind === 'question').map((block) => block.questionNumber)).toEqual([1, 2, 3])
+  })
 })

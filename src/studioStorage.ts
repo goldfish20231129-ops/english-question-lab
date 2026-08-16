@@ -1,5 +1,6 @@
 import { normalizeCsatSet } from './csat'
 import { normalizeExamDocument } from './examLayout'
+import { inferSchoolQuestionTemplate } from './schoolCatalog'
 import type { EnglishExamDocument, EnglishQuestionSet, MediaAsset, StudioBundle } from './types'
 
 const DB_NAME = 'english-question-lab-studio-v1'
@@ -73,12 +74,25 @@ export async function loadStudioBundle(): Promise<StudioBundle> {
 }
 
 export function normalizeStudioBundle(bundle: StudioBundle): StudioBundle {
-  const questionSets = bundle.questionSets.map(normalizeCsatSet)
+  const questionSets = bundle.questionSets.map(normalizeQuestionSet)
   const exams = bundle.exams.map((exam) => normalizeExamDocument(exam, questionSets))
   return { questionSets, exams, mediaAssets: bundle.mediaAssets }
 }
 
-export const saveQuestionSet = (value: EnglishQuestionSet) => put(QUESTION_SETS, normalizeCsatSet(value))
+export function normalizeQuestionSet(value: EnglishQuestionSet): EnglishQuestionSet {
+  const normalized = normalizeCsatSet(value)
+  if (normalized.mode !== 'school') return normalized
+  return {
+    ...normalized,
+    schoolInsertionPresentation: normalized.schoolInsertionPresentation ?? 'isolated',
+    questions: normalized.questions.map((question) => {
+      const template = inferSchoolQuestionTemplate(question)
+      return { ...question, schoolTemplateId: question.schoolTemplateId ?? template.id, schoolChoiceLayout: question.schoolChoiceLayout ?? template.choiceLayout }
+    }),
+  }
+}
+
+export const saveQuestionSet = (value: EnglishQuestionSet) => put(QUESTION_SETS, normalizeQuestionSet(value))
 export const deleteQuestionSet = (id: string) => remove(QUESTION_SETS, id)
 export const saveExamDocument = (value: EnglishExamDocument) => put(EXAMS, value)
 export const deleteExamDocument = (id: string) => remove(EXAMS, id)

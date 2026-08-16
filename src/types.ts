@@ -3,7 +3,14 @@ export type MaterialMode = 'provided' | 'generated'
 export type SourceKind = 'textbook' | 'supplement' | 'external' | 'generated' | 'custom'
 export type ValidationLevel = 'error' | 'warning' | 'pass'
 export type StudioScreen = 'sets' | 'verification' | 'assembly' | 'preview'
-export type LayoutPreset = 'csat' | 'school' | 'worksheet' | 'custom'
+export type LayoutPreset = 'csat' | 'school' | 'school-exam' | 'worksheet' | 'custom'
+
+export type SchoolQuestionTemplateId =
+  | 'content-match' | 'content-inference' | 'topic' | 'gist' | 'implication' | 'blank'
+  | 'grammar-error' | 'grammar-combination' | 'vocabulary-context' | 'irrelevant'
+  | 'order' | 'insertion' | 'summary' | 'multi-blank' | 'word-bank'
+export type SchoolChoiceLayout = 'auto' | 'inline' | 'vertical' | 'matrix'
+export type SchoolInsertionPresentation = 'isolated' | 'shared'
 
 export type CsatQuestionFamilyId =
   | 'purpose' | 'emotion' | 'claim' | 'gist' | 'topic' | 'title' | 'implication'
@@ -241,6 +248,8 @@ export interface EnglishQuestion {
   csatTemplateId?: CsatNumberTemplateId
   csatSlot?: string
   csatItemId?: string
+  schoolTemplateId?: SchoolQuestionTemplateId
+  schoolChoiceLayout?: SchoolChoiceLayout
 }
 
 export type VerificationScope = 'set' | 'exam'
@@ -348,6 +357,7 @@ export interface EnglishQuestionSet {
   providedPassage?: ProvidedPassageState
   providedPassageV02?: ProvidedPassageV02State
   providedPassageQualityReview?: CsatQualityReview
+  schoolInsertionPresentation?: SchoolInsertionPresentation
   questions: EnglishQuestion[]
   prompt: string
   aiRevision: number
@@ -357,6 +367,14 @@ export interface EnglishQuestionSet {
   verificationRuns?: CsatVerificationRun[]
   createdAt: string
   updatedAt: string
+}
+
+export interface SchoolExamHeaderSettings {
+  subjectName: string
+  subjectCode: string
+  examSession: string
+  authorName: string
+  showApprovalGrid: boolean
 }
 
 export interface ExamContentEntry {
@@ -383,6 +401,7 @@ export interface ExamLayoutSettings {
   dateLabel: string
   footerText: string
   showPageNumbers: boolean
+  schoolExamHeader?: SchoolExamHeaderSettings
 }
 
 export interface EnglishExamDocument {

@@ -3,12 +3,13 @@ import { collapseCsatProseParagraphs, csatLongExpositoryText, csatLongNarrativeS
 import { CsatMaterialView } from './CsatMaterialView'
 import { buildExamFlowBlocks, examFlowMeasurementKey, geometryKey, getOversizedQuestionIssues, paginateExamBlocks, resolveExamEntries, type ExamFlowBlock, type ExamLayoutMetrics } from './examLayout'
 import { providedPassagePresentationSpec } from './providedPassage'
-import { orderedProvidedPassageV02Questions, providedPassageV02PresentationSpec, providedPassageV02QuestionMaterialText, providedPassageV02SharedMaterialText } from './providedPassageV02'
+import { orderedProvidedPassageV02Questions, providedPassageV02PresentationSpec, providedPassageV02QuestionMaterialText, providedPassageV02SharedMaterialText, providedPassageV02SharedPresentationSpec } from './providedPassageV02'
 import { generatedSchoolSharedMaterialPresentation, isSchoolInsertionQuestion, orderedSchoolQuestions, schoolQuestionMaterialPresentation, usesInlineSchoolChoices, usesQuestionScopedSchoolMaterial } from './schoolMaterial'
-import type { CsatItemDesign, EnglishExamDocument, EnglishQuestion, EnglishQuestionSet, ExamLayoutSettings, MediaAsset } from './types'
+import { schoolQuestionChoiceLayout } from './schoolCatalog'
+import type { CsatItemDesign, EnglishExamDocument, EnglishQuestion, EnglishQuestionSet, ExamLayoutSettings, LayoutPreset, MediaAsset } from './types'
 import { englishDifficultyLabel } from './difficulty'
 
-const MARKUP = /\[\[(밑줄|빈칸|요약빈칸|삽입문장|삽입위치|선택)(?::([^\]]+))?\]\]/g
+const MARKUP = /\[\[(밑줄|빈칸|요약빈칸|삽입문장|삽입위치|선택|보기)(?::([^\]]+))?\]\]/g
 const CIRCLED = ['①', '②', '③', '④', '⑤']
 
 export function EnglishText({ text }: { text: string }) {
@@ -19,10 +20,11 @@ export function EnglishText({ text }: { text: string }) {
     if (index > cursor) nodes.push(text.slice(cursor, index))
     const key = `${index}-${match[1]}`
     if (match[1] === '밑줄') nodes.push(<u key={key}>{match[2]}</u>)
-    else if (match[1] === '빈칸') nodes.push(<span className="english-blank" key={key}>&nbsp;</span>)
+    else if (match[1] === '빈칸') nodes.push(<span className="english-blank" key={key}>{match[2] ? `(${match[2]})` : '\u00a0'}</span>)
     else if (match[1] === '요약빈칸') nodes.push(<span className="english-summary-blank" key={key}>({match[2] || 'A·B'})&nbsp;</span>)
     else if (match[1] === '삽입문장') nodes.push(<span className="insertion-sentence" key={key}>{match[2]}</span>)
     else if (match[1] === '삽입위치') nodes.push(<b className="insertion-position" key={key}>{match[2]}</b>)
+    else if (match[1] === '보기') nodes.push(<span className="school-word-bank" key={key}><b>&lt;보기&gt;</b>{(match[2] ?? '').split('|').map((item) => <span key={item}>{item.trim()}</span>)}</span>)
     else { const [label, left, right] = (match[2] ?? '').split('|'); nodes.push(<span className="vocabulary-choice" key={key}><b>({label})</b> {left} / {right}</span>) }
     cursor = index + match[0].length
   }
@@ -38,7 +40,18 @@ function paperStyle(layout: ExamLayoutSettings): CSSProperties {
   } as CSSProperties
 }
 
-function Header({ exam, pageNumber, layout }: { exam: EnglishExamDocument; pageNumber: number; layout: ExamLayoutSettings }) {
+function Header({ exam, pageNumber, layout, questionCount, totalScore }: { exam: EnglishExamDocument; pageNumber: number; layout: ExamLayoutSettings; questionCount: number; totalScore: number }) {
+  if (layout.preset === 'school-exam') {
+    const school = layout.schoolExamHeader ?? { subjectName: '영어', subjectCode: '', examSession: '', authorName: '', showApprovalGrid: true }
+    if (pageNumber > 1) return <header className="paper-header preset-school-exam school-exam-running-header"><span>{layout.institution || '학교·기관명'}</span><strong>{exam.title}</strong><span>{school.subjectName || '영어'}{school.subjectCode ? ` (${school.subjectCode})` : ''}</span>{layout.showPageNumbers && <b>{pageNumber}</b>}</header>
+    return <header className="paper-header preset-school-exam school-exam-first-header">
+      <div className="school-exam-title"><small>{layout.institution || '학교·기관명'}</small><h1>{exam.title}</h1><span>{school.examSession || layout.dateLabel || '시행일·교시'}</span></div>
+      <div className="school-exam-meta"><span><b>과목</b>{school.subjectName || '영어'}</span><span><b>과목 코드</b>{school.subjectCode || '—'}</span><span><b>대상</b>{layout.gradeLabel || '학년·반'}</span><span><b>객관식</b>{questionCount}문항 · {Number(totalScore.toFixed(2))}점</span></div>
+      <div className="school-exam-student"><span>학년 ____</span><span>반 ____</span><span>번호 ____</span><span>이름 ____________</span></div>
+      {(school.showApprovalGrid || school.authorName) && <div className="school-exam-approval"><span><b>출제자</b>{school.authorName || '—'}</span>{school.showApprovalGrid && <><span><b>검토</b>&nbsp;</span><span><b>결재</b>&nbsp;</span></>}</div>}
+      {layout.showPageNumbers && <b>{pageNumber}</b>}
+    </header>
+  }
   return <header className={`paper-header preset-${layout.preset}`}>
     <div><small>{layout.institution || 'ENGLISH QUESTION LAB'}</small><h1>{exam.title}</h1></div>
     <div className="student-fields"><span>{layout.gradeLabel || '학년·반'} __________</span><span>이름 __________</span>{layout.dateLabel && <span>{layout.dateLabel}</span>}</div>
@@ -52,6 +65,7 @@ function Footer({ layout, pageNumber, total }: { layout: ExamLayoutSettings; pag
 
 function SetHeader({ block }: { block: ExamFlowBlock }) {
   const set = block.set!
+  if (block.effectiveLayout.preset === 'school-exam') return <div className="paper-set-header school-exam-group-header" data-flow-id={block.id}><strong>[{block.groupNumberLabel}] 다음 글을 읽고, 물음에 답하시오.</strong>{set.materialTitle && <small>{set.materialTitle}</small>}</div>
   return <div className="paper-set-header" data-flow-id={block.id}><span>{set.mode === 'csat' ? '수능형' : set.mode === 'school' ? '내신형' : '맞춤형'}</span><strong>{set.title}</strong>{set.materialTitle && <small>{set.materialTitle}</small>}</div>
 }
 
@@ -107,6 +121,7 @@ function AssetBlock({ block }: { block: ExamFlowBlock }) {
 
 function QuestionScopedMaterial({ set, question }: { set?: EnglishQuestionSet; question: EnglishQuestion }) {
   if (!set) return null
+  if (set.schoolInsertionPresentation === 'shared') return null
   if (set.providedPassageV02 && !isSchoolInsertionQuestion(question)) return null
   const presentationSpec = set.providedPassageV02
     ? providedPassageV02PresentationSpec(set, question.id)
@@ -120,15 +135,21 @@ function QuestionScopedMaterial({ set, question }: { set?: EnglishQuestionSet; q
   return <div className={`paper-material provided-v02-question-material${set.layoutOverride?.passageBorder === false ? '' : ' bordered'}`}><p><EnglishText text={collapseCsatProseParagraphs(text)} /></p></div>
 }
 
-export function QuestionContent({ question, number, part = 'full', set }: { question: EnglishQuestion; number: number; part?: 'full' | 'lead' | 'choices'; set?: EnglishQuestionSet }) {
+function ChoiceText({ choice, matrix }: { choice: string; matrix: boolean }) {
+  if (!matrix) return <EnglishText text={choice || '(선지 미입력)'} />
+  return <span className="school-choice-cells">{choice.split('|').map((cell, index) => <span key={`${index}-${cell}`}><EnglishText text={cell.trim() || '—'} /></span>)}</span>
+}
+
+export function QuestionContent({ question, number, part = 'full', set, preset }: { question: EnglishQuestion; number: number; part?: 'full' | 'lead' | 'choices'; set?: EnglishQuestionSet; preset?: LayoutPreset }) {
   const showLead = part === 'full' || part === 'lead'
   const showChoices = (part === 'full' || part === 'choices') && !isInlinePositionTemplate(question.csatTemplateId) && !usesInlineSchoolChoices(set, question)
-  return <>{showLead && <h4><b>{number}.</b> <EnglishText text={question.stem} />{question.score && question.score !== 2 && <em>[{question.score}점]</em>}</h4>}{showLead && <QuestionScopedMaterial set={set} question={question} />}{showChoices && <ol>{question.choices.map((choice, index) => <li key={index}><span>{CIRCLED[index] ?? `${index + 1}.`}</span><EnglishText text={choice || '(선지 미입력)'} /></li>)}</ol>}</>
+  const choiceLayout = set?.mode === 'school' ? schoolQuestionChoiceLayout(question) : 'vertical'
+  return <>{showLead && <h4><b>{number}.</b> <EnglishText text={question.stem} />{question.score && (preset === 'school-exam' || question.score !== 2) && <em>[{question.score}점]</em>}</h4>}{showLead && <QuestionScopedMaterial set={set} question={question} />}{showChoices && <div className={`school-choice-container school-choice-container-${choiceLayout}`}><ol>{question.choices.map((choice, index) => <li key={index}><span>{CIRCLED[index] ?? `${index + 1}.`}</span><ChoiceText choice={choice} matrix={choiceLayout === 'matrix'} /></li>)}</ol></div>}</>
 }
 
 function QuestionBlock({ block }: { block: ExamFlowBlock }) {
   const part = block.questionPart ?? 'full'
-  return <article className={`paper-question question-${part}`} data-flow-id={block.id}><QuestionContent question={block.question!} number={block.questionNumber!} part={part} set={block.set} /></article>
+  return <article className={`paper-question question-${part}`} data-flow-id={block.id}><QuestionContent question={block.question!} number={block.questionNumber!} part={part} set={block.set} preset={block.effectiveLayout.preset} /></article>
 }
 
 function FlowBlock({ block }: { block: ExamFlowBlock }) {
@@ -150,6 +171,8 @@ export function ExamQuestionPages({ exam, sets, assets, onLayoutIssuesChange }: 
   const metrics = measurement?.flowKey === flowKey ? measurement.metrics : undefined
   const pages = useMemo(() => paginateExamBlocks(blocks, metrics), [blocks, metrics])
   const issues = useMemo(() => getOversizedQuestionIssues(blocks, metrics), [blocks, metrics])
+  const examQuestions = useMemo(() => resolveExamEntries(exam, sets).flatMap(({ set, csatItem }) => csatItem?.questions ?? orderedSchoolQuestions(set)), [exam, sets])
+  const totalScore = useMemo(() => examQuestions.reduce((sum, question) => sum + (Number.isFinite(question.score ?? Number.NaN) ? (question.score ?? 0) : 0), 0), [examQuestions])
   const issueKey = issues.join('\n')
   useEffect(() => onLayoutIssuesChange?.(issues), [issueKey, onLayoutIssuesChange])
 
@@ -182,7 +205,7 @@ export function ExamQuestionPages({ exam, sets, assets, onLayoutIssuesChange }: 
   }, [pages, flowKey, measurement?.flowKey])
 
   return <div className="exam-question-pages" ref={rootRef} key={flowKey}>{pages.map((page, pageIndex) => <article className={`exam-page print-page preset-${page.layout.preset}`} style={paperStyle(page.layout)} key={pageIndex}>
-    <Header exam={exam} pageNumber={pageIndex + 1} layout={page.layout} />
+    <Header exam={exam} pageNumber={pageIndex + 1} layout={page.layout} questionCount={examQuestions.length} totalScore={totalScore} />
     <div className={`paper-columns columns-${page.layout.columns}`}>{page.columns.map((column, columnIndex) => <div className="paper-column" data-column-key={`${pageIndex}-${columnIndex}`} data-layout-key={geometryKey(page.layout)} key={columnIndex}>{column.map((block) => <FlowBlock block={block} key={block.id} />)}</div>)}</div>
     <Footer layout={page.layout} pageNumber={pageIndex + 1} total={pages.length} />
   </article>)}</div>
@@ -190,10 +213,11 @@ export function ExamQuestionPages({ exam, sets, assets, onLayoutIssuesChange }: 
 
 export function ExamAnswerPages({ exam, sets }: { exam: EnglishExamDocument; sets: EnglishQuestionSet[] }) {
   const questions = resolveExamEntries(exam, sets).flatMap(({ set, csatItem }) => (csatItem?.questions ?? orderedSchoolQuestions(set)).map((question) => ({ set, question, csatItem })))
+  const totalScore = questions.reduce((sum, item) => sum + (Number.isFinite(item.question.score ?? Number.NaN) ? (item.question.score ?? 0) : 0), 0)
   const perPage = exam.layout.answerColumns === 2 ? 8 : 5
   const chunks = Array.from({ length: Math.max(1, Math.ceil(questions.length / perPage)) }, (_, index) => questions.slice(index * perPage, (index + 1) * perPage))
   return <div className="exam-answer-pages">{chunks.map((chunk, pageIndex) => <article className={`exam-page answer-page print-page preset-${exam.layout.preset}`} style={paperStyle(exam.layout)} key={pageIndex}>
-    <Header exam={exam} pageNumber={pageIndex + 1} layout={exam.layout} />
+    <Header exam={exam} pageNumber={pageIndex + 1} layout={exam.layout} questionCount={questions.length} totalScore={totalScore} />
     <h2>정답 및 해설</h2><div className={`answer-columns columns-${exam.layout.answerColumns}`}>{chunk.map(({ set, question, csatItem }, index) => {
       const number = pageIndex * perPage + index + 1
       return <section key={question.id}><h3>{number}. 정답 {CIRCLED[question.answerIndex - 1] ?? question.answerIndex} <small>{set.title}</small></h3><p>{question.explanation || '해설이 입력되지 않았습니다.'}</p><dl><dt>정답 근거</dt><dd>{question.evidenceRefs.join(' / ') || '미입력'}</dd><dt>출제 의도</dt><dd>{question.intention || csatItem?.intention || set.intention || '미입력'}</dd></dl></section>
@@ -212,15 +236,20 @@ export function SetLivePreview({ set, assets = [] }: { set: EnglishQuestionSet; 
   }
   const scopedMaterial = Boolean(set.providedPassageV02) || usesQuestionScopedSchoolMaterial(set)
   const generatedSharedMaterial = generatedSchoolSharedMaterialPresentation(set)
-  const providedSharedMaterial = providedPassageV02SharedMaterialText(set)
-  const presentationSpec = scopedMaterial ? undefined : providedPassagePresentationSpec(set)
+  const providedSharedSpec = providedPassageV02SharedPresentationSpec(set)
+  const providedSharedMaterial = providedSharedSpec ? undefined : providedPassageV02SharedMaterialText(set)
+  const presentationSpec = scopedMaterial || generatedSharedMaterial ? undefined : providedPassagePresentationSpec(set)
   const structuredReplacesText = structuredMaterialReplacesPlainText(presentationSpec)
   const plainMaterial = <div className={`live-material${set.layoutOverride?.passageBorder === false ? '' : ' bordered'}`}><p><EnglishText text={collapseCsatProseParagraphs(set.material || '지문 또는 자료를 입력하면 여기에 즉시 표시됩니다.')} /></p></div>
   const structuredMaterial = presentationSpec && <CsatMaterialView spec={presentationSpec} collapseParagraphs={presentationSpec.kind === 'prose' || presentationSpec.kind === 'longExpository'} renderText={(text) => <EnglishText text={collapseCsatProseParagraphs(text)} />} />
-  const generatedSharedBlock = generatedSharedMaterial && <div className={`live-material${set.layoutOverride?.passageBorder === false ? '' : ' bordered'}`}><p><EnglishText text={collapseCsatProseParagraphs(generatedSharedMaterial.text)} /></p></div>
+  const generatedSharedBlock = generatedSharedMaterial && (generatedSharedMaterial.spec
+    ? <CsatMaterialView spec={generatedSharedMaterial.spec} collapseParagraphs renderText={(text) => <EnglishText text={collapseCsatProseParagraphs(text)} />} />
+    : <div className={`live-material${set.layoutOverride?.passageBorder === false ? '' : ' bordered'}`}><p><EnglishText text={collapseCsatProseParagraphs(generatedSharedMaterial.text)} /></p></div>)
+  const providedSharedStructuredBlock = providedSharedSpec && <CsatMaterialView spec={providedSharedSpec} collapseParagraphs renderText={(text) => <EnglishText text={collapseCsatProseParagraphs(text)} />} />
   const providedSharedBlock = providedSharedMaterial && <div className={`live-material${set.layoutOverride?.passageBorder === false ? '' : ' bordered'}`}><p><EnglishText text={collapseCsatProseParagraphs(providedSharedMaterial)} /></p></div>
   const questions = set.providedPassageV02 ? orderedProvidedPassageV02Questions(set) : orderedSchoolQuestions(set)
-  return <div className="live-paper"><header><span>{set.mode === 'school' ? '내신형 영어' : '맞춤설정형 영어'}</span><strong>{set.title}</strong></header>{set.materialTitle && <h4>{set.materialTitle}</h4>}{providedSharedBlock}{generatedSharedBlock}{!scopedMaterial && presentationSpec?.kind === 'summary' && plainMaterial}{!scopedMaterial && structuredMaterial}{!scopedMaterial && (!structuredReplacesText && presentationSpec?.kind !== 'summary') && plainMaterial}{assets.map((asset) => <figure key={asset.id}><img src={asset.dataUrl} alt={asset.caption || asset.name} /><figcaption>{asset.caption}</figcaption></figure>)}{questions.map((question, index) => <article key={question.id}><QuestionContent question={question} number={index + 1} set={set} /></article>)}</div>
+  const renderDefaultMaterial = !scopedMaterial && !generatedSharedMaterial
+  return <div className="live-paper"><header><span>{set.mode === 'school' ? '내신형 영어' : '맞춤설정형 영어'}</span><strong>{set.title}</strong></header>{set.materialTitle && <h4>{set.materialTitle}</h4>}{providedSharedStructuredBlock}{providedSharedBlock}{generatedSharedBlock}{renderDefaultMaterial && presentationSpec?.kind === 'summary' && plainMaterial}{renderDefaultMaterial && structuredMaterial}{renderDefaultMaterial && (!structuredReplacesText && presentationSpec?.kind !== 'summary') && plainMaterial}{assets.map((asset) => <figure key={asset.id}><img src={asset.dataUrl} alt={asset.caption || asset.name} /><figcaption>{asset.caption}</figcaption></figure>)}{questions.map((question, index) => <article key={question.id}><QuestionContent question={question} number={index + 1} set={set} /></article>)}</div>
 }
 
 function CsatItemPreview({ set, item, index, startNumber, assets }: { set: EnglishQuestionSet; item: CsatItemDesign; index: number; startNumber: number; assets: MediaAsset[] }) {

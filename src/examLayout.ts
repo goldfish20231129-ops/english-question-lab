@@ -1,6 +1,6 @@
 import { collapseCsatProseParagraphs, csatLongExpositoryText, csatLongNarrativeSections, csatPrintFlow, embedCsatChartChoices, getCsatItems, splitCsatSummaryMaterial } from './csat'
 import { providedPassagePresentationSpec } from './providedPassage'
-import { providedPassageV02PresentationSpec, providedPassageV02QuestionMaterialText, providedPassageV02SharedMaterialText } from './providedPassageV02'
+import { providedPassageV02PresentationSpec, providedPassageV02QuestionMaterialText, providedPassageV02SharedMaterialText, providedPassageV02SharedPresentationSpec } from './providedPassageV02'
 import { generatedSchoolSharedMaterialPresentation, isSchoolInsertionQuestion, orderedSchoolQuestions, schoolQuestionMaterialPresentation, usesInlineSchoolChoices, usesQuestionScopedSchoolMaterial } from './schoolMaterial'
 import type { CsatItemDesign, CsatMaterialSpec, EnglishExamDocument, EnglishQuestion, EnglishQuestionSet, ExamContentEntry, ExamLayoutSettings, MediaAsset, SetLayoutOverride } from './types'
 
@@ -42,7 +42,8 @@ function finiteNumber(value: unknown, fallback: number) {
 function normalizeExamLayout(value: unknown): ExamLayoutSettings {
   const fallback = examFallbackLayout()
   const input = value && typeof value === 'object' ? value as Partial<ExamLayoutSettings> : {}
-  const preset = input.preset === 'csat' || input.preset === 'school' || input.preset === 'worksheet' || input.preset === 'custom' ? input.preset : fallback.preset
+  const preset = input.preset === 'csat' || input.preset === 'school' || input.preset === 'school-exam' || input.preset === 'worksheet' || input.preset === 'custom' ? input.preset : fallback.preset
+  const schoolExamDefaults = { subjectName: '영어', subjectCode: '', examSession: '', authorName: '', showApprovalGrid: true }
   return {
     ...fallback,
     ...input,
@@ -62,6 +63,7 @@ function normalizeExamLayout(value: unknown): ExamLayoutSettings {
     dateLabel: typeof input.dateLabel === 'string' ? input.dateLabel : '',
     footerText: typeof input.footerText === 'string' ? input.footerText : '',
     showPageNumbers: typeof input.showPageNumbers === 'boolean' ? input.showPageNumbers : fallback.showPageNumbers,
+    schoolExamHeader: preset === 'school-exam' ? { ...schoolExamDefaults, ...(input.schoolExamHeader ?? {}) } : input.schoolExamHeader,
   }
 }
 
@@ -140,11 +142,12 @@ export interface ExamLayoutMetrics {
 export function renderEnglishMarkup(value: string) {
   return value
     .replace(/\[\[밑줄:([^\]]+)\]\]/g, '<u>$1</u>')
-    .replace(/\[\[빈칸\]\]/g, '<span class="english-blank">&nbsp;</span>')
+    .replace(/\[\[빈칸(?::([^\]]+))?\]\]/g, '<span class="english-blank">$1</span>')
     .replace(/\[\[요약빈칸(?::([^\]]+))?\]\]/g, '<span class="english-summary-blank">($1)</span>')
     .replace(/\[\[삽입문장:([^\]]+)\]\]/g, '<span class="insertion-sentence">$1</span>')
     .replace(/\[\[삽입위치:([^\]]+)\]\]/g, '<b class="insertion-position">$1</b>')
     .replace(/\[\[선택:([^|]+)\|([^|]+)\|([^\]]+)\]\]/g, '<span class="vocabulary-choice"><b>($1)</b> $2 / $3</span>')
+    .replace(/\[\[보기:([^\]]+)\]\]/g, '<span class="school-word-bank">$1</span>')
 }
 
 export function splitMaterial(material: string) {
@@ -179,7 +182,7 @@ export function examFlowMeasurementKey(blocks: ExamFlowBlock[]) {
 }
 
 export function geometryKey(layout: ExamLayoutSettings) {
-  return [layout.columns, layout.marginTop, layout.marginRight, layout.marginBottom, layout.marginLeft, layout.fontSize.toFixed(2), layout.lineHeight.toFixed(2)].join('|')
+  return [layout.preset, layout.columns, layout.marginTop, layout.marginRight, layout.marginBottom, layout.marginLeft, layout.fontSize.toFixed(2), layout.lineHeight.toFixed(2)].join('|')
 }
 
 export function buildExamFlowBlocks(exam: EnglishExamDocument, sets: EnglishQuestionSet[], assets: MediaAsset[]): ExamFlowBlock[] {
@@ -191,14 +194,18 @@ export function buildExamFlowBlocks(exam: EnglishExamDocument, sets: EnglishQues
     const override = { ...(set.layoutOverride ?? {}), ...(exam.setOverrides[set.id] ?? {}), ...(exam.entryOverrides?.[entry.id] ?? {}) }
     const layout = effectiveSetLayout(exam.layout, override)
     const generatedSharedMaterial = csatItem ? undefined : generatedSchoolSharedMaterialPresentation(set)
-    const providedSharedMaterial = csatItem ? undefined : providedPassageV02SharedMaterialText(set)
-    const materialSpec = set.providedPassageV02 ? undefined : csatItem?.materialSpec ?? generatedSharedMaterial?.spec ?? providedPassagePresentationSpec(set)
+    const providedSharedSpec = csatItem ? undefined : providedPassageV02SharedPresentationSpec(set)
+    const providedSharedMaterial = csatItem || providedSharedSpec ? undefined : providedPassageV02SharedMaterialText(set)
+    const materialSpec = set.providedPassageV02 ? providedSharedSpec : csatItem?.materialSpec ?? generatedSharedMaterial?.spec ?? providedPassagePresentationSpec(set)
     const material = csatItem?.material ?? providedSharedMaterial ?? generatedSharedMaterial?.text ?? set.material
     const questions = csatItem?.questions ?? orderedSchoolQuestions(set)
     const blockSetId = entry.id
     const printFlow = set.mode === 'csat' && csatItem ? csatPrintFlow(csatItem.design?.templateId ?? questions[0]?.csatTemplateId) : undefined
     const keepTogetherId = printFlow && printFlow !== 'material-questions' ? entry.id : undefined
-    if (layout.preset !== 'csat' && previousSourceSetId !== set.id) result.push({ id: `${entry.id}-header`, sourceId: `${entry.id}-header`, setId: blockSetId, kind: 'set-header', units: 3, set, csatItem, effectiveLayout: layout, override })
+    const firstSetQuestionNumber = number + 1
+    const lastSetQuestionNumber = number + Math.max(1, questions.length)
+    const setGroupNumberLabel = firstSetQuestionNumber === lastSetQuestionNumber ? `${firstSetQuestionNumber}` : `${firstSetQuestionNumber}~${lastSetQuestionNumber}`
+    if (layout.preset !== 'csat' && previousSourceSetId !== set.id) result.push({ id: `${entry.id}-header`, sourceId: `${entry.id}-header`, setId: blockSetId, kind: 'set-header', units: layout.preset === 'school-exam' ? 2 : 3, set, csatItem, groupNumberLabel: setGroupNumberLabel, keepWithNext: true, effectiveLayout: layout, override })
 
     const pushMaterials = (includeMaterial = true) => {
       const templateId = csatItem?.design?.templateId ?? questions[0]?.csatTemplateId
@@ -320,7 +327,7 @@ export function buildExamFlowBlocks(exam: EnglishExamDocument, sets: EnglishQues
         if (question && flow === 'lead-material-choices') pushQuestion(question, 'choices')
       }
     } else {
-      pushMaterials(set.providedPassageV02 ? Boolean(providedSharedMaterial) : (!usesQuestionScopedSchoolMaterial(set) || Boolean(generatedSharedMaterial)))
+      pushMaterials(set.providedPassageV02 ? Boolean(providedSharedMaterial || providedSharedSpec) : (!usesQuestionScopedSchoolMaterial(set) || Boolean(generatedSharedMaterial)))
       questions.forEach((question) => pushQuestion(question, 'full'))
     }
     previousSourceSetId = set.id

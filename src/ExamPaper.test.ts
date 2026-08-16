@@ -1,8 +1,9 @@
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
-import { SetLivePreview } from './ExamPaper'
-import { createEnglishSet, createQuestion } from './english'
+import { ExamQuestionPages, SetLivePreview } from './ExamPaper'
+import { createEnglishSet, createExamLayout, createQuestion } from './english'
+import { contentEntriesForSet } from './examLayout'
 import { createProvidedPassageV02Plan, syncProvidedPassageV02Questions, transitionSchoolProvidedPassageV02 } from './providedPassageV02'
 
 describe('내신형 새 지문 혼합 세트 출력', () => {
@@ -51,5 +52,47 @@ describe('내신형 새 지문 혼합 세트 출력', () => {
     expect(html.match(/This connection becomes clearer/g)).toHaveLength(1)
     expect(html.match(/<ol>/g)).toHaveLength(2)
     expect(html.indexOf(set.questions[0].stem)).toBeLessThan(html.indexOf('글의 흐름으로 보아'))
+
+    set.schoolInsertionPresentation = 'shared'
+    const sharedHtml = renderToStaticMarkup(createElement(SetLivePreview, { set }))
+    expect(sharedHtml.match(/First sentence explains the topic\./g)).toHaveLength(1)
+    expect(sharedHtml.match(/This connection becomes clearer/g)).toHaveLength(1)
+    expect(sharedHtml.match(/class="insertion-position"/g)).toHaveLength(5)
+  })
+
+  it('학교 시험형 공유 삽입은 위치가 표시된 공통 지문을 중복 출력하지 않는다', () => {
+    const set = createEnglishSet('school')
+    set.schoolInsertionPresentation = 'shared'
+    set.questions = [createQuestion('내용 이해'), createQuestion('문장 삽입')]
+    set.material = 'Shared opening. [[삽입위치:①]] [[삽입문장:Given sentence.]] Second. [[삽입위치:②]] Third. [[삽입위치:③]] Fourth. [[삽입위치:④]] Fifth. [[삽입위치:⑤]]'
+
+    const html = renderToStaticMarkup(createElement(SetLivePreview, { set }))
+
+    expect(html.match(/Shared opening\./g)).toHaveLength(1)
+    expect(html.match(/Given sentence\./g)).toHaveLength(1)
+    expect(html.match(/class="insertion-position"/g)).toHaveLength(5)
+  })
+
+  it('학교형-2단 시험 첫 페이지에 편집 헤더와 자동 문항·배점 합계를 표시한다', () => {
+    const set = createEnglishSet('school')
+    set.material = 'A completely new passage is used only for layout verification.'
+    set.questions = [createQuestion('내용 이해'), createQuestion('복수 빈칸 조합')]
+    set.questions[0].score = 2.5
+    set.questions[1].score = 3
+    set.questions[1].choices = ['careful | revision | matters', 'careless | copying | works', 'quick | guessing | succeeds', 'random | reading | fails', 'brief | memory | wins']
+    const layout = createExamLayout('school-exam')
+    layout.institution = '예시 교육 기관'
+    layout.gradeLabel = '1학년'
+    layout.schoolExamHeader = { subjectName: '공통영어', subjectCode: 'ENG-1', examSession: '2학기 기말', authorName: '출제자', showApprovalGrid: true }
+    const entries = contentEntriesForSet(set)
+    const exam = { id: 'school-exam', title: '영어 평가', setIds: [set.id], contentEntries: entries, layout, setOverrides: {}, entryOverrides: {}, createdAt: '', updatedAt: '' }
+
+    const html = renderToStaticMarkup(createElement(ExamQuestionPages, { exam, sets: [set], assets: [] }))
+    expect(html).toContain('preset-school-exam')
+    expect(html).toContain('예시 교육 기관')
+    expect(html).toContain('2문항 · 5.5점')
+    expect(html).toContain('[1~2] 다음 글을 읽고, 물음에 답하시오.')
+    expect(html).toContain('[2.5점]')
+    expect(html).toContain('school-choice-container-matrix')
   })
 })

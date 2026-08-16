@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { createEnglishSet, createQuestion } from './english'
-import { cleanInsertionMarkupForOtherQuestion, deriveGeneratedSchoolInsertionSpec, generatedSchoolInsertionMarkupIssues, generatedSchoolSharedMaterialPresentation, orderedGeneratedSchoolQuestions, schoolQuestionMaterialPresentation, usesInlineGeneratedSchoolChoices, usesQuestionScopedSchoolMaterial } from './schoolMaterial'
+import { cleanInsertionMarkupForOtherQuestion, deriveGeneratedSchoolInsertionSpec, generatedSchoolInsertionMarkupIssues, generatedSchoolSharedMaterialPresentation, isGeneratedSchoolSet, orderedGeneratedSchoolQuestions, schoolQuestionMaterialPresentation, usesInlineGeneratedSchoolChoices, usesQuestionScopedSchoolMaterial } from './schoolMaterial'
 
 const MARKED = 'The class reviewed the claim. [[삽입위치:①]] [[삽입문장:This evidence changed their view.]] They compared two explanations. [[삽입위치:②]] The students checked the source. [[삽입위치:③]] They revised the conclusion. [[삽입위치:④]] The teacher summarized the lesson. [[삽입위치:⑤]]'
 
@@ -72,5 +72,28 @@ describe('새 자료 내신형 문항별 지문 표시', () => {
 
     set.material = set.material.replace('[[삽입위치:⑤]]', '[[삽입위치:④]]')
     expect(generatedSchoolInsertionMarkupIssues(set)[0]).toContain('①')
+  })
+
+  it('학교 시험형은 삽입 위치가 있는 공통 지문을 한 번만 공유한다', () => {
+    const set = createEnglishSet('school')
+    set.schoolInsertionPresentation = 'shared'
+    set.questions = [createQuestion('문장 삽입'), createQuestion('어법'), createQuestion('내용 이해')]
+    set.material = MARKED
+
+    expect(usesQuestionScopedSchoolMaterial(set)).toBe(false)
+    expect(orderedGeneratedSchoolQuestions(set).map((question) => question.type)).toEqual(['문장 삽입', '어법', '내용 이해'])
+    expect(generatedSchoolSharedMaterialPresentation(set)?.spec).toMatchObject({ kind: 'insertion', givenSentence: 'This evidence changed their view.' })
+    expect(schoolQuestionMaterialPresentation(set, set.questions[0])).toEqual({ text: '' })
+  })
+
+  it('기존 지문 V0.2는 생성 지문 공유 경로와 중복 처리하지 않는다', () => {
+    const set = createEnglishSet('school')
+    set.schoolInsertionPresentation = 'shared'
+    set.questions = [createQuestion('문장 삽입')]
+    set.material = MARKED
+    set.providedPassageV02 = {} as never
+
+    expect(isGeneratedSchoolSet(set)).toBe(false)
+    expect(generatedSchoolSharedMaterialPresentation(set)).toBeUndefined()
   })
 })

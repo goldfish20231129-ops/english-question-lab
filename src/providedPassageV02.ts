@@ -391,3 +391,30 @@ export function providedPassageV02SharedMaterialText(set: EnglishQuestionSet) {
   })
   return material
 }
+
+export function providedPassageV02SharedPresentationSpec(set: EnglishQuestionSet) {
+  const state = set.providedPassageV02
+  if (!state || set.schoolInsertionPresentation !== 'shared') return undefined
+  const insertion = state.results?.find((result) => result.materialOperation?.kind === 'insert_sentence')?.materialOperation
+  if (!insertion || insertion.kind !== 'insert_sentence') return undefined
+  const boundaryById = new Map(state.boundaries.map((boundary) => [boundary.id, boundary]))
+  const events: Array<{ start: number; end: number; replacement: string }> = insertion.candidateBoundaryIds.flatMap((id, index) => {
+    const boundary = boundaryById.get(id)
+    return boundary ? [{ start: boundary.offset, end: boundary.offset, replacement: ` [[삽입위치:${CSAT_INLINE_POSITION_CHOICES[index]}]] ` }] : []
+  })
+  ;(state.results ?? []).forEach((result) => {
+    const operation = result.materialOperation
+    if (!operation || operation.kind !== 'grammar_check') return
+    const { start, end, text } = operation.testedSpan
+    if (state.originalText.slice(start, end) !== text || operation.sourceForm !== text) return
+    events.push({ start, end, replacement: `[[밑줄:${operation.presentedForm}]]` })
+  })
+  let body = state.originalText
+  let nextStart = state.originalText.length
+  events.sort((left, right) => right.start - left.start || right.end - left.end).forEach((event) => {
+    if (event.end > nextStart) return
+    body = `${body.slice(0, event.start)}${event.replacement}${body.slice(event.end)}`
+    nextStart = event.start
+  })
+  return { kind: 'insertion' as const, givenSentence: insertion.generatedSentence, body }
+}
