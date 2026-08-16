@@ -19,7 +19,7 @@
       "type": "object", "additionalProperties": false,
       "required": ["type", "stem", "choices", "answerIndex", "explanation", "intention", "evidenceSpans", "distractorReasons", "score"],
       "properties": {
-        "type": { "enum": ["내용 일치 및 불일치", "문장 삽입", "어법"] }, "stem": { "type": "string", "minLength": 1 },
+        "type": { "enum": ["내용 일치 및 불일치", "내용 이해", "문장 삽입", "어법"] }, "stem": { "type": "string", "minLength": 1 },
         "choices": { "type": "array", "minItems": 5, "maxItems": 5, "items": { "type": "string", "minLength": 1 } },
         "answerIndex": { "type": "integer", "minimum": 1, "maximum": 5 }, "explanation": { "type": "string", "minLength": 1 },
         "intention": { "type": "string", "minLength": 1 }, "evidenceSpans": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/evidenceSpan" } },
@@ -60,8 +60,8 @@
       "type": "object", "additionalProperties": false,
       "required": ["itemId", "templateId", "variantId", "questionType", "choiceLanguage", "vocabularyLevel", "contentMatchPolarity", "grammarTarget", "grammarMode", "question", "materialOperation", "qualityReview"],
       "properties": {
-        "itemId": { "type": "string" }, "templateId": { "enum": ["school-content-match", "school-sentence-insertion", "school-grammar"] }, "variantId": { "const": "standard" },
-        "questionType": { "enum": ["content_match", "sentence_insertion", "grammar"] }, "choiceLanguage": { "enum": ["ko", "en", null] },
+        "itemId": { "type": "string" }, "templateId": { "enum": ["school-content-match", "school-content-inference", "school-sentence-insertion", "school-grammar"] }, "variantId": { "const": "standard" },
+        "questionType": { "enum": ["content_match", "content_inference", "sentence_insertion", "grammar"] }, "choiceLanguage": { "enum": ["ko", "en", null] },
         "vocabularyLevel": { "enum": ["source_matched", "grade_1", "grade_2", "grade_3_csat"] }, "contentMatchPolarity": { "enum": ["match", "mismatch", null] },
         "grammarTarget": { "enum": ["relative_clause", "appositive_that", "subject_verb_agreement", "participle_clause", "nonrestrictive_relative", "pronoun_agreement", "dummy_it", "cleft_it_that", null] },
         "grammarMode": { "enum": ["source_form_check", "controlled_error_variant", null] }, "question": { "$ref": "#/$defs/question" },

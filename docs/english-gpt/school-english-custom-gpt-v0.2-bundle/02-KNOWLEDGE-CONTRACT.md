@@ -2,9 +2,11 @@
 
 ## 범위
 
-Provided Passage V0.2는 `school_english_provided_passage`와 `English`만 지원한다. 하나의 권위 원문에 1~8개 문항을 연결하며 `content_match`, `sentence_insertion`, `grammar`를 지원한다. V0.1 저장 데이터와 Schema는 삭제하거나 변경하지 않는다.
+Provided Passage V0.2는 `school_english_provided_passage`와 `English`만 지원한다. 하나의 권위 원문에 1~8개 문항을 연결하며 `content_match`, `content_inference`, `sentence_insertion`, `grammar`를 지원한다. V0.1 저장 데이터와 Schema는 삭제하거나 변경하지 않는다.
 
-문장 삽입은 내용 일치·불일치 및 어법 문항과 한 요청에 함께 포함할 수 있다. 삽입 문장, 후보 경계와 위치 표식은 해당 `itemId`의 `materialOperation`에만 속하며 공통 원문이나 다른 문항에 전파하지 않는다.
+`content_inference`는 지문에 명시된 사실을 그대로 재진술하는 유형이 아니라, 지문의 단서와 관계로부터 가장 타당하게 도출되는 내용을 묻는 `내용 이해` 유형이다. 외부 배경지식 없이 지문만으로 정답이 유일해야 한다.
+
+문장 삽입은 내용 일치·불일치, 내용 이해 및 어법 문항과 한 요청에 함께 포함할 수 있다. 삽입 문장, 후보 경계와 위치 표식은 해당 `itemId`의 `materialOperation`에만 속하며 공통 원문이나 다른 문항에 전파하지 않는다.
 
 ## Custom GPT 경로 선택
 

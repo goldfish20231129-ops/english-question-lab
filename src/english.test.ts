@@ -48,7 +48,7 @@ describe('영어 세트 공통 흐름', () => {
   })
 
   it('내신형 문항 유형마다 계약에 맞는 기본 발문을 제공한다', () => {
-    expect(defaultQuestionStem('내용 이해')).toBe('다음 글의 내용과 일치하는 것은?')
+    expect(defaultQuestionStem('내용 이해')).toBe('다음 글의 내용으로부터 추론할 수 있는 것은?')
     expect(defaultQuestionStem('내용 일치 및 불일치')).toBe('다음 글의 내용과 일치하지 않는 것은?')
     expect(defaultQuestionStem('순서 배열')).toBe('주어진 글 다음에 이어질 글의 순서로 가장 적절한 것은?')
     expect(defaultQuestionStem('문장 삽입')).toBe('글의 흐름으로 보아, 주어진 문장이 들어가기에 가장 적절한 곳은?')

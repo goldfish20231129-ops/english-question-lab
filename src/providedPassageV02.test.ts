@@ -93,6 +93,37 @@ describe('Provided Passage V0.2', () => {
     expect(request.source.passage).toBe(PASSAGE)
   })
 
+  it('builds and imports a distinct content inference item from the shared passage', () => {
+    const plan = createProvidedPassageV02Plan('inference-1', 'content_inference')
+    const set = configured([plan])
+    const request = buildProvidedPassageV02Request(set)
+    const item = request.items[0]
+    const first = request.source.sentences[0]
+    const second = request.source.sentences[1]
+    expect(item).toMatchObject({ templateId: 'school-content-inference', questionType: 'content_inference', choiceLanguage: 'ko', contentMatchPolarity: null })
+    expect(generateProvidedPassageV02Prompt(set)).toContain('단순 사실 재진술이 아니라')
+
+    const next = adaptProvidedPassageV02Response({
+      schemaId: 'english-question-lab-provided-passage-generation-v0.2', mode: request.mode, subject: request.subject,
+      sourcePassageId: request.source.sourcePassageId, sourceFingerprint: request.source.sourceFingerprint, title: 'Inference test',
+      items: [{
+        ...responseIdentity(item),
+        question: {
+          type: '내용 이해', stem: providedPassageV02DefaultStem('content_inference'),
+          choices: ['학생은 모임 준비를 맡고 있다고 추론할 수 있다.', '교사가 모든 토론을 주도한다고 추론할 수 있다.', '구성원은 필기구를 받는다고 추론할 수 있다.', '모임은 매일 열린다고 추론할 수 있다.', '지역 문제는 교사가 정한다고 추론할 수 있다.'],
+          answerIndex: 1, explanation: '학생이 동아리를 이끌고 매번 일찍 와서 방을 확인하므로 모임 준비 역할을 맡는다고 추론할 수 있다.', intention: '서로 다른 단서를 종합한 내용 추론',
+          evidenceSpans: [{ sentenceId: first.id, start: first.start, end: first.end, text: first.text }, { sentenceId: second.id, start: second.start, end: second.end, text: second.text }],
+          distractorReasons: ['정답', '교사가 주도한다는 근거 없음', '공책은 각자 가져옴', '매주 열림', '구성원이 문제를 논의함'], score: 2,
+        },
+        materialOperation: null, qualityReview: quality(1),
+      }],
+    }, set)
+
+    expect(next.questions[0]).toMatchObject({ type: '내용 이해', stem: '다음 글의 내용으로부터 추론할 수 있는 것은?' })
+    expect(next.questions[0].evidenceRefs).toEqual([first.text, second.text])
+    expect(next.material).toBe(PASSAGE)
+  })
+
   it('imports content and grammar items without changing the source passage', () => {
     const plans = [createProvidedPassageV02Plan('content-1', 'content_match'), createProvidedPassageV02Plan('grammar-1', 'grammar')]
     const set = configured(plans)
@@ -276,6 +307,15 @@ describe('Provided Passage V0.2', () => {
     const next = transitionSchoolProvidedPassageV02(seed, 'provided')
     expect(next.questions.map((question) => question.id)).toEqual(['content', 'grammar'])
     expect(next.providedPassageV02?.itemPlans.map((plan) => plan.questionType)).toEqual(['content_match', 'grammar'])
+  })
+
+  it('preserves an existing content understanding question as an inference plan', () => {
+    const seed = createEnglishSet('school')
+    seed.material = PASSAGE
+    seed.questions = [{ ...seed.questions[0], id: 'inference', type: '내용 이해', stem: '다음 글의 내용으로부터 추론할 수 있는 것은?' }]
+    const next = transitionSchoolProvidedPassageV02(seed, 'provided')
+    expect(next.questions[0]).toMatchObject({ id: 'inference', type: '내용 이해', stem: '다음 글의 내용으로부터 추론할 수 있는 것은?' })
+    expect(next.providedPassageV02?.itemPlans[0].questionType).toBe('content_inference')
   })
 
   it('preserves an existing mixed insertion set when explicitly moving to V0.2', () => {

@@ -78,7 +78,7 @@ export interface ProvidedPassageState {
   result?: ProvidedPassageGenerationResult
 }
 
-export type ProvidedPassageV02QuestionType = 'content_match' | 'sentence_insertion' | 'grammar'
+export type ProvidedPassageV02QuestionType = 'content_match' | 'content_inference' | 'sentence_insertion' | 'grammar'
 export type ProvidedPassageGrammarTarget =
   | 'relative_clause' | 'appositive_that' | 'subject_verb_agreement' | 'participle_clause'
   | 'nonrestrictive_relative' | 'pronoun_agreement' | 'dummy_it' | 'cleft_it_that'
