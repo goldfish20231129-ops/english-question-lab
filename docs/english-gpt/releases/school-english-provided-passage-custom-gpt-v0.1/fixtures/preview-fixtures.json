@@ -1,0 +1,2613 @@
+[
+  {
+    "fixtureId": "content-mismatch-ko-source",
+    "title": "내용 불일치 + 한국어 선지 + source_matched",
+    "request": {
+      "schemaId": "english-question-lab-provided-passage-request-v0.1",
+      "mode": "school_english_provided_passage",
+      "subject": "English",
+      "source": {
+        "sourcePassageId": "source-8f97b90f65c78ef4",
+        "sourceFingerprint": "sha256:8f97b90f65c78ef4a178f0dddab142a5addf393cd168af9e3dfba015f985bcf4",
+        "title": "Preview 01",
+        "passage": "Mina planted basil in a sunny window. She watered it only when the soil felt dry. After two weeks, new leaves appeared. Mina shared a few leaves with her neighbor. The neighbor used them in a warm soup. Both families later planted more herbs.",
+        "sentences": [
+          {
+            "id": "s1",
+            "start": 0,
+            "end": 37,
+            "text": "Mina planted basil in a sunny window."
+          },
+          {
+            "id": "s2",
+            "start": 38,
+            "end": 81,
+            "text": "She watered it only when the soil felt dry."
+          },
+          {
+            "id": "s3",
+            "start": 82,
+            "end": 119,
+            "text": "After two weeks, new leaves appeared."
+          },
+          {
+            "id": "s4",
+            "start": 120,
+            "end": 163,
+            "text": "Mina shared a few leaves with her neighbor."
+          },
+          {
+            "id": "s5",
+            "start": 164,
+            "end": 202,
+            "text": "The neighbor used them in a warm soup."
+          },
+          {
+            "id": "s6",
+            "start": 203,
+            "end": 242,
+            "text": "Both families later planted more herbs."
+          }
+        ],
+        "boundaries": [
+          {
+            "id": "b0",
+            "offset": 0,
+            "afterSentenceId": "s1"
+          },
+          {
+            "id": "b1",
+            "offset": 37,
+            "beforeSentenceId": "s1",
+            "afterSentenceId": "s2"
+          },
+          {
+            "id": "b2",
+            "offset": 81,
+            "beforeSentenceId": "s2",
+            "afterSentenceId": "s3"
+          },
+          {
+            "id": "b3",
+            "offset": 119,
+            "beforeSentenceId": "s3",
+            "afterSentenceId": "s4"
+          },
+          {
+            "id": "b4",
+            "offset": 163,
+            "beforeSentenceId": "s4",
+            "afterSentenceId": "s5"
+          },
+          {
+            "id": "b5",
+            "offset": 202,
+            "beforeSentenceId": "s5",
+            "afterSentenceId": "s6"
+          },
+          {
+            "id": "b6",
+            "offset": 242,
+            "beforeSentenceId": "s6"
+          }
+        ]
+      },
+      "item": {
+        "itemId": "preview-01",
+        "templateId": "school-content-match",
+        "variantId": "standard",
+        "questionType": "content_match",
+        "choiceLanguage": "ko",
+        "vocabularyLevel": "source_matched",
+        "contentMatchPolarity": "mismatch",
+        "targetLevel": "고등학교",
+        "score": 2,
+        "questionCount": 1,
+        "requiredCandidateBoundaryCount": null
+      },
+      "sourcePreservation": {
+        "authority": "app_stored_source",
+        "responsePassage": "forbidden",
+        "exactFingerprintRequired": true
+      },
+      "approval": {
+        "firstResponse": "design_only",
+        "approvalSentence": "이 설계로 JSON을 생성할까요? 수정할 카드가 있으면 카드 번호와 변경 사항을 알려주세요.",
+        "afterApproval": "single_json_object"
+      },
+      "outputContract": "english-question-lab-provided-passage-generation-v0.1"
+    },
+    "response": {
+      "schemaId": "english-question-lab-provided-passage-generation-v0.1",
+      "mode": "school_english_provided_passage",
+      "subject": "English",
+      "sourcePassageId": "source-8f97b90f65c78ef4",
+      "sourceFingerprint": "sha256:8f97b90f65c78ef4a178f0dddab142a5addf393cd168af9e3dfba015f985bcf4",
+      "title": "Preview 01",
+      "items": [
+        {
+          "itemId": "preview-01",
+          "templateId": "school-content-match",
+          "variantId": "standard",
+          "questionType": "content_match",
+          "choiceLanguage": "ko",
+          "vocabularyLevel": "source_matched",
+          "contentMatchPolarity": "mismatch",
+          "question": {
+            "type": "내용 일치 및 불일치",
+            "stem": "다음 글의 내용과 일치하지 않는 것은?",
+            "choices": [
+              "Mina는 햇볕이 드는 창가에 바질을 심었다.",
+              "Mina는 흙이 마른 느낌일 때만 물을 주었다.",
+              "새잎은 이틀 만에 나타났다.",
+              "이웃은 바질을 따뜻한 수프에 사용했다.",
+              "두 가족은 나중에 허브를 더 심었다."
+            ],
+            "answerIndex": 3,
+            "explanation": "원문 문장과 선지를 대조하면 정답은 하나다.",
+            "intention": "권위 원문의 명시 정보를 정확히 확인한다.",
+            "evidenceSpans": [
+              {
+                "sentenceId": "s2",
+                "start": 38,
+                "end": 81,
+                "text": "She watered it only when the soil felt dry."
+              },
+              {
+                "sentenceId": "s3",
+                "start": 82,
+                "end": 119,
+                "text": "After two weeks, new leaves appeared."
+              }
+            ],
+            "distractorReasons": [
+              "명시 정보 확인",
+              "조건 확인",
+              "기간 왜곡",
+              "사용 관계 확인"
+            ],
+            "score": 2
+          },
+          "materialOperation": null,
+          "qualityReview": {
+            "passage": {
+              "naturalness": 9,
+              "logicStructure": 9,
+              "vocabularyLevel": 8,
+              "templateFidelity": 9
+            },
+            "questions": [
+              {
+                "slot": "provided-passage",
+                "answerInference": 8,
+                "distractorPlausibility": 8,
+                "choiceBalance": 8,
+                "directAnswerOverlap": false,
+                "strongestDistractorIndex": 2,
+                "decisiveReason": "원문 근거와 각 선지를 독립적으로 대조했다.",
+                "expectedDifficulty": 3
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "expected": {
+      "valid": true,
+      "code": "accepted"
+    }
+  },
+  {
+    "fixtureId": "content-match-en-grade1",
+    "title": "내용 일치 + 영어 선지 + grade_1",
+    "request": {
+      "schemaId": "english-question-lab-provided-passage-request-v0.1",
+      "mode": "school_english_provided_passage",
+      "subject": "English",
+      "source": {
+        "sourcePassageId": "source-8f97b90f65c78ef4",
+        "sourceFingerprint": "sha256:8f97b90f65c78ef4a178f0dddab142a5addf393cd168af9e3dfba015f985bcf4",
+        "title": "Preview 02",
+        "passage": "Mina planted basil in a sunny window. She watered it only when the soil felt dry. After two weeks, new leaves appeared. Mina shared a few leaves with her neighbor. The neighbor used them in a warm soup. Both families later planted more herbs.",
+        "sentences": [
+          {
+            "id": "s1",
+            "start": 0,
+            "end": 37,
+            "text": "Mina planted basil in a sunny window."
+          },
+          {
+            "id": "s2",
+            "start": 38,
+            "end": 81,
+            "text": "She watered it only when the soil felt dry."
+          },
+          {
+            "id": "s3",
+            "start": 82,
+            "end": 119,
+            "text": "After two weeks, new leaves appeared."
+          },
+          {
+            "id": "s4",
+            "start": 120,
+            "end": 163,
+            "text": "Mina shared a few leaves with her neighbor."
+          },
+          {
+            "id": "s5",
+            "start": 164,
+            "end": 202,
+            "text": "The neighbor used them in a warm soup."
+          },
+          {
+            "id": "s6",
+            "start": 203,
+            "end": 242,
+            "text": "Both families later planted more herbs."
+          }
+        ],
+        "boundaries": [
+          {
+            "id": "b0",
+            "offset": 0,
+            "afterSentenceId": "s1"
+          },
+          {
+            "id": "b1",
+            "offset": 37,
+            "beforeSentenceId": "s1",
+            "afterSentenceId": "s2"
+          },
+          {
+            "id": "b2",
+            "offset": 81,
+            "beforeSentenceId": "s2",
+            "afterSentenceId": "s3"
+          },
+          {
+            "id": "b3",
+            "offset": 119,
+            "beforeSentenceId": "s3",
+            "afterSentenceId": "s4"
+          },
+          {
+            "id": "b4",
+            "offset": 163,
+            "beforeSentenceId": "s4",
+            "afterSentenceId": "s5"
+          },
+          {
+            "id": "b5",
+            "offset": 202,
+            "beforeSentenceId": "s5",
+            "afterSentenceId": "s6"
+          },
+          {
+            "id": "b6",
+            "offset": 242,
+            "beforeSentenceId": "s6"
+          }
+        ]
+      },
+      "item": {
+        "itemId": "preview-02",
+        "templateId": "school-content-match",
+        "variantId": "standard",
+        "questionType": "content_match",
+        "choiceLanguage": "en",
+        "vocabularyLevel": "grade_1",
+        "contentMatchPolarity": "match",
+        "targetLevel": "고등학교",
+        "score": 2,
+        "questionCount": 1,
+        "requiredCandidateBoundaryCount": null
+      },
+      "sourcePreservation": {
+        "authority": "app_stored_source",
+        "responsePassage": "forbidden",
+        "exactFingerprintRequired": true
+      },
+      "approval": {
+        "firstResponse": "design_only",
+        "approvalSentence": "이 설계로 JSON을 생성할까요? 수정할 카드가 있으면 카드 번호와 변경 사항을 알려주세요.",
+        "afterApproval": "single_json_object"
+      },
+      "outputContract": "english-question-lab-provided-passage-generation-v0.1"
+    },
+    "response": {
+      "schemaId": "english-question-lab-provided-passage-generation-v0.1",
+      "mode": "school_english_provided_passage",
+      "subject": "English",
+      "sourcePassageId": "source-8f97b90f65c78ef4",
+      "sourceFingerprint": "sha256:8f97b90f65c78ef4a178f0dddab142a5addf393cd168af9e3dfba015f985bcf4",
+      "title": "Preview 02",
+      "items": [
+        {
+          "itemId": "preview-02",
+          "templateId": "school-content-match",
+          "variantId": "standard",
+          "questionType": "content_match",
+          "choiceLanguage": "en",
+          "vocabularyLevel": "grade_1",
+          "contentMatchPolarity": "match",
+          "question": {
+            "type": "내용 일치 및 불일치",
+            "stem": "다음 글의 내용과 일치하는 것은?",
+            "choices": [
+              "Mina planted basil near sunlight.",
+              "She watered the basil only when the soil felt dry.",
+              "New leaves appeared after two weeks.",
+              "Her neighbor used the leaves in a warm soup.",
+              "Mina kept every leaf for herself."
+            ],
+            "answerIndex": 2,
+            "explanation": "원문 문장과 선지를 대조하면 정답은 하나다.",
+            "intention": "권위 원문의 명시 정보를 정확히 확인한다.",
+            "evidenceSpans": [
+              {
+                "sentenceId": "s2",
+                "start": 38,
+                "end": 81,
+                "text": "She watered it only when the soil felt dry."
+              },
+              {
+                "sentenceId": "s3",
+                "start": 82,
+                "end": 119,
+                "text": "After two weeks, new leaves appeared."
+              }
+            ],
+            "distractorReasons": [
+              "명시 정보 확인",
+              "조건 확인",
+              "기간 왜곡",
+              "사용 관계 확인"
+            ],
+            "score": 2
+          },
+          "materialOperation": null,
+          "qualityReview": {
+            "passage": {
+              "naturalness": 9,
+              "logicStructure": 9,
+              "vocabularyLevel": 8,
+              "templateFidelity": 9
+            },
+            "questions": [
+              {
+                "slot": "provided-passage",
+                "answerInference": 8,
+                "distractorPlausibility": 8,
+                "choiceBalance": 8,
+                "directAnswerOverlap": false,
+                "strongestDistractorIndex": 3,
+                "decisiveReason": "원문 근거와 각 선지를 독립적으로 대조했다.",
+                "expectedDifficulty": 3
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "expected": {
+      "valid": true,
+      "code": "accepted"
+    }
+  },
+  {
+    "fixtureId": "insertion-grade2",
+    "title": "문장 삽입 + grade_2",
+    "request": {
+      "schemaId": "english-question-lab-provided-passage-request-v0.1",
+      "mode": "school_english_provided_passage",
+      "subject": "English",
+      "source": {
+        "sourcePassageId": "source-8f97b90f65c78ef4",
+        "sourceFingerprint": "sha256:8f97b90f65c78ef4a178f0dddab142a5addf393cd168af9e3dfba015f985bcf4",
+        "title": "Preview 03",
+        "passage": "Mina planted basil in a sunny window. She watered it only when the soil felt dry. After two weeks, new leaves appeared. Mina shared a few leaves with her neighbor. The neighbor used them in a warm soup. Both families later planted more herbs.",
+        "sentences": [
+          {
+            "id": "s1",
+            "start": 0,
+            "end": 37,
+            "text": "Mina planted basil in a sunny window."
+          },
+          {
+            "id": "s2",
+            "start": 38,
+            "end": 81,
+            "text": "She watered it only when the soil felt dry."
+          },
+          {
+            "id": "s3",
+            "start": 82,
+            "end": 119,
+            "text": "After two weeks, new leaves appeared."
+          },
+          {
+            "id": "s4",
+            "start": 120,
+            "end": 163,
+            "text": "Mina shared a few leaves with her neighbor."
+          },
+          {
+            "id": "s5",
+            "start": 164,
+            "end": 202,
+            "text": "The neighbor used them in a warm soup."
+          },
+          {
+            "id": "s6",
+            "start": 203,
+            "end": 242,
+            "text": "Both families later planted more herbs."
+          }
+        ],
+        "boundaries": [
+          {
+            "id": "b0",
+            "offset": 0,
+            "afterSentenceId": "s1"
+          },
+          {
+            "id": "b1",
+            "offset": 37,
+            "beforeSentenceId": "s1",
+            "afterSentenceId": "s2"
+          },
+          {
+            "id": "b2",
+            "offset": 81,
+            "beforeSentenceId": "s2",
+            "afterSentenceId": "s3"
+          },
+          {
+            "id": "b3",
+            "offset": 119,
+            "beforeSentenceId": "s3",
+            "afterSentenceId": "s4"
+          },
+          {
+            "id": "b4",
+            "offset": 163,
+            "beforeSentenceId": "s4",
+            "afterSentenceId": "s5"
+          },
+          {
+            "id": "b5",
+            "offset": 202,
+            "beforeSentenceId": "s5",
+            "afterSentenceId": "s6"
+          },
+          {
+            "id": "b6",
+            "offset": 242,
+            "beforeSentenceId": "s6"
+          }
+        ]
+      },
+      "item": {
+        "itemId": "preview-03",
+        "templateId": "school-sentence-insertion",
+        "variantId": "standard",
+        "questionType": "sentence_insertion",
+        "choiceLanguage": null,
+        "vocabularyLevel": "grade_2",
+        "contentMatchPolarity": null,
+        "targetLevel": "고등학교",
+        "score": 2,
+        "questionCount": 1,
+        "requiredCandidateBoundaryCount": 5
+      },
+      "sourcePreservation": {
+        "authority": "app_stored_source",
+        "responsePassage": "forbidden",
+        "exactFingerprintRequired": true
+      },
+      "approval": {
+        "firstResponse": "design_only",
+        "approvalSentence": "이 설계로 JSON을 생성할까요? 수정할 카드가 있으면 카드 번호와 변경 사항을 알려주세요.",
+        "afterApproval": "single_json_object"
+      },
+      "outputContract": "english-question-lab-provided-passage-generation-v0.1"
+    },
+    "response": {
+      "schemaId": "english-question-lab-provided-passage-generation-v0.1",
+      "mode": "school_english_provided_passage",
+      "subject": "English",
+      "sourcePassageId": "source-8f97b90f65c78ef4",
+      "sourceFingerprint": "sha256:8f97b90f65c78ef4a178f0dddab142a5addf393cd168af9e3dfba015f985bcf4",
+      "title": "Preview 03",
+      "items": [
+        {
+          "itemId": "preview-03",
+          "templateId": "school-sentence-insertion",
+          "variantId": "standard",
+          "questionType": "sentence_insertion",
+          "choiceLanguage": null,
+          "vocabularyLevel": "grade_2",
+          "contentMatchPolarity": null,
+          "question": {
+            "type": "문장 삽입",
+            "stem": "글의 흐름으로 보아, 주어진 문장이 들어가기에 가장 적절한 곳은?",
+            "choices": [
+              "①",
+              "②",
+              "③",
+              "④",
+              "⑤"
+            ],
+            "answerIndex": 3,
+            "explanation": "이 문장은 잎을 이웃과 나누기 직전의 전환을 이룬다.",
+            "intention": "정보 흐름과 결속 관계를 파악한다.",
+            "evidenceSpans": [
+              {
+                "sentenceId": "s3",
+                "start": 82,
+                "end": 119,
+                "text": "After two weeks, new leaves appeared."
+              },
+              {
+                "sentenceId": "s4",
+                "start": 120,
+                "end": 163,
+                "text": "Mina shared a few leaves with her neighbor."
+              }
+            ],
+            "distractorReasons": [
+              "화제 도입 전이다.",
+              "성장 결과 전이다.",
+              "정답 위치다.",
+              "수프 사용 뒤다.",
+              "결말 직전이라 늦다."
+            ],
+            "score": 2
+          },
+          "materialOperation": {
+            "kind": "insert_sentence",
+            "generatedSentence": "She was pleased that the small plant had grown so well.",
+            "candidateBoundaryIds": [
+              "b1",
+              "b2",
+              "b3",
+              "b4",
+              "b5"
+            ],
+            "answerBoundaryId": "b3",
+            "positionReasons": [
+              {
+                "boundaryId": "b1",
+                "reason": "앞뒤 정보 흐름이 충분히 연결되지 않는다."
+              },
+              {
+                "boundaryId": "b2",
+                "reason": "앞뒤 정보 흐름이 충분히 연결되지 않는다."
+              },
+              {
+                "boundaryId": "b3",
+                "reason": "성장 결과 뒤, 나눔 행동 앞이다."
+              },
+              {
+                "boundaryId": "b4",
+                "reason": "앞뒤 정보 흐름이 충분히 연결되지 않는다."
+              },
+              {
+                "boundaryId": "b5",
+                "reason": "앞뒤 정보 흐름이 충분히 연결되지 않는다."
+              }
+            ],
+            "beforeEvidence": {
+              "sentenceId": "s3",
+              "start": 82,
+              "end": 119,
+              "text": "After two weeks, new leaves appeared."
+            },
+            "afterEvidence": {
+              "sentenceId": "s4",
+              "start": 120,
+              "end": 163,
+              "text": "Mina shared a few leaves with her neighbor."
+            },
+            "lexicalLevel": "grade_2"
+          },
+          "qualityReview": {
+            "passage": {
+              "naturalness": 9,
+              "logicStructure": 9,
+              "vocabularyLevel": 8,
+              "templateFidelity": 9
+            },
+            "questions": [
+              {
+                "slot": "provided-passage",
+                "answerInference": 8,
+                "distractorPlausibility": 8,
+                "choiceBalance": 8,
+                "directAnswerOverlap": false,
+                "strongestDistractorIndex": 2,
+                "decisiveReason": "원문 근거와 각 선지를 독립적으로 대조했다.",
+                "expectedDifficulty": 3
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "expected": {
+      "valid": true,
+      "code": "accepted"
+    }
+  },
+  {
+    "fixtureId": "insertion-grade3",
+    "title": "문장 삽입 + grade_3_csat",
+    "request": {
+      "schemaId": "english-question-lab-provided-passage-request-v0.1",
+      "mode": "school_english_provided_passage",
+      "subject": "English",
+      "source": {
+        "sourcePassageId": "source-8f97b90f65c78ef4",
+        "sourceFingerprint": "sha256:8f97b90f65c78ef4a178f0dddab142a5addf393cd168af9e3dfba015f985bcf4",
+        "title": "Preview 04",
+        "passage": "Mina planted basil in a sunny window. She watered it only when the soil felt dry. After two weeks, new leaves appeared. Mina shared a few leaves with her neighbor. The neighbor used them in a warm soup. Both families later planted more herbs.",
+        "sentences": [
+          {
+            "id": "s1",
+            "start": 0,
+            "end": 37,
+            "text": "Mina planted basil in a sunny window."
+          },
+          {
+            "id": "s2",
+            "start": 38,
+            "end": 81,
+            "text": "She watered it only when the soil felt dry."
+          },
+          {
+            "id": "s3",
+            "start": 82,
+            "end": 119,
+            "text": "After two weeks, new leaves appeared."
+          },
+          {
+            "id": "s4",
+            "start": 120,
+            "end": 163,
+            "text": "Mina shared a few leaves with her neighbor."
+          },
+          {
+            "id": "s5",
+            "start": 164,
+            "end": 202,
+            "text": "The neighbor used them in a warm soup."
+          },
+          {
+            "id": "s6",
+            "start": 203,
+            "end": 242,
+            "text": "Both families later planted more herbs."
+          }
+        ],
+        "boundaries": [
+          {
+            "id": "b0",
+            "offset": 0,
+            "afterSentenceId": "s1"
+          },
+          {
+            "id": "b1",
+            "offset": 37,
+            "beforeSentenceId": "s1",
+            "afterSentenceId": "s2"
+          },
+          {
+            "id": "b2",
+            "offset": 81,
+            "beforeSentenceId": "s2",
+            "afterSentenceId": "s3"
+          },
+          {
+            "id": "b3",
+            "offset": 119,
+            "beforeSentenceId": "s3",
+            "afterSentenceId": "s4"
+          },
+          {
+            "id": "b4",
+            "offset": 163,
+            "beforeSentenceId": "s4",
+            "afterSentenceId": "s5"
+          },
+          {
+            "id": "b5",
+            "offset": 202,
+            "beforeSentenceId": "s5",
+            "afterSentenceId": "s6"
+          },
+          {
+            "id": "b6",
+            "offset": 242,
+            "beforeSentenceId": "s6"
+          }
+        ]
+      },
+      "item": {
+        "itemId": "preview-04",
+        "templateId": "school-sentence-insertion",
+        "variantId": "standard",
+        "questionType": "sentence_insertion",
+        "choiceLanguage": null,
+        "vocabularyLevel": "grade_3_csat",
+        "contentMatchPolarity": null,
+        "targetLevel": "고등학교",
+        "score": 2,
+        "questionCount": 1,
+        "requiredCandidateBoundaryCount": 5
+      },
+      "sourcePreservation": {
+        "authority": "app_stored_source",
+        "responsePassage": "forbidden",
+        "exactFingerprintRequired": true
+      },
+      "approval": {
+        "firstResponse": "design_only",
+        "approvalSentence": "이 설계로 JSON을 생성할까요? 수정할 카드가 있으면 카드 번호와 변경 사항을 알려주세요.",
+        "afterApproval": "single_json_object"
+      },
+      "outputContract": "english-question-lab-provided-passage-generation-v0.1"
+    },
+    "response": {
+      "schemaId": "english-question-lab-provided-passage-generation-v0.1",
+      "mode": "school_english_provided_passage",
+      "subject": "English",
+      "sourcePassageId": "source-8f97b90f65c78ef4",
+      "sourceFingerprint": "sha256:8f97b90f65c78ef4a178f0dddab142a5addf393cd168af9e3dfba015f985bcf4",
+      "title": "Preview 04",
+      "items": [
+        {
+          "itemId": "preview-04",
+          "templateId": "school-sentence-insertion",
+          "variantId": "standard",
+          "questionType": "sentence_insertion",
+          "choiceLanguage": null,
+          "vocabularyLevel": "grade_3_csat",
+          "contentMatchPolarity": null,
+          "question": {
+            "type": "문장 삽입",
+            "stem": "글의 흐름으로 보아, 주어진 문장이 들어가기에 가장 적절한 곳은?",
+            "choices": [
+              "①",
+              "②",
+              "③",
+              "④",
+              "⑤"
+            ],
+            "answerIndex": 3,
+            "explanation": "이 문장은 잎을 이웃과 나누기 직전의 전환을 이룬다.",
+            "intention": "정보 흐름과 결속 관계를 파악한다.",
+            "evidenceSpans": [
+              {
+                "sentenceId": "s3",
+                "start": 82,
+                "end": 119,
+                "text": "After two weeks, new leaves appeared."
+              },
+              {
+                "sentenceId": "s4",
+                "start": 120,
+                "end": 163,
+                "text": "Mina shared a few leaves with her neighbor."
+              }
+            ],
+            "distractorReasons": [
+              "화제 도입 전이다.",
+              "성장 결과 전이다.",
+              "정답 위치다.",
+              "수프 사용 뒤다.",
+              "결말 직전이라 늦다."
+            ],
+            "score": 2
+          },
+          "materialOperation": {
+            "kind": "insert_sentence",
+            "generatedSentence": "She was pleased that the small plant had grown so well.",
+            "candidateBoundaryIds": [
+              "b1",
+              "b2",
+              "b3",
+              "b4",
+              "b5"
+            ],
+            "answerBoundaryId": "b3",
+            "positionReasons": [
+              {
+                "boundaryId": "b1",
+                "reason": "앞뒤 정보 흐름이 충분히 연결되지 않는다."
+              },
+              {
+                "boundaryId": "b2",
+                "reason": "앞뒤 정보 흐름이 충분히 연결되지 않는다."
+              },
+              {
+                "boundaryId": "b3",
+                "reason": "성장 결과 뒤, 나눔 행동 앞이다."
+              },
+              {
+                "boundaryId": "b4",
+                "reason": "앞뒤 정보 흐름이 충분히 연결되지 않는다."
+              },
+              {
+                "boundaryId": "b5",
+                "reason": "앞뒤 정보 흐름이 충분히 연결되지 않는다."
+              }
+            ],
+            "beforeEvidence": {
+              "sentenceId": "s3",
+              "start": 82,
+              "end": 119,
+              "text": "After two weeks, new leaves appeared."
+            },
+            "afterEvidence": {
+              "sentenceId": "s4",
+              "start": 120,
+              "end": 163,
+              "text": "Mina shared a few leaves with her neighbor."
+            },
+            "lexicalLevel": "grade_3_csat"
+          },
+          "qualityReview": {
+            "passage": {
+              "naturalness": 9,
+              "logicStructure": 9,
+              "vocabularyLevel": 8,
+              "templateFidelity": 9
+            },
+            "questions": [
+              {
+                "slot": "provided-passage",
+                "answerInference": 8,
+                "distractorPlausibility": 8,
+                "choiceBalance": 8,
+                "directAnswerOverlap": false,
+                "strongestDistractorIndex": 2,
+                "decisiveReason": "원문 근거와 각 선지를 독립적으로 대조했다.",
+                "expectedDifficulty": 3
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "expected": {
+      "valid": true,
+      "code": "accepted"
+    }
+  },
+  {
+    "fixtureId": "fingerprint-mismatch",
+    "title": "fingerprint 불일치 거부",
+    "request": {
+      "schemaId": "english-question-lab-provided-passage-request-v0.1",
+      "mode": "school_english_provided_passage",
+      "subject": "English",
+      "source": {
+        "sourcePassageId": "source-8f97b90f65c78ef4",
+        "sourceFingerprint": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+        "title": "Preview 01",
+        "passage": "Mina planted basil in a sunny window. She watered it only when the soil felt dry. After two weeks, new leaves appeared. Mina shared a few leaves with her neighbor. The neighbor used them in a warm soup. Both families later planted more herbs.",
+        "sentences": [
+          {
+            "id": "s1",
+            "start": 0,
+            "end": 37,
+            "text": "Mina planted basil in a sunny window."
+          },
+          {
+            "id": "s2",
+            "start": 38,
+            "end": 81,
+            "text": "She watered it only when the soil felt dry."
+          },
+          {
+            "id": "s3",
+            "start": 82,
+            "end": 119,
+            "text": "After two weeks, new leaves appeared."
+          },
+          {
+            "id": "s4",
+            "start": 120,
+            "end": 163,
+            "text": "Mina shared a few leaves with her neighbor."
+          },
+          {
+            "id": "s5",
+            "start": 164,
+            "end": 202,
+            "text": "The neighbor used them in a warm soup."
+          },
+          {
+            "id": "s6",
+            "start": 203,
+            "end": 242,
+            "text": "Both families later planted more herbs."
+          }
+        ],
+        "boundaries": [
+          {
+            "id": "b0",
+            "offset": 0,
+            "afterSentenceId": "s1"
+          },
+          {
+            "id": "b1",
+            "offset": 37,
+            "beforeSentenceId": "s1",
+            "afterSentenceId": "s2"
+          },
+          {
+            "id": "b2",
+            "offset": 81,
+            "beforeSentenceId": "s2",
+            "afterSentenceId": "s3"
+          },
+          {
+            "id": "b3",
+            "offset": 119,
+            "beforeSentenceId": "s3",
+            "afterSentenceId": "s4"
+          },
+          {
+            "id": "b4",
+            "offset": 163,
+            "beforeSentenceId": "s4",
+            "afterSentenceId": "s5"
+          },
+          {
+            "id": "b5",
+            "offset": 202,
+            "beforeSentenceId": "s5",
+            "afterSentenceId": "s6"
+          },
+          {
+            "id": "b6",
+            "offset": 242,
+            "beforeSentenceId": "s6"
+          }
+        ]
+      },
+      "item": {
+        "itemId": "preview-01",
+        "templateId": "school-content-match",
+        "variantId": "standard",
+        "questionType": "content_match",
+        "choiceLanguage": "ko",
+        "vocabularyLevel": "source_matched",
+        "contentMatchPolarity": "mismatch",
+        "targetLevel": "고등학교",
+        "score": 2,
+        "questionCount": 1,
+        "requiredCandidateBoundaryCount": null
+      },
+      "sourcePreservation": {
+        "authority": "app_stored_source",
+        "responsePassage": "forbidden",
+        "exactFingerprintRequired": true
+      },
+      "approval": {
+        "firstResponse": "design_only",
+        "approvalSentence": "이 설계로 JSON을 생성할까요? 수정할 카드가 있으면 카드 번호와 변경 사항을 알려주세요.",
+        "afterApproval": "single_json_object"
+      },
+      "outputContract": "english-question-lab-provided-passage-generation-v0.1"
+    },
+    "response": {
+      "schemaId": "english-question-lab-provided-passage-generation-v0.1",
+      "mode": "school_english_provided_passage",
+      "subject": "English",
+      "sourcePassageId": "source-8f97b90f65c78ef4",
+      "sourceFingerprint": "sha256:8f97b90f65c78ef4a178f0dddab142a5addf393cd168af9e3dfba015f985bcf4",
+      "title": "Preview 01",
+      "items": [
+        {
+          "itemId": "preview-01",
+          "templateId": "school-content-match",
+          "variantId": "standard",
+          "questionType": "content_match",
+          "choiceLanguage": "ko",
+          "vocabularyLevel": "source_matched",
+          "contentMatchPolarity": "mismatch",
+          "question": {
+            "type": "내용 일치 및 불일치",
+            "stem": "다음 글의 내용과 일치하지 않는 것은?",
+            "choices": [
+              "Mina는 햇볕이 드는 창가에 바질을 심었다.",
+              "Mina는 흙이 마른 느낌일 때만 물을 주었다.",
+              "새잎은 이틀 만에 나타났다.",
+              "이웃은 바질을 따뜻한 수프에 사용했다.",
+              "두 가족은 나중에 허브를 더 심었다."
+            ],
+            "answerIndex": 3,
+            "explanation": "원문 문장과 선지를 대조하면 정답은 하나다.",
+            "intention": "권위 원문의 명시 정보를 정확히 확인한다.",
+            "evidenceSpans": [
+              {
+                "sentenceId": "s2",
+                "start": 38,
+                "end": 81,
+                "text": "She watered it only when the soil felt dry."
+              },
+              {
+                "sentenceId": "s3",
+                "start": 82,
+                "end": 119,
+                "text": "After two weeks, new leaves appeared."
+              }
+            ],
+            "distractorReasons": [
+              "명시 정보 확인",
+              "조건 확인",
+              "기간 왜곡",
+              "사용 관계 확인"
+            ],
+            "score": 2
+          },
+          "materialOperation": null,
+          "qualityReview": {
+            "passage": {
+              "naturalness": 9,
+              "logicStructure": 9,
+              "vocabularyLevel": 8,
+              "templateFidelity": 9
+            },
+            "questions": [
+              {
+                "slot": "provided-passage",
+                "answerInference": 8,
+                "distractorPlausibility": 8,
+                "choiceBalance": 8,
+                "directAnswerOverlap": false,
+                "strongestDistractorIndex": 2,
+                "decisiveReason": "원문 근거와 각 선지를 독립적으로 대조했다.",
+                "expectedDifficulty": 3
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "expected": {
+      "valid": false,
+      "code": "request_fingerprint_mismatch"
+    }
+  },
+  {
+    "fixtureId": "unknown-sentence",
+    "title": "존재하지 않는 sentence ID 거부",
+    "request": {
+      "schemaId": "english-question-lab-provided-passage-request-v0.1",
+      "mode": "school_english_provided_passage",
+      "subject": "English",
+      "source": {
+        "sourcePassageId": "source-8f97b90f65c78ef4",
+        "sourceFingerprint": "sha256:8f97b90f65c78ef4a178f0dddab142a5addf393cd168af9e3dfba015f985bcf4",
+        "title": "Preview 01",
+        "passage": "Mina planted basil in a sunny window. She watered it only when the soil felt dry. After two weeks, new leaves appeared. Mina shared a few leaves with her neighbor. The neighbor used them in a warm soup. Both families later planted more herbs.",
+        "sentences": [
+          {
+            "id": "s1",
+            "start": 0,
+            "end": 37,
+            "text": "Mina planted basil in a sunny window."
+          },
+          {
+            "id": "s2",
+            "start": 38,
+            "end": 81,
+            "text": "She watered it only when the soil felt dry."
+          },
+          {
+            "id": "s3",
+            "start": 82,
+            "end": 119,
+            "text": "After two weeks, new leaves appeared."
+          },
+          {
+            "id": "s4",
+            "start": 120,
+            "end": 163,
+            "text": "Mina shared a few leaves with her neighbor."
+          },
+          {
+            "id": "s5",
+            "start": 164,
+            "end": 202,
+            "text": "The neighbor used them in a warm soup."
+          },
+          {
+            "id": "s6",
+            "start": 203,
+            "end": 242,
+            "text": "Both families later planted more herbs."
+          }
+        ],
+        "boundaries": [
+          {
+            "id": "b0",
+            "offset": 0,
+            "afterSentenceId": "s1"
+          },
+          {
+            "id": "b1",
+            "offset": 37,
+            "beforeSentenceId": "s1",
+            "afterSentenceId": "s2"
+          },
+          {
+            "id": "b2",
+            "offset": 81,
+            "beforeSentenceId": "s2",
+            "afterSentenceId": "s3"
+          },
+          {
+            "id": "b3",
+            "offset": 119,
+            "beforeSentenceId": "s3",
+            "afterSentenceId": "s4"
+          },
+          {
+            "id": "b4",
+            "offset": 163,
+            "beforeSentenceId": "s4",
+            "afterSentenceId": "s5"
+          },
+          {
+            "id": "b5",
+            "offset": 202,
+            "beforeSentenceId": "s5",
+            "afterSentenceId": "s6"
+          },
+          {
+            "id": "b6",
+            "offset": 242,
+            "beforeSentenceId": "s6"
+          }
+        ]
+      },
+      "item": {
+        "itemId": "preview-01",
+        "templateId": "school-content-match",
+        "variantId": "standard",
+        "questionType": "content_match",
+        "choiceLanguage": "ko",
+        "vocabularyLevel": "source_matched",
+        "contentMatchPolarity": "mismatch",
+        "targetLevel": "고등학교",
+        "score": 2,
+        "questionCount": 1,
+        "requiredCandidateBoundaryCount": null
+      },
+      "sourcePreservation": {
+        "authority": "app_stored_source",
+        "responsePassage": "forbidden",
+        "exactFingerprintRequired": true
+      },
+      "approval": {
+        "firstResponse": "design_only",
+        "approvalSentence": "이 설계로 JSON을 생성할까요? 수정할 카드가 있으면 카드 번호와 변경 사항을 알려주세요.",
+        "afterApproval": "single_json_object"
+      },
+      "outputContract": "english-question-lab-provided-passage-generation-v0.1"
+    },
+    "response": {
+      "schemaId": "english-question-lab-provided-passage-generation-v0.1",
+      "mode": "school_english_provided_passage",
+      "subject": "English",
+      "sourcePassageId": "source-8f97b90f65c78ef4",
+      "sourceFingerprint": "sha256:8f97b90f65c78ef4a178f0dddab142a5addf393cd168af9e3dfba015f985bcf4",
+      "title": "Preview 01",
+      "items": [
+        {
+          "itemId": "preview-01",
+          "templateId": "school-content-match",
+          "variantId": "standard",
+          "questionType": "content_match",
+          "choiceLanguage": "ko",
+          "vocabularyLevel": "source_matched",
+          "contentMatchPolarity": "mismatch",
+          "question": {
+            "type": "내용 일치 및 불일치",
+            "stem": "다음 글의 내용과 일치하지 않는 것은?",
+            "choices": [
+              "Mina는 햇볕이 드는 창가에 바질을 심었다.",
+              "Mina는 흙이 마른 느낌일 때만 물을 주었다.",
+              "새잎은 이틀 만에 나타났다.",
+              "이웃은 바질을 따뜻한 수프에 사용했다.",
+              "두 가족은 나중에 허브를 더 심었다."
+            ],
+            "answerIndex": 3,
+            "explanation": "원문 문장과 선지를 대조하면 정답은 하나다.",
+            "intention": "권위 원문의 명시 정보를 정확히 확인한다.",
+            "evidenceSpans": [
+              {
+                "sentenceId": "s99",
+                "start": 38,
+                "end": 81,
+                "text": "She watered it only when the soil felt dry."
+              },
+              {
+                "sentenceId": "s3",
+                "start": 82,
+                "end": 119,
+                "text": "After two weeks, new leaves appeared."
+              }
+            ],
+            "distractorReasons": [
+              "명시 정보 확인",
+              "조건 확인",
+              "기간 왜곡",
+              "사용 관계 확인"
+            ],
+            "score": 2
+          },
+          "materialOperation": null,
+          "qualityReview": {
+            "passage": {
+              "naturalness": 9,
+              "logicStructure": 9,
+              "vocabularyLevel": 8,
+              "templateFidelity": 9
+            },
+            "questions": [
+              {
+                "slot": "provided-passage",
+                "answerInference": 8,
+                "distractorPlausibility": 8,
+                "choiceBalance": 8,
+                "directAnswerOverlap": false,
+                "strongestDistractorIndex": 2,
+                "decisiveReason": "원문 근거와 각 선지를 독립적으로 대조했다.",
+                "expectedDifficulty": 3
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "expected": {
+      "valid": false,
+      "code": "unknown_sentence_id"
+    }
+  },
+  {
+    "fixtureId": "unknown-boundary",
+    "title": "존재하지 않는 boundary ID 거부",
+    "request": {
+      "schemaId": "english-question-lab-provided-passage-request-v0.1",
+      "mode": "school_english_provided_passage",
+      "subject": "English",
+      "source": {
+        "sourcePassageId": "source-8f97b90f65c78ef4",
+        "sourceFingerprint": "sha256:8f97b90f65c78ef4a178f0dddab142a5addf393cd168af9e3dfba015f985bcf4",
+        "title": "Preview 03",
+        "passage": "Mina planted basil in a sunny window. She watered it only when the soil felt dry. After two weeks, new leaves appeared. Mina shared a few leaves with her neighbor. The neighbor used them in a warm soup. Both families later planted more herbs.",
+        "sentences": [
+          {
+            "id": "s1",
+            "start": 0,
+            "end": 37,
+            "text": "Mina planted basil in a sunny window."
+          },
+          {
+            "id": "s2",
+            "start": 38,
+            "end": 81,
+            "text": "She watered it only when the soil felt dry."
+          },
+          {
+            "id": "s3",
+            "start": 82,
+            "end": 119,
+            "text": "After two weeks, new leaves appeared."
+          },
+          {
+            "id": "s4",
+            "start": 120,
+            "end": 163,
+            "text": "Mina shared a few leaves with her neighbor."
+          },
+          {
+            "id": "s5",
+            "start": 164,
+            "end": 202,
+            "text": "The neighbor used them in a warm soup."
+          },
+          {
+            "id": "s6",
+            "start": 203,
+            "end": 242,
+            "text": "Both families later planted more herbs."
+          }
+        ],
+        "boundaries": [
+          {
+            "id": "b0",
+            "offset": 0,
+            "afterSentenceId": "s1"
+          },
+          {
+            "id": "b1",
+            "offset": 37,
+            "beforeSentenceId": "s1",
+            "afterSentenceId": "s2"
+          },
+          {
+            "id": "b2",
+            "offset": 81,
+            "beforeSentenceId": "s2",
+            "afterSentenceId": "s3"
+          },
+          {
+            "id": "b3",
+            "offset": 119,
+            "beforeSentenceId": "s3",
+            "afterSentenceId": "s4"
+          },
+          {
+            "id": "b4",
+            "offset": 163,
+            "beforeSentenceId": "s4",
+            "afterSentenceId": "s5"
+          },
+          {
+            "id": "b5",
+            "offset": 202,
+            "beforeSentenceId": "s5",
+            "afterSentenceId": "s6"
+          },
+          {
+            "id": "b6",
+            "offset": 242,
+            "beforeSentenceId": "s6"
+          }
+        ]
+      },
+      "item": {
+        "itemId": "preview-03",
+        "templateId": "school-sentence-insertion",
+        "variantId": "standard",
+        "questionType": "sentence_insertion",
+        "choiceLanguage": null,
+        "vocabularyLevel": "grade_2",
+        "contentMatchPolarity": null,
+        "targetLevel": "고등학교",
+        "score": 2,
+        "questionCount": 1,
+        "requiredCandidateBoundaryCount": 5
+      },
+      "sourcePreservation": {
+        "authority": "app_stored_source",
+        "responsePassage": "forbidden",
+        "exactFingerprintRequired": true
+      },
+      "approval": {
+        "firstResponse": "design_only",
+        "approvalSentence": "이 설계로 JSON을 생성할까요? 수정할 카드가 있으면 카드 번호와 변경 사항을 알려주세요.",
+        "afterApproval": "single_json_object"
+      },
+      "outputContract": "english-question-lab-provided-passage-generation-v0.1"
+    },
+    "response": {
+      "schemaId": "english-question-lab-provided-passage-generation-v0.1",
+      "mode": "school_english_provided_passage",
+      "subject": "English",
+      "sourcePassageId": "source-8f97b90f65c78ef4",
+      "sourceFingerprint": "sha256:8f97b90f65c78ef4a178f0dddab142a5addf393cd168af9e3dfba015f985bcf4",
+      "title": "Preview 03",
+      "items": [
+        {
+          "itemId": "preview-03",
+          "templateId": "school-sentence-insertion",
+          "variantId": "standard",
+          "questionType": "sentence_insertion",
+          "choiceLanguage": null,
+          "vocabularyLevel": "grade_2",
+          "contentMatchPolarity": null,
+          "question": {
+            "type": "문장 삽입",
+            "stem": "글의 흐름으로 보아, 주어진 문장이 들어가기에 가장 적절한 곳은?",
+            "choices": [
+              "①",
+              "②",
+              "③",
+              "④",
+              "⑤"
+            ],
+            "answerIndex": 3,
+            "explanation": "이 문장은 잎을 이웃과 나누기 직전의 전환을 이룬다.",
+            "intention": "정보 흐름과 결속 관계를 파악한다.",
+            "evidenceSpans": [
+              {
+                "sentenceId": "s3",
+                "start": 82,
+                "end": 119,
+                "text": "After two weeks, new leaves appeared."
+              },
+              {
+                "sentenceId": "s4",
+                "start": 120,
+                "end": 163,
+                "text": "Mina shared a few leaves with her neighbor."
+              }
+            ],
+            "distractorReasons": [
+              "화제 도입 전이다.",
+              "성장 결과 전이다.",
+              "정답 위치다.",
+              "수프 사용 뒤다.",
+              "결말 직전이라 늦다."
+            ],
+            "score": 2
+          },
+          "materialOperation": {
+            "kind": "insert_sentence",
+            "generatedSentence": "She was pleased that the small plant had grown so well.",
+            "candidateBoundaryIds": [
+              "b1",
+              "b2",
+              "b99",
+              "b4",
+              "b5"
+            ],
+            "answerBoundaryId": "b3",
+            "positionReasons": [
+              {
+                "boundaryId": "b1",
+                "reason": "앞뒤 정보 흐름이 충분히 연결되지 않는다."
+              },
+              {
+                "boundaryId": "b2",
+                "reason": "앞뒤 정보 흐름이 충분히 연결되지 않는다."
+              },
+              {
+                "boundaryId": "b3",
+                "reason": "성장 결과 뒤, 나눔 행동 앞이다."
+              },
+              {
+                "boundaryId": "b4",
+                "reason": "앞뒤 정보 흐름이 충분히 연결되지 않는다."
+              },
+              {
+                "boundaryId": "b5",
+                "reason": "앞뒤 정보 흐름이 충분히 연결되지 않는다."
+              }
+            ],
+            "beforeEvidence": {
+              "sentenceId": "s3",
+              "start": 82,
+              "end": 119,
+              "text": "After two weeks, new leaves appeared."
+            },
+            "afterEvidence": {
+              "sentenceId": "s4",
+              "start": 120,
+              "end": 163,
+              "text": "Mina shared a few leaves with her neighbor."
+            },
+            "lexicalLevel": "grade_2"
+          },
+          "qualityReview": {
+            "passage": {
+              "naturalness": 9,
+              "logicStructure": 9,
+              "vocabularyLevel": 8,
+              "templateFidelity": 9
+            },
+            "questions": [
+              {
+                "slot": "provided-passage",
+                "answerInference": 8,
+                "distractorPlausibility": 8,
+                "choiceBalance": 8,
+                "directAnswerOverlap": false,
+                "strongestDistractorIndex": 2,
+                "decisiveReason": "원문 근거와 각 선지를 독립적으로 대조했다.",
+                "expectedDifficulty": 3
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "expected": {
+      "valid": false,
+      "code": "unknown_boundary_id"
+    }
+  },
+  {
+    "fixtureId": "response-contains-passage",
+    "title": "Response 원문 전체 포함 거부",
+    "request": {
+      "schemaId": "english-question-lab-provided-passage-request-v0.1",
+      "mode": "school_english_provided_passage",
+      "subject": "English",
+      "source": {
+        "sourcePassageId": "source-8f97b90f65c78ef4",
+        "sourceFingerprint": "sha256:8f97b90f65c78ef4a178f0dddab142a5addf393cd168af9e3dfba015f985bcf4",
+        "title": "Preview 01",
+        "passage": "Mina planted basil in a sunny window. She watered it only when the soil felt dry. After two weeks, new leaves appeared. Mina shared a few leaves with her neighbor. The neighbor used them in a warm soup. Both families later planted more herbs.",
+        "sentences": [
+          {
+            "id": "s1",
+            "start": 0,
+            "end": 37,
+            "text": "Mina planted basil in a sunny window."
+          },
+          {
+            "id": "s2",
+            "start": 38,
+            "end": 81,
+            "text": "She watered it only when the soil felt dry."
+          },
+          {
+            "id": "s3",
+            "start": 82,
+            "end": 119,
+            "text": "After two weeks, new leaves appeared."
+          },
+          {
+            "id": "s4",
+            "start": 120,
+            "end": 163,
+            "text": "Mina shared a few leaves with her neighbor."
+          },
+          {
+            "id": "s5",
+            "start": 164,
+            "end": 202,
+            "text": "The neighbor used them in a warm soup."
+          },
+          {
+            "id": "s6",
+            "start": 203,
+            "end": 242,
+            "text": "Both families later planted more herbs."
+          }
+        ],
+        "boundaries": [
+          {
+            "id": "b0",
+            "offset": 0,
+            "afterSentenceId": "s1"
+          },
+          {
+            "id": "b1",
+            "offset": 37,
+            "beforeSentenceId": "s1",
+            "afterSentenceId": "s2"
+          },
+          {
+            "id": "b2",
+            "offset": 81,
+            "beforeSentenceId": "s2",
+            "afterSentenceId": "s3"
+          },
+          {
+            "id": "b3",
+            "offset": 119,
+            "beforeSentenceId": "s3",
+            "afterSentenceId": "s4"
+          },
+          {
+            "id": "b4",
+            "offset": 163,
+            "beforeSentenceId": "s4",
+            "afterSentenceId": "s5"
+          },
+          {
+            "id": "b5",
+            "offset": 202,
+            "beforeSentenceId": "s5",
+            "afterSentenceId": "s6"
+          },
+          {
+            "id": "b6",
+            "offset": 242,
+            "beforeSentenceId": "s6"
+          }
+        ]
+      },
+      "item": {
+        "itemId": "preview-01",
+        "templateId": "school-content-match",
+        "variantId": "standard",
+        "questionType": "content_match",
+        "choiceLanguage": "ko",
+        "vocabularyLevel": "source_matched",
+        "contentMatchPolarity": "mismatch",
+        "targetLevel": "고등학교",
+        "score": 2,
+        "questionCount": 1,
+        "requiredCandidateBoundaryCount": null
+      },
+      "sourcePreservation": {
+        "authority": "app_stored_source",
+        "responsePassage": "forbidden",
+        "exactFingerprintRequired": true
+      },
+      "approval": {
+        "firstResponse": "design_only",
+        "approvalSentence": "이 설계로 JSON을 생성할까요? 수정할 카드가 있으면 카드 번호와 변경 사항을 알려주세요.",
+        "afterApproval": "single_json_object"
+      },
+      "outputContract": "english-question-lab-provided-passage-generation-v0.1"
+    },
+    "response": {
+      "schemaId": "english-question-lab-provided-passage-generation-v0.1",
+      "mode": "school_english_provided_passage",
+      "subject": "English",
+      "sourcePassageId": "source-8f97b90f65c78ef4",
+      "sourceFingerprint": "sha256:8f97b90f65c78ef4a178f0dddab142a5addf393cd168af9e3dfba015f985bcf4",
+      "title": "Mina planted basil in a sunny window. She watered it only when the soil felt dry. After two weeks, new leaves appeared. Mina shared a few leaves with her neighbor. The neighbor used them in a warm soup. Both families later planted more herbs.",
+      "items": [
+        {
+          "itemId": "preview-01",
+          "templateId": "school-content-match",
+          "variantId": "standard",
+          "questionType": "content_match",
+          "choiceLanguage": "ko",
+          "vocabularyLevel": "source_matched",
+          "contentMatchPolarity": "mismatch",
+          "question": {
+            "type": "내용 일치 및 불일치",
+            "stem": "다음 글의 내용과 일치하지 않는 것은?",
+            "choices": [
+              "Mina는 햇볕이 드는 창가에 바질을 심었다.",
+              "Mina는 흙이 마른 느낌일 때만 물을 주었다.",
+              "새잎은 이틀 만에 나타났다.",
+              "이웃은 바질을 따뜻한 수프에 사용했다.",
+              "두 가족은 나중에 허브를 더 심었다."
+            ],
+            "answerIndex": 3,
+            "explanation": "원문 문장과 선지를 대조하면 정답은 하나다.",
+            "intention": "권위 원문의 명시 정보를 정확히 확인한다.",
+            "evidenceSpans": [
+              {
+                "sentenceId": "s2",
+                "start": 38,
+                "end": 81,
+                "text": "She watered it only when the soil felt dry."
+              },
+              {
+                "sentenceId": "s3",
+                "start": 82,
+                "end": 119,
+                "text": "After two weeks, new leaves appeared."
+              }
+            ],
+            "distractorReasons": [
+              "명시 정보 확인",
+              "조건 확인",
+              "기간 왜곡",
+              "사용 관계 확인"
+            ],
+            "score": 2
+          },
+          "materialOperation": null,
+          "qualityReview": {
+            "passage": {
+              "naturalness": 9,
+              "logicStructure": 9,
+              "vocabularyLevel": 8,
+              "templateFidelity": 9
+            },
+            "questions": [
+              {
+                "slot": "provided-passage",
+                "answerInference": 8,
+                "distractorPlausibility": 8,
+                "choiceBalance": 8,
+                "directAnswerOverlap": false,
+                "strongestDistractorIndex": 2,
+                "decisiveReason": "원문 근거와 각 선지를 독립적으로 대조했다.",
+                "expectedDifficulty": 3
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "expected": {
+      "valid": false,
+      "code": "response_passage_forbidden"
+    }
+  },
+  {
+    "fixtureId": "mixed-choice-language",
+    "title": "선지 언어 혼합 거부",
+    "request": {
+      "schemaId": "english-question-lab-provided-passage-request-v0.1",
+      "mode": "school_english_provided_passage",
+      "subject": "English",
+      "source": {
+        "sourcePassageId": "source-8f97b90f65c78ef4",
+        "sourceFingerprint": "sha256:8f97b90f65c78ef4a178f0dddab142a5addf393cd168af9e3dfba015f985bcf4",
+        "title": "Preview 01",
+        "passage": "Mina planted basil in a sunny window. She watered it only when the soil felt dry. After two weeks, new leaves appeared. Mina shared a few leaves with her neighbor. The neighbor used them in a warm soup. Both families later planted more herbs.",
+        "sentences": [
+          {
+            "id": "s1",
+            "start": 0,
+            "end": 37,
+            "text": "Mina planted basil in a sunny window."
+          },
+          {
+            "id": "s2",
+            "start": 38,
+            "end": 81,
+            "text": "She watered it only when the soil felt dry."
+          },
+          {
+            "id": "s3",
+            "start": 82,
+            "end": 119,
+            "text": "After two weeks, new leaves appeared."
+          },
+          {
+            "id": "s4",
+            "start": 120,
+            "end": 163,
+            "text": "Mina shared a few leaves with her neighbor."
+          },
+          {
+            "id": "s5",
+            "start": 164,
+            "end": 202,
+            "text": "The neighbor used them in a warm soup."
+          },
+          {
+            "id": "s6",
+            "start": 203,
+            "end": 242,
+            "text": "Both families later planted more herbs."
+          }
+        ],
+        "boundaries": [
+          {
+            "id": "b0",
+            "offset": 0,
+            "afterSentenceId": "s1"
+          },
+          {
+            "id": "b1",
+            "offset": 37,
+            "beforeSentenceId": "s1",
+            "afterSentenceId": "s2"
+          },
+          {
+            "id": "b2",
+            "offset": 81,
+            "beforeSentenceId": "s2",
+            "afterSentenceId": "s3"
+          },
+          {
+            "id": "b3",
+            "offset": 119,
+            "beforeSentenceId": "s3",
+            "afterSentenceId": "s4"
+          },
+          {
+            "id": "b4",
+            "offset": 163,
+            "beforeSentenceId": "s4",
+            "afterSentenceId": "s5"
+          },
+          {
+            "id": "b5",
+            "offset": 202,
+            "beforeSentenceId": "s5",
+            "afterSentenceId": "s6"
+          },
+          {
+            "id": "b6",
+            "offset": 242,
+            "beforeSentenceId": "s6"
+          }
+        ]
+      },
+      "item": {
+        "itemId": "preview-01",
+        "templateId": "school-content-match",
+        "variantId": "standard",
+        "questionType": "content_match",
+        "choiceLanguage": "ko",
+        "vocabularyLevel": "source_matched",
+        "contentMatchPolarity": "mismatch",
+        "targetLevel": "고등학교",
+        "score": 2,
+        "questionCount": 1,
+        "requiredCandidateBoundaryCount": null
+      },
+      "sourcePreservation": {
+        "authority": "app_stored_source",
+        "responsePassage": "forbidden",
+        "exactFingerprintRequired": true
+      },
+      "approval": {
+        "firstResponse": "design_only",
+        "approvalSentence": "이 설계로 JSON을 생성할까요? 수정할 카드가 있으면 카드 번호와 변경 사항을 알려주세요.",
+        "afterApproval": "single_json_object"
+      },
+      "outputContract": "english-question-lab-provided-passage-generation-v0.1"
+    },
+    "response": {
+      "schemaId": "english-question-lab-provided-passage-generation-v0.1",
+      "mode": "school_english_provided_passage",
+      "subject": "English",
+      "sourcePassageId": "source-8f97b90f65c78ef4",
+      "sourceFingerprint": "sha256:8f97b90f65c78ef4a178f0dddab142a5addf393cd168af9e3dfba015f985bcf4",
+      "title": "Preview 01",
+      "items": [
+        {
+          "itemId": "preview-01",
+          "templateId": "school-content-match",
+          "variantId": "standard",
+          "questionType": "content_match",
+          "choiceLanguage": "ko",
+          "vocabularyLevel": "source_matched",
+          "contentMatchPolarity": "mismatch",
+          "question": {
+            "type": "내용 일치 및 불일치",
+            "stem": "다음 글의 내용과 일치하지 않는 것은?",
+            "choices": [
+              "Mina는 햇볕이 드는 창가에 바질을 심었다.",
+              "This choice is English.",
+              "새잎은 이틀 만에 나타났다.",
+              "이웃은 바질을 따뜻한 수프에 사용했다.",
+              "두 가족은 나중에 허브를 더 심었다."
+            ],
+            "answerIndex": 3,
+            "explanation": "원문 문장과 선지를 대조하면 정답은 하나다.",
+            "intention": "권위 원문의 명시 정보를 정확히 확인한다.",
+            "evidenceSpans": [
+              {
+                "sentenceId": "s2",
+                "start": 38,
+                "end": 81,
+                "text": "She watered it only when the soil felt dry."
+              },
+              {
+                "sentenceId": "s3",
+                "start": 82,
+                "end": 119,
+                "text": "After two weeks, new leaves appeared."
+              }
+            ],
+            "distractorReasons": [
+              "명시 정보 확인",
+              "조건 확인",
+              "기간 왜곡",
+              "사용 관계 확인"
+            ],
+            "score": 2
+          },
+          "materialOperation": null,
+          "qualityReview": {
+            "passage": {
+              "naturalness": 9,
+              "logicStructure": 9,
+              "vocabularyLevel": 8,
+              "templateFidelity": 9
+            },
+            "questions": [
+              {
+                "slot": "provided-passage",
+                "answerInference": 8,
+                "distractorPlausibility": 8,
+                "choiceBalance": 8,
+                "directAnswerOverlap": false,
+                "strongestDistractorIndex": 2,
+                "decisiveReason": "원문 근거와 각 선지를 독립적으로 대조했다.",
+                "expectedDifficulty": 3
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "expected": {
+      "valid": false,
+      "code": "choice_language_mismatch"
+    }
+  },
+  {
+    "fixtureId": "insertion-choice-language",
+    "title": "삽입 choice language 비-null 거부",
+    "request": {
+      "schemaId": "english-question-lab-provided-passage-request-v0.1",
+      "mode": "school_english_provided_passage",
+      "subject": "English",
+      "source": {
+        "sourcePassageId": "source-8f97b90f65c78ef4",
+        "sourceFingerprint": "sha256:8f97b90f65c78ef4a178f0dddab142a5addf393cd168af9e3dfba015f985bcf4",
+        "title": "Preview 03",
+        "passage": "Mina planted basil in a sunny window. She watered it only when the soil felt dry. After two weeks, new leaves appeared. Mina shared a few leaves with her neighbor. The neighbor used them in a warm soup. Both families later planted more herbs.",
+        "sentences": [
+          {
+            "id": "s1",
+            "start": 0,
+            "end": 37,
+            "text": "Mina planted basil in a sunny window."
+          },
+          {
+            "id": "s2",
+            "start": 38,
+            "end": 81,
+            "text": "She watered it only when the soil felt dry."
+          },
+          {
+            "id": "s3",
+            "start": 82,
+            "end": 119,
+            "text": "After two weeks, new leaves appeared."
+          },
+          {
+            "id": "s4",
+            "start": 120,
+            "end": 163,
+            "text": "Mina shared a few leaves with her neighbor."
+          },
+          {
+            "id": "s5",
+            "start": 164,
+            "end": 202,
+            "text": "The neighbor used them in a warm soup."
+          },
+          {
+            "id": "s6",
+            "start": 203,
+            "end": 242,
+            "text": "Both families later planted more herbs."
+          }
+        ],
+        "boundaries": [
+          {
+            "id": "b0",
+            "offset": 0,
+            "afterSentenceId": "s1"
+          },
+          {
+            "id": "b1",
+            "offset": 37,
+            "beforeSentenceId": "s1",
+            "afterSentenceId": "s2"
+          },
+          {
+            "id": "b2",
+            "offset": 81,
+            "beforeSentenceId": "s2",
+            "afterSentenceId": "s3"
+          },
+          {
+            "id": "b3",
+            "offset": 119,
+            "beforeSentenceId": "s3",
+            "afterSentenceId": "s4"
+          },
+          {
+            "id": "b4",
+            "offset": 163,
+            "beforeSentenceId": "s4",
+            "afterSentenceId": "s5"
+          },
+          {
+            "id": "b5",
+            "offset": 202,
+            "beforeSentenceId": "s5",
+            "afterSentenceId": "s6"
+          },
+          {
+            "id": "b6",
+            "offset": 242,
+            "beforeSentenceId": "s6"
+          }
+        ]
+      },
+      "item": {
+        "itemId": "preview-03",
+        "templateId": "school-sentence-insertion",
+        "variantId": "standard",
+        "questionType": "sentence_insertion",
+        "choiceLanguage": null,
+        "vocabularyLevel": "grade_2",
+        "contentMatchPolarity": null,
+        "targetLevel": "고등학교",
+        "score": 2,
+        "questionCount": 1,
+        "requiredCandidateBoundaryCount": 5
+      },
+      "sourcePreservation": {
+        "authority": "app_stored_source",
+        "responsePassage": "forbidden",
+        "exactFingerprintRequired": true
+      },
+      "approval": {
+        "firstResponse": "design_only",
+        "approvalSentence": "이 설계로 JSON을 생성할까요? 수정할 카드가 있으면 카드 번호와 변경 사항을 알려주세요.",
+        "afterApproval": "single_json_object"
+      },
+      "outputContract": "english-question-lab-provided-passage-generation-v0.1"
+    },
+    "response": {
+      "schemaId": "english-question-lab-provided-passage-generation-v0.1",
+      "mode": "school_english_provided_passage",
+      "subject": "English",
+      "sourcePassageId": "source-8f97b90f65c78ef4",
+      "sourceFingerprint": "sha256:8f97b90f65c78ef4a178f0dddab142a5addf393cd168af9e3dfba015f985bcf4",
+      "title": "Preview 03",
+      "items": [
+        {
+          "itemId": "preview-03",
+          "templateId": "school-sentence-insertion",
+          "variantId": "standard",
+          "questionType": "sentence_insertion",
+          "choiceLanguage": "en",
+          "vocabularyLevel": "grade_2",
+          "contentMatchPolarity": null,
+          "question": {
+            "type": "문장 삽입",
+            "stem": "글의 흐름으로 보아, 주어진 문장이 들어가기에 가장 적절한 곳은?",
+            "choices": [
+              "①",
+              "②",
+              "③",
+              "④",
+              "⑤"
+            ],
+            "answerIndex": 3,
+            "explanation": "이 문장은 잎을 이웃과 나누기 직전의 전환을 이룬다.",
+            "intention": "정보 흐름과 결속 관계를 파악한다.",
+            "evidenceSpans": [
+              {
+                "sentenceId": "s3",
+                "start": 82,
+                "end": 119,
+                "text": "After two weeks, new leaves appeared."
+              },
+              {
+                "sentenceId": "s4",
+                "start": 120,
+                "end": 163,
+                "text": "Mina shared a few leaves with her neighbor."
+              }
+            ],
+            "distractorReasons": [
+              "화제 도입 전이다.",
+              "성장 결과 전이다.",
+              "정답 위치다.",
+              "수프 사용 뒤다.",
+              "결말 직전이라 늦다."
+            ],
+            "score": 2
+          },
+          "materialOperation": {
+            "kind": "insert_sentence",
+            "generatedSentence": "She was pleased that the small plant had grown so well.",
+            "candidateBoundaryIds": [
+              "b1",
+              "b2",
+              "b3",
+              "b4",
+              "b5"
+            ],
+            "answerBoundaryId": "b3",
+            "positionReasons": [
+              {
+                "boundaryId": "b1",
+                "reason": "앞뒤 정보 흐름이 충분히 연결되지 않는다."
+              },
+              {
+                "boundaryId": "b2",
+                "reason": "앞뒤 정보 흐름이 충분히 연결되지 않는다."
+              },
+              {
+                "boundaryId": "b3",
+                "reason": "성장 결과 뒤, 나눔 행동 앞이다."
+              },
+              {
+                "boundaryId": "b4",
+                "reason": "앞뒤 정보 흐름이 충분히 연결되지 않는다."
+              },
+              {
+                "boundaryId": "b5",
+                "reason": "앞뒤 정보 흐름이 충분히 연결되지 않는다."
+              }
+            ],
+            "beforeEvidence": {
+              "sentenceId": "s3",
+              "start": 82,
+              "end": 119,
+              "text": "After two weeks, new leaves appeared."
+            },
+            "afterEvidence": {
+              "sentenceId": "s4",
+              "start": 120,
+              "end": 163,
+              "text": "Mina shared a few leaves with her neighbor."
+            },
+            "lexicalLevel": "grade_2"
+          },
+          "qualityReview": {
+            "passage": {
+              "naturalness": 9,
+              "logicStructure": 9,
+              "vocabularyLevel": 8,
+              "templateFidelity": 9
+            },
+            "questions": [
+              {
+                "slot": "provided-passage",
+                "answerInference": 8,
+                "distractorPlausibility": 8,
+                "choiceBalance": 8,
+                "directAnswerOverlap": false,
+                "strongestDistractorIndex": 2,
+                "decisiveReason": "원문 근거와 각 선지를 독립적으로 대조했다.",
+                "expectedDifficulty": 3
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "expected": {
+      "valid": false,
+      "code": "request_response_mismatch"
+    }
+  },
+  {
+    "fixtureId": "multiple-answer-risk",
+    "title": "복수 정답 가능 결과 거부",
+    "request": {
+      "schemaId": "english-question-lab-provided-passage-request-v0.1",
+      "mode": "school_english_provided_passage",
+      "subject": "English",
+      "source": {
+        "sourcePassageId": "source-8f97b90f65c78ef4",
+        "sourceFingerprint": "sha256:8f97b90f65c78ef4a178f0dddab142a5addf393cd168af9e3dfba015f985bcf4",
+        "title": "Preview 02",
+        "passage": "Mina planted basil in a sunny window. She watered it only when the soil felt dry. After two weeks, new leaves appeared. Mina shared a few leaves with her neighbor. The neighbor used them in a warm soup. Both families later planted more herbs.",
+        "sentences": [
+          {
+            "id": "s1",
+            "start": 0,
+            "end": 37,
+            "text": "Mina planted basil in a sunny window."
+          },
+          {
+            "id": "s2",
+            "start": 38,
+            "end": 81,
+            "text": "She watered it only when the soil felt dry."
+          },
+          {
+            "id": "s3",
+            "start": 82,
+            "end": 119,
+            "text": "After two weeks, new leaves appeared."
+          },
+          {
+            "id": "s4",
+            "start": 120,
+            "end": 163,
+            "text": "Mina shared a few leaves with her neighbor."
+          },
+          {
+            "id": "s5",
+            "start": 164,
+            "end": 202,
+            "text": "The neighbor used them in a warm soup."
+          },
+          {
+            "id": "s6",
+            "start": 203,
+            "end": 242,
+            "text": "Both families later planted more herbs."
+          }
+        ],
+        "boundaries": [
+          {
+            "id": "b0",
+            "offset": 0,
+            "afterSentenceId": "s1"
+          },
+          {
+            "id": "b1",
+            "offset": 37,
+            "beforeSentenceId": "s1",
+            "afterSentenceId": "s2"
+          },
+          {
+            "id": "b2",
+            "offset": 81,
+            "beforeSentenceId": "s2",
+            "afterSentenceId": "s3"
+          },
+          {
+            "id": "b3",
+            "offset": 119,
+            "beforeSentenceId": "s3",
+            "afterSentenceId": "s4"
+          },
+          {
+            "id": "b4",
+            "offset": 163,
+            "beforeSentenceId": "s4",
+            "afterSentenceId": "s5"
+          },
+          {
+            "id": "b5",
+            "offset": 202,
+            "beforeSentenceId": "s5",
+            "afterSentenceId": "s6"
+          },
+          {
+            "id": "b6",
+            "offset": 242,
+            "beforeSentenceId": "s6"
+          }
+        ]
+      },
+      "item": {
+        "itemId": "preview-02",
+        "templateId": "school-content-match",
+        "variantId": "standard",
+        "questionType": "content_match",
+        "choiceLanguage": "en",
+        "vocabularyLevel": "grade_1",
+        "contentMatchPolarity": "match",
+        "targetLevel": "고등학교",
+        "score": 2,
+        "questionCount": 1,
+        "requiredCandidateBoundaryCount": null
+      },
+      "sourcePreservation": {
+        "authority": "app_stored_source",
+        "responsePassage": "forbidden",
+        "exactFingerprintRequired": true
+      },
+      "approval": {
+        "firstResponse": "design_only",
+        "approvalSentence": "이 설계로 JSON을 생성할까요? 수정할 카드가 있으면 카드 번호와 변경 사항을 알려주세요.",
+        "afterApproval": "single_json_object"
+      },
+      "outputContract": "english-question-lab-provided-passage-generation-v0.1"
+    },
+    "response": {
+      "schemaId": "english-question-lab-provided-passage-generation-v0.1",
+      "mode": "school_english_provided_passage",
+      "subject": "English",
+      "sourcePassageId": "source-8f97b90f65c78ef4",
+      "sourceFingerprint": "sha256:8f97b90f65c78ef4a178f0dddab142a5addf393cd168af9e3dfba015f985bcf4",
+      "title": "Preview 02",
+      "items": [
+        {
+          "itemId": "preview-02",
+          "templateId": "school-content-match",
+          "variantId": "standard",
+          "questionType": "content_match",
+          "choiceLanguage": "en",
+          "vocabularyLevel": "grade_1",
+          "contentMatchPolarity": "match",
+          "question": {
+            "type": "내용 일치 및 불일치",
+            "stem": "다음 글의 내용과 일치하는 것은?",
+            "choices": [
+              "Mina planted basil near sunlight.",
+              "Mina planted basil near sunlight.",
+              "New leaves appeared after two weeks.",
+              "Her neighbor used the leaves in a warm soup.",
+              "Mina kept every leaf for herself."
+            ],
+            "answerIndex": 2,
+            "explanation": "원문 문장과 선지를 대조하면 정답은 하나다.",
+            "intention": "권위 원문의 명시 정보를 정확히 확인한다.",
+            "evidenceSpans": [
+              {
+                "sentenceId": "s2",
+                "start": 38,
+                "end": 81,
+                "text": "She watered it only when the soil felt dry."
+              },
+              {
+                "sentenceId": "s3",
+                "start": 82,
+                "end": 119,
+                "text": "After two weeks, new leaves appeared."
+              }
+            ],
+            "distractorReasons": [
+              "명시 정보 확인",
+              "조건 확인",
+              "기간 왜곡",
+              "사용 관계 확인"
+            ],
+            "score": 2
+          },
+          "materialOperation": null,
+          "qualityReview": {
+            "passage": {
+              "naturalness": 9,
+              "logicStructure": 9,
+              "vocabularyLevel": 8,
+              "templateFidelity": 9
+            },
+            "questions": [
+              {
+                "slot": "provided-passage",
+                "answerInference": 8,
+                "distractorPlausibility": 8,
+                "choiceBalance": 8,
+                "directAnswerOverlap": false,
+                "strongestDistractorIndex": 3,
+                "decisiveReason": "원문 근거와 각 선지를 독립적으로 대조했다.",
+                "expectedDifficulty": 3
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "expected": {
+      "valid": false,
+      "code": "duplicate_choice"
+    }
+  },
+  {
+    "fixtureId": "insertion-missing-adjacency",
+    "title": "정답 경계 앞뒤 근거 부족 거부",
+    "request": {
+      "schemaId": "english-question-lab-provided-passage-request-v0.1",
+      "mode": "school_english_provided_passage",
+      "subject": "English",
+      "source": {
+        "sourcePassageId": "source-8f97b90f65c78ef4",
+        "sourceFingerprint": "sha256:8f97b90f65c78ef4a178f0dddab142a5addf393cd168af9e3dfba015f985bcf4",
+        "title": "Preview 03",
+        "passage": "Mina planted basil in a sunny window. She watered it only when the soil felt dry. After two weeks, new leaves appeared. Mina shared a few leaves with her neighbor. The neighbor used them in a warm soup. Both families later planted more herbs.",
+        "sentences": [
+          {
+            "id": "s1",
+            "start": 0,
+            "end": 37,
+            "text": "Mina planted basil in a sunny window."
+          },
+          {
+            "id": "s2",
+            "start": 38,
+            "end": 81,
+            "text": "She watered it only when the soil felt dry."
+          },
+          {
+            "id": "s3",
+            "start": 82,
+            "end": 119,
+            "text": "After two weeks, new leaves appeared."
+          },
+          {
+            "id": "s4",
+            "start": 120,
+            "end": 163,
+            "text": "Mina shared a few leaves with her neighbor."
+          },
+          {
+            "id": "s5",
+            "start": 164,
+            "end": 202,
+            "text": "The neighbor used them in a warm soup."
+          },
+          {
+            "id": "s6",
+            "start": 203,
+            "end": 242,
+            "text": "Both families later planted more herbs."
+          }
+        ],
+        "boundaries": [
+          {
+            "id": "b0",
+            "offset": 0,
+            "afterSentenceId": "s1"
+          },
+          {
+            "id": "b1",
+            "offset": 37,
+            "beforeSentenceId": "s1",
+            "afterSentenceId": "s2"
+          },
+          {
+            "id": "b2",
+            "offset": 81,
+            "beforeSentenceId": "s2",
+            "afterSentenceId": "s3"
+          },
+          {
+            "id": "b3",
+            "offset": 119,
+            "beforeSentenceId": "s3",
+            "afterSentenceId": "s4"
+          },
+          {
+            "id": "b4",
+            "offset": 163,
+            "beforeSentenceId": "s4",
+            "afterSentenceId": "s5"
+          },
+          {
+            "id": "b5",
+            "offset": 202,
+            "beforeSentenceId": "s5",
+            "afterSentenceId": "s6"
+          },
+          {
+            "id": "b6",
+            "offset": 242,
+            "beforeSentenceId": "s6"
+          }
+        ]
+      },
+      "item": {
+        "itemId": "preview-03",
+        "templateId": "school-sentence-insertion",
+        "variantId": "standard",
+        "questionType": "sentence_insertion",
+        "choiceLanguage": null,
+        "vocabularyLevel": "grade_2",
+        "contentMatchPolarity": null,
+        "targetLevel": "고등학교",
+        "score": 2,
+        "questionCount": 1,
+        "requiredCandidateBoundaryCount": 5
+      },
+      "sourcePreservation": {
+        "authority": "app_stored_source",
+        "responsePassage": "forbidden",
+        "exactFingerprintRequired": true
+      },
+      "approval": {
+        "firstResponse": "design_only",
+        "approvalSentence": "이 설계로 JSON을 생성할까요? 수정할 카드가 있으면 카드 번호와 변경 사항을 알려주세요.",
+        "afterApproval": "single_json_object"
+      },
+      "outputContract": "english-question-lab-provided-passage-generation-v0.1"
+    },
+    "response": {
+      "schemaId": "english-question-lab-provided-passage-generation-v0.1",
+      "mode": "school_english_provided_passage",
+      "subject": "English",
+      "sourcePassageId": "source-8f97b90f65c78ef4",
+      "sourceFingerprint": "sha256:8f97b90f65c78ef4a178f0dddab142a5addf393cd168af9e3dfba015f985bcf4",
+      "title": "Preview 03",
+      "items": [
+        {
+          "itemId": "preview-03",
+          "templateId": "school-sentence-insertion",
+          "variantId": "standard",
+          "questionType": "sentence_insertion",
+          "choiceLanguage": null,
+          "vocabularyLevel": "grade_2",
+          "contentMatchPolarity": null,
+          "question": {
+            "type": "문장 삽입",
+            "stem": "글의 흐름으로 보아, 주어진 문장이 들어가기에 가장 적절한 곳은?",
+            "choices": [
+              "①",
+              "②",
+              "③",
+              "④",
+              "⑤"
+            ],
+            "answerIndex": 3,
+            "explanation": "이 문장은 잎을 이웃과 나누기 직전의 전환을 이룬다.",
+            "intention": "정보 흐름과 결속 관계를 파악한다.",
+            "evidenceSpans": [
+              {
+                "sentenceId": "s3",
+                "start": 82,
+                "end": 119,
+                "text": "After two weeks, new leaves appeared."
+              },
+              {
+                "sentenceId": "s4",
+                "start": 120,
+                "end": 163,
+                "text": "Mina shared a few leaves with her neighbor."
+              }
+            ],
+            "distractorReasons": [
+              "화제 도입 전이다.",
+              "성장 결과 전이다.",
+              "정답 위치다.",
+              "수프 사용 뒤다.",
+              "결말 직전이라 늦다."
+            ],
+            "score": 2
+          },
+          "materialOperation": {
+            "kind": "insert_sentence",
+            "generatedSentence": "She was pleased that the small plant had grown so well.",
+            "candidateBoundaryIds": [
+              "b1",
+              "b2",
+              "b3",
+              "b4",
+              "b5"
+            ],
+            "answerBoundaryId": "b3",
+            "positionReasons": [
+              {
+                "boundaryId": "b1",
+                "reason": "앞뒤 정보 흐름이 충분히 연결되지 않는다."
+              },
+              {
+                "boundaryId": "b2",
+                "reason": "앞뒤 정보 흐름이 충분히 연결되지 않는다."
+              },
+              {
+                "boundaryId": "b3",
+                "reason": "성장 결과 뒤, 나눔 행동 앞이다."
+              },
+              {
+                "boundaryId": "b4",
+                "reason": "앞뒤 정보 흐름이 충분히 연결되지 않는다."
+              },
+              {
+                "boundaryId": "b5",
+                "reason": "앞뒤 정보 흐름이 충분히 연결되지 않는다."
+              }
+            ],
+            "beforeEvidence": {
+              "sentenceId": "s3",
+              "start": 82,
+              "end": 119,
+              "text": "After two weeks, new leaves appeared."
+            },
+            "afterEvidence": {
+              "sentenceId": "s3",
+              "start": 82,
+              "end": 119,
+              "text": "After two weeks, new leaves appeared."
+            },
+            "lexicalLevel": "grade_2"
+          },
+          "qualityReview": {
+            "passage": {
+              "naturalness": 9,
+              "logicStructure": 9,
+              "vocabularyLevel": 8,
+              "templateFidelity": 9
+            },
+            "questions": [
+              {
+                "slot": "provided-passage",
+                "answerInference": 8,
+                "distractorPlausibility": 8,
+                "choiceBalance": 8,
+                "directAnswerOverlap": false,
+                "strongestDistractorIndex": 2,
+                "decisiveReason": "원문 근거와 각 선지를 독립적으로 대조했다.",
+                "expectedDifficulty": 3
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "expected": {
+      "valid": false,
+      "code": "answer_boundary_evidence_mismatch"
+    }
+  }
+]

@@ -1,0 +1,135 @@
+{
+  "bundleId": "school-english-provided-passage-generator-v0.1",
+  "bundleVersion": "0.1.0-rc.1",
+  "bundleStatus": "release_candidate",
+  "targetEnvironment": "custom_gpt_manual_copy_paste",
+  "components": [
+    {
+      "role": "readme",
+      "path": "README.md",
+      "canonicalSource": null,
+      "logicalSha256": "4b3fbf4b6b6a2e859594b748a9b1ff5f5b39c39c9703e0f68f2005a044e70f07",
+      "physicalSha256": "4b3fbf4b6b6a2e859594b748a9b1ff5f5b39c39c9703e0f68f2005a044e70f07",
+      "byteSize": 798
+    },
+    {
+      "role": "custom_gpt_setup",
+      "path": "custom-gpt-setup.md",
+      "canonicalSource": null,
+      "logicalSha256": "7c2ac805a2be7357847e1bd7977244b66e87cbbbfe244d635f059b9009e41711",
+      "physicalSha256": "7c2ac805a2be7357847e1bd7977244b66e87cbbbfe244d635f059b9009e41711",
+      "byteSize": 1700
+    },
+    {
+      "role": "custom_gpt_instructions",
+      "path": "instructions/SCHOOL_ENGLISH_PROVIDED_PASSAGE_CUSTOM_GPT_INSTRUCTIONS.md",
+      "canonicalSource": null,
+      "logicalSha256": "254d021badbb8a4dedb2e0a9b74252775e2666907bb18330fdbca401715f8e78",
+      "physicalSha256": "254d021badbb8a4dedb2e0a9b74252775e2666907bb18330fdbca401715f8e78",
+      "byteSize": 6461
+    },
+    {
+      "role": "provided_passage_contract",
+      "path": "knowledge/PROVIDED_PASSAGE_CONTRACT_V0.1.md",
+      "canonicalSource": "docs/english-gpt/PROVIDED_PASSAGE_CONTRACT_V0.1.md",
+      "logicalSha256": "3c00a275b6cc358a5a89c0361a7822bdf4924ec917828c3731b6c35b3d394f9b",
+      "physicalSha256": "3c00a275b6cc358a5a89c0361a7822bdf4924ec917828c3731b6c35b3d394f9b",
+      "byteSize": 2636
+    },
+    {
+      "role": "request_schema",
+      "path": "knowledge/provided-passage-request-schema-v0.1.json",
+      "canonicalSource": "docs/english-gpt/provided-passage-request-schema-v0.1.json",
+      "logicalSha256": "984ec4b7e2cc1b6ea6c0c08d995fb09e5fb60ea69ce99b9935d61948a4f85c05",
+      "physicalSha256": "984ec4b7e2cc1b6ea6c0c08d995fb09e5fb60ea69ce99b9935d61948a4f85c05",
+      "byteSize": 4225
+    },
+    {
+      "role": "response_schema",
+      "path": "knowledge/provided-passage-response-schema-v0.1.json",
+      "canonicalSource": "docs/english-gpt/provided-passage-response-schema-v0.1.json",
+      "logicalSha256": "f599aba30fb167a60499d12ad8bf90553359f37bb17186e8032f5ebbf75a1759",
+      "physicalSha256": "f599aba30fb167a60499d12ad8bf90553359f37bb17186e8032f5ebbf75a1759",
+      "byteSize": 6544
+    },
+    {
+      "role": "preview_fixtures",
+      "path": "fixtures/preview-fixtures.json",
+      "canonicalSource": null,
+      "logicalSha256": "ffa5c83215fe87fea1ccba72f99523ee9857b7225c60bfe53b1529734c996a86",
+      "physicalSha256": "ffa5c83215fe87fea1ccba72f99523ee9857b7225c60bfe53b1529734c996a86",
+      "byteSize": 86132
+    },
+    {
+      "role": "manual_preview",
+      "path": "fixtures/manual-preview-inputs.md",
+      "canonicalSource": null,
+      "logicalSha256": "8e975c55aadf3457f9627c8cdb4836cb5ce5ba4203ce8d9c2aeedd729d0319a4",
+      "physicalSha256": "8e975c55aadf3457f9627c8cdb4836cb5ce5ba4203ce8d9c2aeedd729d0319a4",
+      "byteSize": 40407
+    },
+    {
+      "role": "manifest_schema",
+      "path": "tests/bundle-manifest-schema.json",
+      "canonicalSource": null,
+      "logicalSha256": "6b8f97bf8203f734634168a205c9d273097f65dfd72fb1429b7e97a66bd1c3b8",
+      "physicalSha256": "6b8f97bf8203f734634168a205c9d273097f65dfd72fb1429b7e97a66bd1c3b8",
+      "byteSize": 1685
+    },
+    {
+      "role": "regression_tests",
+      "path": "tests/school-english-provided-passage-custom-gpt-bundle.node-test.mjs",
+      "canonicalSource": null,
+      "logicalSha256": "e6c167adb6528b86b690c4440b3016f3d92b5918a7f5576208fdbe6db5322359",
+      "physicalSha256": "e6c167adb6528b86b690c4440b3016f3d92b5918a7f5576208fdbe6db5322359",
+      "byteSize": 2070
+    },
+    {
+      "role": "automatic_validator",
+      "path": "validation/validate-bundle.mjs",
+      "canonicalSource": null,
+      "logicalSha256": "0e53291dcb407d7c44d09d88c270b21e3004204d97a093ab5d8df98120c7e940",
+      "physicalSha256": "0e53291dcb407d7c44d09d88c270b21e3004204d97a093ab5d8df98120c7e940",
+      "byteSize": 578
+    }
+  ],
+  "protectedBaselines": [
+    {
+      "role": "Generator Core Instructions",
+      "path": "docs/english-gpt/GENERATOR_CORE_INSTRUCTIONS_V0.md",
+      "project": "app",
+      "logicalSha256": "00bdb21060f632969a3fd9bfcfbf0965b0af23688663bf51a3b08c20bbc163eb"
+    },
+    {
+      "role": "Generation Contract V0",
+      "path": "docs/english-gpt/GENERATION_CONTRACT_V0.md",
+      "project": "app",
+      "logicalSha256": "3a812106b9a5183debbc795f66f856dccb44f9dc8f84516d171fae1cf41de03c"
+    },
+    {
+      "role": "CSAT Output Schema",
+      "path": "docs/english-gpt/csat-output-schema.json",
+      "project": "app",
+      "logicalSha256": "2cf9022d6c8498386e21ca7a3737d1b35c69ab459a8954f6b079c918ace5b61c"
+    },
+    {
+      "role": "CSAT Style Manual",
+      "path": "docs/english-gpt/CSAT_STYLE_MANUAL.md",
+      "project": "app",
+      "logicalSha256": "743c0a7e83732f98a52214916d17ee5fef4f2cc12d2048e64ccabdf61546053d"
+    },
+    {
+      "role": "Runtime Profile JSON",
+      "path": "profiles/generation-runtime-profile-v0.4.json",
+      "project": "corpus",
+      "logicalSha256": "5af3526617675ee77ea5fb6693037aa62e28ca892dc912d016604652b1343720"
+    },
+    {
+      "role": "legacy_csAT_bundle_manifest_fingerprint",
+      "path": "docs/english-gpt/releases/generator-v0-custom-gpt/bundle-manifest.json",
+      "project": "app",
+      "manifestFingerprint": "e741041c9b122e6e89d472e35bade83740167e2c8e1569076010e505f3ee2ecf"
+    }
+  ],
+  "manifestFingerprint": "4e0fb3fb710484f7bd09afc2255ddcb93165d371e6f9537e3afa04b43c734df7"
+}

@@ -1,0 +1,2 @@
+import { buildBundle, parseCli } from './school-english-provided-passage-custom-gpt-bundle.mjs'
+try { const built=buildBundle(parseCli(process.argv.slice(2))); process.stdout.write(`${JSON.stringify({bundleId:built.manifest.bundleId,bundleVersion:built.manifest.bundleVersion,bundleRoot:built.bundleRoot,manifestFingerprint:built.manifest.manifestFingerprint,valid:built.result.valid,verdict:built.result.verdict},null,2)}\n`); process.exitCode=built.result.valid?0:1 } catch(error){process.stderr.write(`${error instanceof Error?error.stack:String(error)}\n`);process.exitCode=1}

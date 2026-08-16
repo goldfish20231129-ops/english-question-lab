@@ -1,5 +1,6 @@
 import { CSAT_FAMILIES, CSAT_GPT_APPROVAL_PROTOCOL, CSAT_INLINE_POSITION_CHOICES, CSAT_PASSAGE_LENGTH_LABELS, CSAT_QUALITY_REVIEW_INSTRUCTIONS, MAX_CSAT_SET_QUESTIONS, buildCsatPromptSection, countCsatPassageWords, createCsatItem, csatPrintableMaterialText, decorateCsatMaterialText, effectiveCsatDesign, embedCsatChartChoices, expectedCsatItemQuestions, expectedCsatQuestions, generateCsatGptInstructions, getCsatItems, getCsatPassageLengthRange, getCsatTemplate, hasUnnecessaryPassageBreaks, isInlinePositionTemplate, normalizeCsatPassageLength, normalizeCsatSet, plannedCsatSetQuestionCount, resolvedCsatItem } from './csat'
 import { assertCsatGenerationSchema } from './generationContract'
+import { generateProvidedPassagePrompt, isProvidedPassageSet, parseProvidedPassageJson, providedPassageValidationMessages } from './providedPassage'
 import type { CsatMaterialSpec, CsatQualityReview, EnglishMode, EnglishQuestion, EnglishQuestionSet, ExamLayoutSettings, LayoutPreset, SourceKind, ValidationIssue } from './types'
 
 export const MODE_LABELS: Record<EnglishMode, string> = {
@@ -10,7 +11,7 @@ export const MODE_LABELS: Record<EnglishMode, string> = {
 
 export const CSAT_QUESTION_TYPES = CSAT_FAMILIES.map((family) => family.label)
 
-export const SCHOOL_QUESTION_TYPES = ['어휘', '어법', '내용 이해', '순서 배열', '문장 삽입'] as const
+export const SCHOOL_QUESTION_TYPES = ['어휘', '어법', '내용 이해', '내용 일치 및 불일치', '순서 배열', '문장 삽입'] as const
 export const CUSTOM_PRESETS = ['독해', '어휘', '어법', '변형 문제', '숙제용 워크시트', '단원별 미니 테스트'] as const
 export const CUSTOM_QUESTION_TYPES = [...CSAT_QUESTION_TYPES, ...SCHOOL_QUESTION_TYPES, '세부 정보', '문맥 추론'] as const
 
@@ -243,6 +244,7 @@ ${CSAT_QUALITY_REVIEW_INSTRUCTIONS}`
 }
 
 export function generateEnglishPrompt(set: EnglishQuestionSet): string {
+  if (isProvidedPassageSet(set)) return generateProvidedPassagePrompt(set)
   if (set.mode === 'csat') return generateCsatBatchPrompt(set)
   const plan = set.questions.map((question, index) => `- 문항 ${index + 1}: ${question.type}\n  발문: ${question.stem || '(AI가 유형에 맞게 작성)'}\n  선지 수: ${set.choiceCount}\n  출제 의도: ${question.intention || set.intention || '(유형에 맞게 설정)'}`).join('\n')
   const materialInstruction = set.materialMode === 'provided'
@@ -403,6 +405,7 @@ function parseAnswerIndex(value: unknown, choiceCount: number) {
 }
 
 export function parseEnglishSetJson(raw: string, base: EnglishQuestionSet): EnglishQuestionSet {
+  if (isProvidedPassageSet(base)) return parseProvidedPassageJson(raw, base)
   const parsed: unknown = JSON.parse(cleanJson(raw))
   if (!parsed || typeof parsed !== 'object') throw new Error('JSON 최상위 값은 객체여야 합니다.')
   if (base.mode === 'csat') assertCsatGenerationSchema(parsed)
@@ -771,6 +774,7 @@ export function validateEnglishSet(set: EnglishQuestionSet): ValidationIssue[] {
     return issues
   }
   if (!set.material.trim()) add({ level: 'error', label: '자료 없음', detail: '시험지에 사용할 영어 지문 또는 자료가 비어 있습니다.' })
+  if (set.mode === 'school' && set.providedPassage) providedPassageValidationMessages(set).forEach((message) => add(message))
   if (hasUnnecessaryPassageBreaks(set.material) || hasUnnecessaryStructuredBreaks(set.materialSpec)) add({ level: 'warning', label: '불필요한 문단 구분', detail: '출력에서는 자동으로 한 문단으로 합치지만, 일반 영어 지문은 빈 줄 없이 작성하는 것을 권장합니다.' })
   const comparableMaterial = normalizeEvidence(set.material)
   set.questions.forEach((question, index) => {
@@ -791,7 +795,8 @@ export function validateEnglishSet(set: EnglishQuestionSet): ValidationIssue[] {
     if (/어법|어휘|함축/.test(type) && !boxVocabulary && !set.material.includes('[[밑줄:')) add({ level: 'warning', questionId: question.id, label: '밑줄 표식 없음', detail: `${prefix} 유형은 지문에 [[밑줄:대상 표현]] 표식을 권장합니다.` })
     if (/빈칸/.test(type) && !/\[\[(?:빈칸|요약빈칸)\]\]/.test(set.material)) add({ level: 'error', questionId: question.id, label: '빈칸 표식 없음', detail: `${prefix}에 필요한 빈칸 표식이 지문에 없습니다.` })
     if (/순서/.test(type) && !['(A)', '(B)', '(C)'].every((marker) => set.material.includes(marker))) add({ level: 'warning', questionId: question.id, label: '순서 자료 확인', detail: `${prefix} 지문에 (A), (B), (C) 구분이 모두 있는지 확인하세요.` })
-    if (/삽입/.test(type) && (!set.material.includes('[[삽입문장:') || !set.material.includes('[[삽입위치:'))) add({ level: 'warning', questionId: question.id, label: '삽입 표식 확인', detail: `${prefix} 지문에 삽입 문장과 위치 표식이 필요합니다.` })
+    const hasDerivedProvidedInsertion = set.providedPassage?.result?.materialOperation?.kind === 'insert_sentence'
+    if (/삽입/.test(type) && !hasDerivedProvidedInsertion && (!set.material.includes('[[삽입문장:') || !set.material.includes('[[삽입위치:'))) add({ level: 'warning', questionId: question.id, label: '삽입 표식 확인', detail: `${prefix} 지문에 삽입 문장과 위치 표식이 필요합니다.` })
   })
   if (!issues.length) add({ level: 'pass', label: '기본 검사 통과', detail: `AI 결과 리비전 ${set.aiRevision}의 형식과 지문 연결을 확인했습니다.` })
   return issues

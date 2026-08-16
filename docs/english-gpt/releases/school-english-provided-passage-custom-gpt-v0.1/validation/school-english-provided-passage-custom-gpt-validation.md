@@ -1,0 +1,59 @@
+# School English Provided Passage Custom GPT validation
+
+- Valid: `true`
+- Errors: 0
+- Verdict: `READY_TO_CREATE_AND_PREVIEW_SCHOOL_ENGLISH_CUSTOM_GPT_V0_1`
+
+## Checks
+
+- PASS `required:README.md`: README.md
+- PASS `required:bundle-manifest.json`: bundle-manifest.json
+- PASS `required:custom-gpt-setup.md`: custom-gpt-setup.md
+- PASS `required:instructions/SCHOOL_ENGLISH_PROVIDED_PASSAGE_CUSTOM_GPT_INSTRUCTIONS.md`: instructions/SCHOOL_ENGLISH_PROVIDED_PASSAGE_CUSTOM_GPT_INSTRUCTIONS.md
+- PASS `required:knowledge/PROVIDED_PASSAGE_CONTRACT_V0.1.md`: knowledge/PROVIDED_PASSAGE_CONTRACT_V0.1.md
+- PASS `required:knowledge/provided-passage-request-schema-v0.1.json`: knowledge/provided-passage-request-schema-v0.1.json
+- PASS `required:knowledge/provided-passage-response-schema-v0.1.json`: knowledge/provided-passage-response-schema-v0.1.json
+- PASS `required:fixtures/preview-fixtures.json`: fixtures/preview-fixtures.json
+- PASS `required:fixtures/manual-preview-inputs.md`: fixtures/manual-preview-inputs.md
+- PASS `required:tests/bundle-manifest-schema.json`: tests/bundle-manifest-schema.json
+- PASS `required:tests/school-english-provided-passage-custom-gpt-bundle.node-test.mjs`: tests/school-english-provided-passage-custom-gpt-bundle.node-test.mjs
+- PASS `required:validation/validate-bundle.mjs`: validation/validate-bundle.mjs
+- PASS `required:validation/component-provenance.json`: validation/component-provenance.json
+- PASS `required:validation/school-english-provided-passage-custom-gpt-validation.json`: validation/school-english-provided-passage-custom-gpt-validation.json
+- PASS `required:validation/school-english-provided-passage-custom-gpt-validation.md`: validation/school-english-provided-passage-custom-gpt-validation.md
+- PASS `manifest_parse`: parsed
+- PASS `manifest_schema`: passed
+- PASS `manifest_fingerprint`: 4e0fb3fb710484f7bd09afc2255ddcb93165d371e6f9537e3afa04b43c734df7
+- PASS `component_hash:readme`: README.md
+- PASS `component_hash:custom_gpt_setup`: custom-gpt-setup.md
+- PASS `component_hash:custom_gpt_instructions`: instructions/SCHOOL_ENGLISH_PROVIDED_PASSAGE_CUSTOM_GPT_INSTRUCTIONS.md
+- PASS `component_hash:provided_passage_contract`: knowledge/PROVIDED_PASSAGE_CONTRACT_V0.1.md
+- PASS `component_hash:request_schema`: knowledge/provided-passage-request-schema-v0.1.json
+- PASS `component_hash:response_schema`: knowledge/provided-passage-response-schema-v0.1.json
+- PASS `component_hash:preview_fixtures`: fixtures/preview-fixtures.json
+- PASS `component_hash:manual_preview`: fixtures/manual-preview-inputs.md
+- PASS `component_hash:manifest_schema`: tests/bundle-manifest-schema.json
+- PASS `component_hash:regression_tests`: tests/school-english-provided-passage-custom-gpt-bundle.node-test.mjs
+- PASS `component_hash:automatic_validator`: validation/validate-bundle.mjs
+- PASS `preview_fixture_count`: 12/12
+- PASS `fixture:content-mismatch-ko-source`: true/accepted
+- PASS `fixture:content-match-en-grade1`: true/accepted
+- PASS `fixture:insertion-grade2`: true/accepted
+- PASS `fixture:insertion-grade3`: true/accepted
+- PASS `fixture:fingerprint-mismatch`: false/request_fingerprint_mismatch
+- PASS `fixture:unknown-sentence`: false/unknown_sentence_id
+- PASS `fixture:unknown-boundary`: false/unknown_boundary_id
+- PASS `fixture:response-contains-passage`: false/response_passage_forbidden
+- PASS `fixture:mixed-choice-language`: false/choice_language_mismatch
+- PASS `fixture:insertion-choice-language`: false/request_response_mismatch
+- PASS `fixture:multiple-answer-risk`: false/duplicate_choice
+- PASS `fixture:insertion-missing-adjacency`: false/answer_boundary_evidence_mismatch
+- PASS `protected_logical_sha:Generator Core Instructions`: 00bdb21060f632969a3fd9bfcfbf0965b0af23688663bf51a3b08c20bbc163eb
+- PASS `protected_logical_sha:Generation Contract V0`: 3a812106b9a5183debbc795f66f856dccb44f9dc8f84516d171fae1cf41de03c
+- PASS `protected_logical_sha:CSAT Output Schema`: 2cf9022d6c8498386e21ca7a3737d1b35c69ab459a8954f6b079c918ace5b61c
+- PASS `protected_logical_sha:CSAT Style Manual`: 743c0a7e83732f98a52214916d17ee5fef4f2cc12d2048e64ccabdf61546053d
+- PASS `protected_logical_sha:Runtime Profile JSON`: 5af3526617675ee77ea5fb6693037aa62e28ca892dc912d016604652b1343720
+- PASS `legacy_bundle_fingerprint`: e741041c9b122e6e89d472e35bade83740167e2c8e1569076010e505f3ee2ecf
+- PASS `instructions_scope`: 6461 bytes
+- PASS `instructions_approval_gate`: design first
+- PASS `instructions_no_runtime_authority`: separated

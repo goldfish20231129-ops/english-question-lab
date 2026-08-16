@@ -20,6 +20,63 @@ export type CsatVariantId =
   | 'narrative-emotion-implication-blank'
 export type CsatChoiceStyle = 'korean' | 'english' | 'emotion-pair' | 'position' | 'order' | 'word-pair'
 export type CsatPassageLengthPreset = 'short' | 'medium' | 'long'
+export type ProvidedPassageQuestionType = 'content_match' | 'sentence_insertion'
+export type ProvidedPassageChoiceLanguage = 'ko' | 'en'
+export type ProvidedPassageVocabularyLevel = 'source_matched' | 'grade_1' | 'grade_2' | 'grade_3_csat'
+export type ProvidedPassageContentPolarity = 'match' | 'mismatch'
+
+export interface ProvidedPassageSentence {
+  id: string
+  start: number
+  end: number
+  text: string
+}
+
+export interface ProvidedPassageBoundary {
+  id: string
+  offset: number
+  beforeSentenceId?: string
+  afterSentenceId?: string
+}
+
+export interface ProvidedPassageEvidenceSpan {
+  sentenceId: string
+  start: number
+  end: number
+  text: string
+}
+
+export interface ProvidedPassageInsertionOperation {
+  kind: 'insert_sentence'
+  generatedSentence: string
+  candidateBoundaryIds: string[]
+  answerBoundaryId: string
+  positionReasons: Array<{ boundaryId: string; reason: string }>
+  beforeEvidence: ProvidedPassageEvidenceSpan
+  afterEvidence: ProvidedPassageEvidenceSpan
+  lexicalLevel: ProvidedPassageVocabularyLevel
+}
+
+export interface ProvidedPassageGenerationResult {
+  schemaId: 'english-question-lab-provided-passage-generation-v0.1'
+  evidenceSpans: ProvidedPassageEvidenceSpan[]
+  materialOperation: ProvidedPassageInsertionOperation | null
+}
+
+export interface ProvidedPassageState {
+  version: '0.1'
+  sourcePassageId: string
+  sourceFingerprint: string
+  originalText: string
+  normalizedForFingerprint: string
+  sentences: ProvidedPassageSentence[]
+  boundaries: ProvidedPassageBoundary[]
+  questionType: ProvidedPassageQuestionType
+  choiceLanguage: ProvidedPassageChoiceLanguage
+  vocabularyLevel: ProvidedPassageVocabularyLevel
+  contentMatchPolarity: ProvidedPassageContentPolarity
+  result?: ProvidedPassageGenerationResult
+}
 
 export interface CsatPassageQualityReview {
   naturalness?: number
@@ -235,6 +292,8 @@ export interface EnglishQuestionSet {
   csatDesign?: CsatDesignSpec
   csatItems?: CsatItemDesign[]
   materialSpec?: CsatMaterialSpec
+  providedPassage?: ProvidedPassageState
+  providedPassageQualityReview?: CsatQualityReview
   questions: EnglishQuestion[]
   prompt: string
   aiRevision: number

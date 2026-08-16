@@ -1,0 +1,139 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://english-question-lab.local/schema/provided-passage-response-v0.1.json",
+  "title": "English Question Lab Provided Passage Generation Response V0.1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaId", "mode", "subject", "sourcePassageId", "sourceFingerprint", "title", "items"],
+  "properties": {
+    "schemaId": { "const": "english-question-lab-provided-passage-generation-v0.1" },
+    "mode": { "const": "school_english_provided_passage" },
+    "subject": { "const": "English" },
+    "sourcePassageId": { "type": "string", "minLength": 1 },
+    "sourceFingerprint": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+    "title": { "type": "string" },
+    "items": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 1,
+      "items": { "$ref": "#/$defs/item" }
+    }
+  },
+  "$defs": {
+    "item": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["itemId", "templateId", "variantId", "questionType", "choiceLanguage", "vocabularyLevel", "contentMatchPolarity", "question", "materialOperation", "qualityReview"],
+      "properties": {
+        "itemId": { "type": "string", "minLength": 1 },
+        "templateId": { "enum": ["school-content-match", "school-sentence-insertion"] },
+        "variantId": { "const": "standard" },
+        "questionType": { "enum": ["content_match", "sentence_insertion"] },
+        "choiceLanguage": { "type": ["string", "null"], "enum": ["ko", "en", null] },
+        "vocabularyLevel": { "enum": ["source_matched", "grade_1", "grade_2", "grade_3_csat"] },
+        "contentMatchPolarity": { "type": ["string", "null"], "enum": ["match", "mismatch", null] },
+        "question": { "$ref": "#/$defs/question" },
+        "materialOperation": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/insertionOperation" }
+          ]
+        },
+        "qualityReview": { "$ref": "#/$defs/qualityReview" }
+      }
+    },
+    "question": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "stem", "choices", "answerIndex", "explanation", "intention", "evidenceSpans", "distractorReasons", "score"],
+      "properties": {
+        "type": { "enum": ["내용 일치 및 불일치", "문장 삽입"] },
+        "stem": { "type": "string", "minLength": 1 },
+        "choices": { "type": "array", "minItems": 5, "maxItems": 5, "items": { "type": "string", "minLength": 1 } },
+        "answerIndex": { "type": "integer", "minimum": 1, "maximum": 5 },
+        "explanation": { "type": "string", "minLength": 1 },
+        "intention": { "type": "string", "minLength": 1 },
+        "evidenceSpans": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/evidenceSpan" } },
+        "distractorReasons": { "type": "array", "minItems": 4, "maxItems": 5, "items": { "type": "string", "minLength": 1 } },
+        "score": { "type": "number", "minimum": 1, "maximum": 10 }
+      }
+    },
+    "evidenceSpan": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sentenceId", "start", "end", "text"],
+      "properties": {
+        "sentenceId": { "type": "string", "pattern": "^s[1-9][0-9]*$" },
+        "start": { "type": "integer", "minimum": 0 },
+        "end": { "type": "integer", "minimum": 1 },
+        "text": { "type": "string", "minLength": 1 }
+      }
+    },
+    "insertionOperation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "generatedSentence", "candidateBoundaryIds", "answerBoundaryId", "positionReasons", "beforeEvidence", "afterEvidence", "lexicalLevel"],
+      "properties": {
+        "kind": { "const": "insert_sentence" },
+        "generatedSentence": { "type": "string", "minLength": 1 },
+        "candidateBoundaryIds": { "type": "array", "minItems": 5, "maxItems": 5, "uniqueItems": true, "items": { "type": "string", "pattern": "^b[0-9]+$" } },
+        "answerBoundaryId": { "type": "string", "pattern": "^b[0-9]+$" },
+        "positionReasons": {
+          "type": "array",
+          "minItems": 5,
+          "maxItems": 5,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["boundaryId", "reason"],
+            "properties": {
+              "boundaryId": { "type": "string", "pattern": "^b[0-9]+$" },
+              "reason": { "type": "string", "minLength": 1 }
+            }
+          }
+        },
+        "beforeEvidence": { "$ref": "#/$defs/evidenceSpan" },
+        "afterEvidence": { "$ref": "#/$defs/evidenceSpan" },
+        "lexicalLevel": { "enum": ["source_matched", "grade_1", "grade_2", "grade_3_csat"] }
+      }
+    },
+    "qualityReview": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["passage", "questions"],
+      "properties": {
+        "passage": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["naturalness", "logicStructure", "vocabularyLevel", "templateFidelity"],
+          "properties": {
+            "naturalness": { "type": "number", "minimum": 0, "maximum": 10 },
+            "logicStructure": { "type": "number", "minimum": 0, "maximum": 10 },
+            "vocabularyLevel": { "type": "number", "minimum": 0, "maximum": 10 },
+            "templateFidelity": { "type": "number", "minimum": 0, "maximum": 10 }
+          }
+        },
+        "questions": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["slot", "answerInference", "distractorPlausibility", "choiceBalance", "directAnswerOverlap", "strongestDistractorIndex", "decisiveReason", "expectedDifficulty"],
+            "properties": {
+              "slot": { "type": "string", "minLength": 1 },
+              "answerInference": { "type": "number", "minimum": 0, "maximum": 10 },
+              "distractorPlausibility": { "type": "number", "minimum": 0, "maximum": 10 },
+              "choiceBalance": { "type": "number", "minimum": 0, "maximum": 10 },
+              "directAnswerOverlap": { "type": "boolean" },
+              "strongestDistractorIndex": { "type": "integer", "minimum": 1, "maximum": 5 },
+              "decisiveReason": { "type": "string", "minLength": 1 },
+              "expectedDifficulty": { "type": "number", "minimum": 1, "maximum": 5 }
+            }
+          }
+        }
+      }
+    }
+  }
+}

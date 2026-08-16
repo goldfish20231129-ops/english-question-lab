@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperti
 import { collapseCsatProseParagraphs, csatLongExpositoryText, csatLongNarrativeSections, csatPrintFlow, decorateCsatMaterialText, embedCsatChartChoices, getCsatItems, getCsatTemplate, isInlinePositionTemplate, resolvedCsatItem, splitCsatSummaryMaterial, usesContinuousCsatProse } from './csat'
 import { CsatMaterialView } from './CsatMaterialView'
 import { buildExamFlowBlocks, examFlowMeasurementKey, geometryKey, getOversizedQuestionIssues, paginateExamBlocks, resolveExamEntries, type ExamFlowBlock, type ExamLayoutMetrics } from './examLayout'
+import { providedPassagePresentationSpec } from './providedPassage'
 import type { CsatItemDesign, EnglishExamDocument, EnglishQuestion, EnglishQuestionSet, ExamLayoutSettings, MediaAsset } from './types'
 
 const MARKUP = /\[\[(밑줄|빈칸|요약빈칸|삽입문장|삽입위치|선택)(?::([^\]]+))?\]\]/g
@@ -191,10 +192,11 @@ export function SetLivePreview({ set, assets = [] }: { set: EnglishQuestionSet; 
       return <CsatItemPreview key={item.id} set={set} item={item} index={index} startNumber={start} assets={assets.filter((asset) => asset.csatItemId === item.id || (!asset.csatItemId && index === 0))} />
     })}</div>
   }
-  const structuredReplacesText = structuredMaterialReplacesPlainText(set.materialSpec)
+  const presentationSpec = providedPassagePresentationSpec(set)
+  const structuredReplacesText = structuredMaterialReplacesPlainText(presentationSpec)
   const plainMaterial = <div className={`live-material${set.layoutOverride?.passageBorder === false ? '' : ' bordered'}`}><p><EnglishText text={collapseCsatProseParagraphs(set.material || '지문 또는 자료를 입력하면 여기에 즉시 표시됩니다.')} /></p></div>
-  const structuredMaterial = set.materialSpec && <CsatMaterialView spec={set.materialSpec} collapseParagraphs={set.materialSpec.kind === 'prose' || set.materialSpec.kind === 'longExpository'} renderText={(text) => <EnglishText text={collapseCsatProseParagraphs(text)} />} />
-  return <div className="live-paper"><header><span>{set.mode === 'school' ? '내신형 영어' : '맞춤설정형 영어'}</span><strong>{set.title}</strong></header>{set.materialTitle && <h4>{set.materialTitle}</h4>}{set.materialSpec?.kind === 'summary' && plainMaterial}{structuredMaterial}{(!structuredReplacesText && set.materialSpec?.kind !== 'summary') && plainMaterial}{assets.map((asset) => <figure key={asset.id}><img src={asset.dataUrl} alt={asset.caption || asset.name} /><figcaption>{asset.caption}</figcaption></figure>)}{set.questions.map((question, index) => <article key={question.id}><QuestionContent question={question} number={index + 1} /></article>)}</div>
+  const structuredMaterial = presentationSpec && <CsatMaterialView spec={presentationSpec} collapseParagraphs={presentationSpec.kind === 'prose' || presentationSpec.kind === 'longExpository'} renderText={(text) => <EnglishText text={collapseCsatProseParagraphs(text)} />} />
+  return <div className="live-paper"><header><span>{set.mode === 'school' ? '내신형 영어' : '맞춤설정형 영어'}</span><strong>{set.title}</strong></header>{set.materialTitle && <h4>{set.materialTitle}</h4>}{presentationSpec?.kind === 'summary' && plainMaterial}{structuredMaterial}{(!structuredReplacesText && presentationSpec?.kind !== 'summary') && plainMaterial}{assets.map((asset) => <figure key={asset.id}><img src={asset.dataUrl} alt={asset.caption || asset.name} /><figcaption>{asset.caption}</figcaption></figure>)}{set.questions.map((question, index) => <article key={question.id}><QuestionContent question={question} number={index + 1} /></article>)}</div>
 }
 
 function CsatItemPreview({ set, item, index, startNumber, assets }: { set: EnglishQuestionSet; item: CsatItemDesign; index: number; startNumber: number; assets: MediaAsset[] }) {

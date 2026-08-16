@@ -1,0 +1,264 @@
+{
+  "bundleId": "school-english-provided-passage-generator-v0.1",
+  "bundleVersion": "0.1.0-rc.1",
+  "valid": true,
+  "errorCount": 0,
+  "verdict": "READY_TO_CREATE_AND_PREVIEW_SCHOOL_ENGLISH_CUSTOM_GPT_V0_1",
+  "checks": [
+    {
+      "name": "required:README.md",
+      "passed": true,
+      "detail": "README.md"
+    },
+    {
+      "name": "required:bundle-manifest.json",
+      "passed": true,
+      "detail": "bundle-manifest.json"
+    },
+    {
+      "name": "required:custom-gpt-setup.md",
+      "passed": true,
+      "detail": "custom-gpt-setup.md"
+    },
+    {
+      "name": "required:instructions/SCHOOL_ENGLISH_PROVIDED_PASSAGE_CUSTOM_GPT_INSTRUCTIONS.md",
+      "passed": true,
+      "detail": "instructions/SCHOOL_ENGLISH_PROVIDED_PASSAGE_CUSTOM_GPT_INSTRUCTIONS.md"
+    },
+    {
+      "name": "required:knowledge/PROVIDED_PASSAGE_CONTRACT_V0.1.md",
+      "passed": true,
+      "detail": "knowledge/PROVIDED_PASSAGE_CONTRACT_V0.1.md"
+    },
+    {
+      "name": "required:knowledge/provided-passage-request-schema-v0.1.json",
+      "passed": true,
+      "detail": "knowledge/provided-passage-request-schema-v0.1.json"
+    },
+    {
+      "name": "required:knowledge/provided-passage-response-schema-v0.1.json",
+      "passed": true,
+      "detail": "knowledge/provided-passage-response-schema-v0.1.json"
+    },
+    {
+      "name": "required:fixtures/preview-fixtures.json",
+      "passed": true,
+      "detail": "fixtures/preview-fixtures.json"
+    },
+    {
+      "name": "required:fixtures/manual-preview-inputs.md",
+      "passed": true,
+      "detail": "fixtures/manual-preview-inputs.md"
+    },
+    {
+      "name": "required:tests/bundle-manifest-schema.json",
+      "passed": true,
+      "detail": "tests/bundle-manifest-schema.json"
+    },
+    {
+      "name": "required:tests/school-english-provided-passage-custom-gpt-bundle.node-test.mjs",
+      "passed": true,
+      "detail": "tests/school-english-provided-passage-custom-gpt-bundle.node-test.mjs"
+    },
+    {
+      "name": "required:validation/validate-bundle.mjs",
+      "passed": true,
+      "detail": "validation/validate-bundle.mjs"
+    },
+    {
+      "name": "required:validation/component-provenance.json",
+      "passed": true,
+      "detail": "validation/component-provenance.json"
+    },
+    {
+      "name": "required:validation/school-english-provided-passage-custom-gpt-validation.json",
+      "passed": true,
+      "detail": "validation/school-english-provided-passage-custom-gpt-validation.json"
+    },
+    {
+      "name": "required:validation/school-english-provided-passage-custom-gpt-validation.md",
+      "passed": true,
+      "detail": "validation/school-english-provided-passage-custom-gpt-validation.md"
+    },
+    {
+      "name": "manifest_parse",
+      "passed": true,
+      "detail": "parsed"
+    },
+    {
+      "name": "manifest_schema",
+      "passed": true,
+      "detail": "passed"
+    },
+    {
+      "name": "manifest_fingerprint",
+      "passed": true,
+      "detail": "4e0fb3fb710484f7bd09afc2255ddcb93165d371e6f9537e3afa04b43c734df7"
+    },
+    {
+      "name": "component_hash:readme",
+      "passed": true,
+      "detail": "README.md"
+    },
+    {
+      "name": "component_hash:custom_gpt_setup",
+      "passed": true,
+      "detail": "custom-gpt-setup.md"
+    },
+    {
+      "name": "component_hash:custom_gpt_instructions",
+      "passed": true,
+      "detail": "instructions/SCHOOL_ENGLISH_PROVIDED_PASSAGE_CUSTOM_GPT_INSTRUCTIONS.md"
+    },
+    {
+      "name": "component_hash:provided_passage_contract",
+      "passed": true,
+      "detail": "knowledge/PROVIDED_PASSAGE_CONTRACT_V0.1.md"
+    },
+    {
+      "name": "component_hash:request_schema",
+      "passed": true,
+      "detail": "knowledge/provided-passage-request-schema-v0.1.json"
+    },
+    {
+      "name": "component_hash:response_schema",
+      "passed": true,
+      "detail": "knowledge/provided-passage-response-schema-v0.1.json"
+    },
+    {
+      "name": "component_hash:preview_fixtures",
+      "passed": true,
+      "detail": "fixtures/preview-fixtures.json"
+    },
+    {
+      "name": "component_hash:manual_preview",
+      "passed": true,
+      "detail": "fixtures/manual-preview-inputs.md"
+    },
+    {
+      "name": "component_hash:manifest_schema",
+      "passed": true,
+      "detail": "tests/bundle-manifest-schema.json"
+    },
+    {
+      "name": "component_hash:regression_tests",
+      "passed": true,
+      "detail": "tests/school-english-provided-passage-custom-gpt-bundle.node-test.mjs"
+    },
+    {
+      "name": "component_hash:automatic_validator",
+      "passed": true,
+      "detail": "validation/validate-bundle.mjs"
+    },
+    {
+      "name": "preview_fixture_count",
+      "passed": true,
+      "detail": "12/12"
+    },
+    {
+      "name": "fixture:content-mismatch-ko-source",
+      "passed": true,
+      "detail": "true/accepted"
+    },
+    {
+      "name": "fixture:content-match-en-grade1",
+      "passed": true,
+      "detail": "true/accepted"
+    },
+    {
+      "name": "fixture:insertion-grade2",
+      "passed": true,
+      "detail": "true/accepted"
+    },
+    {
+      "name": "fixture:insertion-grade3",
+      "passed": true,
+      "detail": "true/accepted"
+    },
+    {
+      "name": "fixture:fingerprint-mismatch",
+      "passed": true,
+      "detail": "false/request_fingerprint_mismatch"
+    },
+    {
+      "name": "fixture:unknown-sentence",
+      "passed": true,
+      "detail": "false/unknown_sentence_id"
+    },
+    {
+      "name": "fixture:unknown-boundary",
+      "passed": true,
+      "detail": "false/unknown_boundary_id"
+    },
+    {
+      "name": "fixture:response-contains-passage",
+      "passed": true,
+      "detail": "false/response_passage_forbidden"
+    },
+    {
+      "name": "fixture:mixed-choice-language",
+      "passed": true,
+      "detail": "false/choice_language_mismatch"
+    },
+    {
+      "name": "fixture:insertion-choice-language",
+      "passed": true,
+      "detail": "false/request_response_mismatch"
+    },
+    {
+      "name": "fixture:multiple-answer-risk",
+      "passed": true,
+      "detail": "false/duplicate_choice"
+    },
+    {
+      "name": "fixture:insertion-missing-adjacency",
+      "passed": true,
+      "detail": "false/answer_boundary_evidence_mismatch"
+    },
+    {
+      "name": "protected_logical_sha:Generator Core Instructions",
+      "passed": true,
+      "detail": "00bdb21060f632969a3fd9bfcfbf0965b0af23688663bf51a3b08c20bbc163eb"
+    },
+    {
+      "name": "protected_logical_sha:Generation Contract V0",
+      "passed": true,
+      "detail": "3a812106b9a5183debbc795f66f856dccb44f9dc8f84516d171fae1cf41de03c"
+    },
+    {
+      "name": "protected_logical_sha:CSAT Output Schema",
+      "passed": true,
+      "detail": "2cf9022d6c8498386e21ca7a3737d1b35c69ab459a8954f6b079c918ace5b61c"
+    },
+    {
+      "name": "protected_logical_sha:CSAT Style Manual",
+      "passed": true,
+      "detail": "743c0a7e83732f98a52214916d17ee5fef4f2cc12d2048e64ccabdf61546053d"
+    },
+    {
+      "name": "protected_logical_sha:Runtime Profile JSON",
+      "passed": true,
+      "detail": "5af3526617675ee77ea5fb6693037aa62e28ca892dc912d016604652b1343720"
+    },
+    {
+      "name": "legacy_bundle_fingerprint",
+      "passed": true,
+      "detail": "e741041c9b122e6e89d472e35bade83740167e2c8e1569076010e505f3ee2ecf"
+    },
+    {
+      "name": "instructions_scope",
+      "passed": true,
+      "detail": "6461 bytes"
+    },
+    {
+      "name": "instructions_approval_gate",
+      "passed": true,
+      "detail": "design first"
+    },
+    {
+      "name": "instructions_no_runtime_authority",
+      "passed": true,
+      "detail": "separated"
+    }
+  ]
+}

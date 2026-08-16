@@ -1,4 +1,5 @@
 import { collapseCsatProseParagraphs, csatLongExpositoryText, csatLongNarrativeSections, csatPrintFlow, embedCsatChartChoices, getCsatItems, splitCsatSummaryMaterial } from './csat'
+import { providedPassagePresentationSpec } from './providedPassage'
 import type { CsatItemDesign, CsatMaterialSpec, EnglishExamDocument, EnglishQuestion, EnglishQuestionSet, ExamContentEntry, ExamLayoutSettings, MediaAsset, SetLayoutOverride } from './types'
 
 export type ExamFlowKind = 'set-header' | 'structured-material' | 'summary-material' | 'long-expository-material' | 'long-narrative-section' | 'material' | 'asset' | 'question' | 'question-lead' | 'question-choices'
@@ -187,7 +188,7 @@ export function buildExamFlowBlocks(exam: EnglishExamDocument, sets: EnglishQues
   resolveExamEntries(exam, sets).forEach(({ entry, set, csatItem }) => {
     const override = { ...(set.layoutOverride ?? {}), ...(exam.setOverrides[set.id] ?? {}), ...(exam.entryOverrides?.[entry.id] ?? {}) }
     const layout = effectiveSetLayout(exam.layout, override)
-    const materialSpec = csatItem?.materialSpec ?? set.materialSpec
+    const materialSpec = csatItem?.materialSpec ?? providedPassagePresentationSpec(set)
     const material = csatItem?.material ?? set.material
     const questions = csatItem?.questions ?? set.questions
     const blockSetId = entry.id

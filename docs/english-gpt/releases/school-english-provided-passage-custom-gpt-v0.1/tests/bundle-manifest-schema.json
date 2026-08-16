@@ -1,0 +1,77 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "bundleId",
+    "bundleVersion",
+    "bundleStatus",
+    "targetEnvironment",
+    "components",
+    "protectedBaselines",
+    "manifestFingerprint"
+  ],
+  "properties": {
+    "bundleId": {
+      "const": "school-english-provided-passage-generator-v0.1"
+    },
+    "bundleVersion": {
+      "const": "0.1.0-rc.1"
+    },
+    "bundleStatus": {
+      "const": "release_candidate"
+    },
+    "targetEnvironment": {
+      "const": "custom_gpt_manual_copy_paste"
+    },
+    "components": {
+      "type": "array",
+      "minItems": 10,
+      "items": {
+        "type": "object",
+        "required": [
+          "role",
+          "path",
+          "canonicalSource",
+          "logicalSha256",
+          "physicalSha256",
+          "byteSize"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "role": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          },
+          "canonicalSource": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "logicalSha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "physicalSha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "byteSize": {
+            "type": "integer"
+          }
+        }
+      }
+    },
+    "protectedBaselines": {
+      "type": "array",
+      "minItems": 6
+    },
+    "manifestFingerprint": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    }
+  }
+}
