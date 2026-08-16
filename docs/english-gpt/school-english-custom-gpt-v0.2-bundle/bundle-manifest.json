@@ -1,0 +1,57 @@
+{
+  "bundleId": "school-english-custom-gpt-v0.2",
+  "bundleVersion": "0.2.1",
+  "generatedFromCanonicalFiles": true,
+  "components": [
+    {
+      "role": "instructions",
+      "canonicalSource": "docs/english-gpt/SCHOOL_ENGLISH_PROVIDED_PASSAGE_CUSTOM_GPT_INSTRUCTIONS_V0.2.md",
+      "bundledPath": "01-INSTRUCTIONS.md",
+      "canonicalSha256": "75976b4077e42d386c0015c3172da5ef8a6071b626c906ac6f56a9ed67a22f70",
+      "bundledSha256": "75976b4077e42d386c0015c3172da5ef8a6071b626c906ac6f56a9ed67a22f70",
+      "byteSize": 11487
+    },
+    {
+      "role": "contract",
+      "canonicalSource": "docs/english-gpt/PROVIDED_PASSAGE_CONTRACT_V0.2.md",
+      "bundledPath": "02-KNOWLEDGE-CONTRACT.md",
+      "canonicalSha256": "d9749952d24b2007d7a31e66129f06bb0dbf59f3a15333308dda7d9f21d269a6",
+      "bundledSha256": "d9749952d24b2007d7a31e66129f06bb0dbf59f3a15333308dda7d9f21d269a6",
+      "byteSize": 6017
+    },
+    {
+      "role": "request_schema",
+      "canonicalSource": "docs/english-gpt/provided-passage-request-schema-v0.2.json",
+      "bundledPath": "03-KNOWLEDGE-REQUEST-SCHEMA.json",
+      "canonicalSha256": "94bce60ad8864c75f3feff46a4657f22cfefa0d4c80a704e74671af4d45fdbed",
+      "bundledSha256": "94bce60ad8864c75f3feff46a4657f22cfefa0d4c80a704e74671af4d45fdbed",
+      "byteSize": 4367
+    },
+    {
+      "role": "response_schema",
+      "canonicalSource": "docs/english-gpt/provided-passage-response-schema-v0.2.json",
+      "bundledPath": "04-KNOWLEDGE-RESPONSE-SCHEMA.json",
+      "canonicalSha256": "0e37235746f6a4ec183b24c3d0430e3243f5ce5a7288df7b26d6e61ea505f427",
+      "bundledSha256": "0e37235746f6a4ec183b24c3d0430e3243f5ce5a7288df7b26d6e61ea505f427",
+      "byteSize": 7243
+    },
+    {
+      "role": "setup_guide",
+      "canonicalSource": "docs/english-gpt/SCHOOL_ENGLISH_CUSTOM_GPT_V0.2_SETUP.md",
+      "bundledPath": "05-SETUP-GUIDE.md",
+      "canonicalSha256": "1f0282380360bf56edc5ad682e28bd9a82b768721903ebd69032395dbeb2ade3",
+      "bundledSha256": "1f0282380360bf56edc5ad682e28bd9a82b768721903ebd69032395dbeb2ade3",
+      "byteSize": 2374
+    },
+    {
+      "role": "explanation_schema",
+      "canonicalSource": "docs/english-gpt/explanation-output-schema-v1.json",
+      "bundledPath": "06-KNOWLEDGE-EXPLANATION-SCHEMA.json",
+      "canonicalSha256": "d16548a9453337214cf2c88d4181067da78edef1225b77d5eb9acb9fe0cf2893",
+      "bundledSha256": "d16548a9453337214cf2c88d4181067da78edef1225b77d5eb9acb9fe0cf2893",
+      "byteSize": 1254
+    }
+  ],
+  "requestSchemaId": "english-question-lab-provided-passage-request-v0.2",
+  "manifestFingerprint": "a6240141043eff28e61c69d360290466292b3e2af24aa80bb08edbf9829e944f"
+}

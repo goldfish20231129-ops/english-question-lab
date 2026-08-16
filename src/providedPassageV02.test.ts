@@ -1,4 +1,9 @@
+import Ajv2020 from 'ajv/dist/2020'
 import { describe, expect, it } from 'vitest'
+import bundledRequestSchema from '../docs/english-gpt/school-english-custom-gpt-v0.2-bundle/03-KNOWLEDGE-REQUEST-SCHEMA.json'
+import bundledInstructions from '../docs/english-gpt/school-english-custom-gpt-v0.2-bundle/01-INSTRUCTIONS.md?raw'
+import canonicalRequestSchema from '../docs/english-gpt/provided-passage-request-schema-v0.2.json'
+import canonicalInstructions from '../docs/english-gpt/SCHOOL_ENGLISH_PROVIDED_PASSAGE_CUSTOM_GPT_INSTRUCTIONS_V0.2.md?raw'
 import { createEnglishSet, generateEnglishPrompt, validateEnglishSet } from './english'
 import { transitionSchoolProvidedPassageMode } from './providedPassage'
 import {
@@ -84,6 +89,43 @@ function mixedResponse() {
 }
 
 describe('Provided Passage V0.2', () => {
+  it('treats requiredStem as a required declared property, not an additional property', () => {
+    const validate = new Ajv2020({ allErrors: true, strict: true }).compile(canonicalRequestSchema)
+    const valid = structuredClone(buildProvidedPassageV02Request(configured()))
+    expect(validate(valid)).toBe(true)
+    expect(validate.errors).toBeNull()
+
+    const missing = structuredClone(valid) as unknown as { items: Array<Record<string, unknown> & { requiredStem?: string }> }
+    delete missing.items[0].requiredStem
+    expect(validate(missing)).toBe(false)
+    expect(validate.errors).toEqual(expect.arrayContaining([expect.objectContaining({ keyword: 'required', params: expect.objectContaining({ missingProperty: 'requiredStem' }) })]))
+
+    const empty = structuredClone(valid)
+    empty.items[0].requiredStem = ''
+    expect(validate(empty)).toBe(false)
+    expect(validate.errors).toEqual(expect.arrayContaining([expect.objectContaining({ keyword: 'minLength', instancePath: '/items/0/requiredStem' })]))
+
+    const unknown = structuredClone(valid) as unknown as { items: Array<Record<string, unknown> & { undefinedField?: string }> }
+    unknown.items[0].undefinedField = 'not allowed'
+    expect(validate(unknown)).toBe(false)
+    expect(validate.errors).toEqual(expect.arrayContaining([expect.objectContaining({ keyword: 'additionalProperties', params: expect.objectContaining({ additionalProperty: 'undefinedField' }) })]))
+
+    expect(canonicalRequestSchema.$defs.item.required).toContain('requiredStem')
+    expect(canonicalRequestSchema.$defs.item.properties.requiredStem).toMatchObject({ type: 'string', minLength: 1 })
+  })
+
+  it('keeps the canonical and upload-bundle V0.2 Request Schemas conflict-free', () => {
+    expect(bundledRequestSchema).toEqual(canonicalRequestSchema)
+    expect(bundledRequestSchema.properties.schemaId.const).toBe('english-question-lab-provided-passage-request-v0.2')
+    expect(canonicalInstructions).toBe(bundledInstructions)
+    for (const instructions of [canonicalInstructions, bundledInstructions]) {
+      expect(instructions).toContain('item.required')
+      expect(instructions).toContain('item.properties.requiredStem')
+      expect(instructions).toContain('additional-properties 오류를 적용하지 않는다')
+      expect(instructions).not.toMatch(/requiredStem은 (?:미정의|추가 속성)/)
+    }
+  })
+
   it('builds a strict multi-item request with a grammar target', () => {
     const first = createProvidedPassageV02Plan('content-1', 'content_match')
     const second = { ...createProvidedPassageV02Plan('grammar-1', 'grammar'), grammarTarget: 'relative_clause' as const }
@@ -182,17 +224,27 @@ describe('Provided Passage V0.2', () => {
     expect(next.providedPassageV02?.results?.map((result) => result.itemId)).toEqual(['content-1', 'grammar-1', 'insert-1'])
   })
 
-  it('includes all eight grammar distinctions and the approval gate in the prompt', () => {
+  it('includes all eight grammar distinctions and the immediate validation flow in the prompt', () => {
     const set = configured([createProvidedPassageV02Plan('grammar-1', 'grammar')])
     const prompt = generateProvidedPassageV02Prompt(set)
     expect(prompt).toContain('관계대명사')
     expect(prompt).toContain('동격 that')
     expect(prompt).toContain('가주어')
     expect(prompt).toContain('강조 it-that')
-    expect(prompt).toContain('[내신 영어 기존 지문 다문항 설계안]')
     expect(prompt).toContain('동일한 source.passage 한 지문을 공유')
     expect(prompt).toContain('items[].requiredStem은 additional property가 아니라')
-    expect(prompt).toContain('item.required와 item.properties에 모두 정의된 정식 필수 필드')
+    expect(prompt).toContain('item.required와 item.properties에 모두 정의된')
+    expect(prompt).toContain('비어 있지 않은 정식 필수 문자열')
+    expect(prompt).toContain('[Request 검증 순서]')
+    expect(prompt).toContain('설계안이나 승인 질문 없이 즉시')
+    expect(prompt).not.toContain('[내신 영어 기존 지문 다문항 설계안]')
+  })
+
+  it('requires the response stem to match requiredStem without trimming', () => {
+    const set = configured([createProvidedPassageV02Plan('content-1', 'content_match'), createProvidedPassageV02Plan('grammar-1', 'grammar')])
+    const invalid = response(set)
+    invalid.items[0].question.stem = `${invalid.items[0].question.stem} `
+    expect(() => adaptProvidedPassageV02Response(invalid, set)).toThrow(/요청 발문/)
   })
 
   it('starts with the V0.2 marker and carries source identity without a legacy material output contract', () => {

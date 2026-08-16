@@ -33,9 +33,9 @@
       "type": "object", "additionalProperties": false,
       "required": ["firstResponse", "approvalSentence", "afterApproval"],
       "properties": {
-        "firstResponse": { "const": "design_only" },
-        "approvalSentence": { "const": "이 설계로 JSON을 생성할까요? 수정할 카드가 있으면 카드 번호와 변경 사항을 알려주세요." },
-        "afterApproval": { "const": "single_json_object" }
+        "firstResponse": { "const": "single_json_object" },
+        "approvalSentence": { "const": "" },
+        "afterApproval": { "const": "not_applicable" }
       }
     },
     "outputContract": { "const": "english-question-lab-provided-passage-generation-v0.2" }

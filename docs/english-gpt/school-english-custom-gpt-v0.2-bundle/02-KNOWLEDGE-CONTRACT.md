@@ -14,6 +14,7 @@ Provided Passage V0.2는 `school_english_provided_passage`와 `English`만 지�
 
 - `[PROVIDED_PASSAGE_GENERATION_V0.2]`: 이 문서와 Request/Response Schema V0.2를 모두 적용한다.
 - `[SCHOOL_ENGLISH_GENERATION_V0.2]`: 앱의 새 자료 작성 경로다. 프롬프트 안의 일반 내신형 JSON 형식을 적용하며 Provided Passage의 ID·fingerprint·offset과 Request/Response Schema를 요구하지 않는다.
+- `[EXPLANATION_GENERATION_V1]`: 확정된 문제를 변경하지 않고 `explanation-output-schema-v1.json` 형식의 해설 patch만 반환한다.
 
 새 자료 작성 경로는 요청된 복수 문항을 한 JSON의 `questions`에 순서대로 반환한다. 문장 삽입은 다른 유형과 함께 만들 수 있지만 한 세트에 한 문항만 허용한다. `material`에 있는 삽입 문장과 위치 표식은 앱의 문항별 표시 계층에서 삽입 문항에만 보인다. 첫 응답부터 JSON 객체 하나를 반환하며 Provided Passage 승인 절차를 적용하지 않는다.
 
@@ -23,7 +24,7 @@ Provided Passage V0.2는 `school_english_provided_passage`와 `English`만 지�
 
 ## 문항별 계획
 
-각 item은 독립된 `itemId`, `questionType`, `choiceLanguage`, `vocabularyLevel`, `contentMatchPolarity`, `grammarTarget`, `grammarMode`, `requiredStem`을 가진다. Response의 items는 요청한 item과 정확히 일대일로 대응해야 하며 `question.stem`은 `requiredStem`과 정확히 같아야 한다.
+각 item은 독립된 `itemId`, `questionType`, `choiceLanguage`, `vocabularyLevel`, `contentMatchPolarity`, `grammarTarget`, `grammarMode`, `requiredStem`을 가진다. `requiredStem`은 Request Schema V0.2의 `$defs.item.required`와 `$defs.item.properties.requiredStem`에 모두 정의된 비어 있지 않은 필수 문자열이다. `additionalProperties: false`는 정의되지 않은 다른 필드를 거부할 뿐 `requiredStem`을 거부하지 않는다. Response의 items는 요청한 item과 정확히 일대일로 대응해야 하며 `question.stem`은 공백과 문장부호를 포함해 `requiredStem`과 정확히 같아야 한다. Generator는 `requiredStem`을 삭제하거나 `questionType`만으로 발문을 재구성하지 않는다.
 
 ## 어법 태그
 
@@ -43,11 +44,13 @@ Provided Passage V0.2는 `school_english_provided_passage`와 `English`만 지�
 - `source_form_check`: 원문 형태를 그대로 판단한다. `sourceForm === presentedForm`이어야 한다.
 - `controlled_error_variant`: 원문은 보존하고 별도 문제 표현만 최소 변형한다. `sourceForm !== presentedForm`이어야 한다.
 
-## 승인과 출력
+## Request 검증과 출력
 
-첫 응답은 `[내신 영어 기존 지문 다문항 설계안]`만 출력한다. 카드별 근거 sentence ID, 어법 태그, 판정 규칙과 오답 원리를 보여 주고 승인을 받는다. 승인 후에는 `provided-passage-response-schema-v0.2.json`을 만족하는 JSON 객체 하나만 반환한다.
+Generator는 `schemaId`·`mode`, 필수 최상위 필드, `items` 배열, 각 item의 필수 필드, 실제 미정의 additional property 순으로 검증한다. `requiredStem`은 정식 property이므로 additional-properties 오류 후보에서 제외한다.
 
-Request Schema, 원문 identity, sentence·boundary offset, item 계약 또는 지원 조합이 유효하지 않으면 오류 목록만 반환한다. 이때 설계안, 임시 JSON, 승인 문장, 지원 유형으로의 임의 변경을 함께 출력하지 않는다.
+Request가 유효하면 설계안이나 승인 질문 없이 즉시 `provided-passage-response-schema-v0.2.json`을 만족하는 문제·정답 JSON 객체 하나만 반환한다. Request Schema, 원문 identity, sentence·boundary offset, item 계약 또는 지원 조합이 유효하지 않으면 오류 목록만 반환한다. 이때 임시 JSON, 승인 문장, 지원 유형으로의 임의 변경을 함께 출력하지 않는다.
+
+1차 Response는 `evidenceSpans`와 `materialOperation`을 유지하되 `explanation`, `intention`, `distractorReasons`, `qualityReview`를 생략할 수 있다. `[EXPLANATION_GENERATION_V1]`의 2차 Response는 기존 ID, stem, choices와 `answerIndex`를 바꾸지 않고 해설 필드만 보충한다.
 
 앱은 `materialMode: provided`인데 V0.1/V0.2 state가 없는 구형 세트를 범용 생성 경로로 보내지 않는다. 원문과 기존 문항을 보존한 blocked 상태로 표시하고, 지원 조합을 확인한 사용자가 V0.2 연결 준비를 명시적으로 실행해야 한다.
 
