@@ -3,6 +3,7 @@ import type {
   CsatPassageLengthPreset, CsatQuestionFamilyId, CsatTemplateDefinition, CsatVariantId, EnglishQuestion,
   EnglishQuestionSet, CsatMaterialSpec,
 } from './types'
+import { englishDifficultyLabel, englishDifficultyPrompt, legacyCsatDifficultyToEight } from './difficulty'
 
 export const CSAT_FAMILIES: Array<{ id: CsatQuestionFamilyId; label: string; description: string }> = [
   { id: 'purpose', label: '목적', description: '18번 편지·이메일의 의사소통 목적' },
@@ -427,6 +428,12 @@ export const CSAT_TEMPLATES: CsatTemplateDefinition[] = [
   },
 ]
 
+// 기존 5단계 기출 난도 카탈로그를 사용자용 8단계 체계로 변환한다.
+CSAT_TEMPLATES.forEach((template) => {
+  template.difficultyRange = [legacyCsatDifficultyToEight(template.difficultyRange[0]), legacyCsatDifficultyToEight(template.difficultyRange[1])]
+  template.defaultDifficulty = legacyCsatDifficultyToEight(template.defaultDifficulty)
+})
+
 const TEMPLATE_MAP = new Map(CSAT_TEMPLATES.map((template) => [template.id, template]))
 
 export const getCsatTemplate = (id: CsatNumberTemplateId) => TEMPLATE_MAP.get(id) ?? CSAT_TEMPLATES[0]
@@ -532,9 +539,13 @@ export function getCsatItems(set: EnglishQuestionSet): CsatItemDesign[] {
 }
 
 export function normalizeCsatSet(set: EnglishQuestionSet): EnglishQuestionSet {
-  if (set.mode !== 'csat') return set
+  if (set.mode === 'custom') return set
+  const usesLegacyDifficulty = set.difficultyScaleVersion !== 2
+  const difficulty = usesLegacyDifficulty ? legacyCsatDifficultyToEight(set.difficulty) : set.difficulty
+  if (set.mode !== 'csat') return { ...set, difficulty, difficultyScaleVersion: 2 }
   const items = getCsatItems(set).map((item) => ({
     ...item,
+    difficulty: usesLegacyDifficulty && item.difficulty !== undefined ? legacyCsatDifficultyToEight(item.difficulty) : item.difficulty,
     passageLength: normalizeCsatPassageLength(item.passageLength),
     familyId: item.design?.familyId ?? item.familyId,
     questions: item.questions.map((question) => {
@@ -547,7 +558,7 @@ export function normalizeCsatSet(set: EnglishQuestionSet): EnglishQuestionSet {
       }
     }),
   }))
-  return { ...set, csatItems: items.length ? items : [createCsatItem()], choiceCount: 5 }
+  return { ...set, difficulty, difficultyScaleVersion: 2, csatItems: items.length ? items : [createCsatItem()], choiceCount: 5 }
 }
 
 export function applyCsatItemTemplate(item: CsatItemDesign, templateId: CsatNumberTemplateId, variantId: CsatVariantId = 'standard'): CsatItemDesign {
@@ -663,7 +674,7 @@ function buildCsatItemPromptSection(set: EnglishQuestionSet, item: CsatItemDesig
 - templateId: ${design.templateId}
 - variantId: ${design.variantId}
 - 대상 수준: ${resolved.targetLevel}
-- 난이도: ${resolved.difficulty}/5
+- 난이도: ${englishDifficultyPrompt('csat', resolved.difficulty)}
 - 지문 길이: ${CSAT_PASSAGE_LENGTH_LABELS[passageLength]} ${passageRange.min}~${passageRange.max}단어 (실제 평가원 조사 최소 ${passageStats.min} / 평균 ${passageStats.average} / 최대 ${passageStats.max})
 - 출제 의도: ${resolved.intention || '유형에 맞게 설정'}
 - 자료 작성 방식: ${materialInstruction}
@@ -672,7 +683,7 @@ function buildCsatItemPromptSection(set: EnglishQuestionSet, item: CsatItemDesig
 - 템플릿: ${template.numberLabel} ${template.label}
 - 대분류: ${CSAT_FAMILIES.find((item) => item.id === template.familyId)?.label}
 - 변형: ${variant?.label ?? '최근 평가원 기본형'}
-- 권장 난도: ${template.difficultyRange[0]}~${template.difficultyRange[1]} / 현재 설정 ${resolved.difficulty}
+- 권장 난도: ${englishDifficultyLabel(template.difficultyRange[0])}~${englishDifficultyLabel(template.difficultyRange[1])} / 현재 설정 ${englishDifficultyLabel(resolved.difficulty)}
 - 지문 장르: ${template.passageGenre}
 - 지문 설계: ${design.passagePlan}
 - 선지 형식: ${choiceStyleLabel(template.choiceStyle)}
@@ -729,7 +740,7 @@ export function generateCsatGptInstructions() {
       const range = getCsatPassageLengthRange(template.id, preset)
       return `${CSAT_PASSAGE_LENGTH_LABELS[preset]} ${range.min}~${range.max}`
     }).join(', ')
-    return `- ${template.numberLabel} ${template.label}: 난도 ${template.difficultyRange[0]}~${template.difficultyRange[1]}, 조사 단어 수 ${stats.min}/${stats.average}/${stats.max} (${ranges}), ${template.passageBlueprint}; ${questionPlan}; 품질: ${csatQualityRulesForTemplate(template.id).join(' / ')}`
+    return `- ${template.numberLabel} ${template.label}: 난도 ${englishDifficultyLabel(template.difficultyRange[0])}~${englishDifficultyLabel(template.difficultyRange[1])}, 조사 단어 수 ${stats.min}/${stats.average}/${stats.max} (${ranges}), ${template.passageBlueprint}; ${questionPlan}; 품질: ${csatQualityRulesForTemplate(template.id).join(' / ')}`
   }).join('\n')
   return `# 수능형 영어 문제 제작 GPT Instructions
 

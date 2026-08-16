@@ -4,6 +4,7 @@ import { CsatMaterialView } from './CsatMaterialView'
 import { buildExamFlowBlocks, examFlowMeasurementKey, geometryKey, getOversizedQuestionIssues, paginateExamBlocks, resolveExamEntries, type ExamFlowBlock, type ExamLayoutMetrics } from './examLayout'
 import { providedPassagePresentationSpec } from './providedPassage'
 import type { CsatItemDesign, EnglishExamDocument, EnglishQuestion, EnglishQuestionSet, ExamLayoutSettings, MediaAsset } from './types'
+import { englishDifficultyLabel } from './difficulty'
 
 const MARKUP = /\[\[(밑줄|빈칸|요약빈칸|삽입문장|삽입위치|선택)(?::([^\]]+))?\]\]/g
 const CIRCLED = ['①', '②', '③', '④', '⑤']
@@ -222,5 +223,5 @@ function CsatItemPreview({ set, item, index, startNumber, assets }: { set: Engli
       : summaryMaterial
     ? <CsatSummaryMaterial passage={summaryMaterial.passage} summary={summaryMaterial.summary} item={item} />
     : <>{item.materialSpec?.kind === 'summary' && plainMaterial}{structuredMaterial}{(!structuredReplacesText && item.materialSpec?.kind !== 'summary') && plainMaterial}</>}{assets.map((asset) => <figure key={asset.id}><img src={asset.dataUrl} alt={asset.caption || asset.name} /><figcaption>{asset.caption}</figcaption></figure>)}</>
-  return <section className="csat-item-preview"><section className="csat-preview-meta"><strong>{index + 1}. {template ? `${template.numberLabel} · ${template.label}` : '번호 템플릿 미선택'}</strong>{template && <><span>{template.passageGenre}</span><small>난이도 {resolved.difficulty}/5 · {template.passageBlueprint}</small></>}</section>{flow === 'material-questions' ? <>{material}{item.questions.map((question, questionIndex) => <article key={question.id}><QuestionContent question={question} number={startNumber + questionIndex + 1} /></article>)}</> : <>{item.questions[0] && <article><QuestionContent question={item.questions[0]} number={startNumber + 1} part="lead" /></article>}{material}{flow === 'lead-material-choices' && item.questions[0] && <article><QuestionContent question={item.questions[0]} number={startNumber + 1} part="choices" /></article>}</>}</section>
+  return <section className="csat-item-preview"><section className="csat-preview-meta"><strong>{index + 1}. {template ? `${template.numberLabel} · ${template.label}` : '번호 템플릿 미선택'}</strong>{template && <><span>{template.passageGenre}</span><small>난이도 {englishDifficultyLabel(resolved.difficulty)} · {template.passageBlueprint}</small></>}</section>{flow === 'material-questions' ? <>{material}{item.questions.map((question, questionIndex) => <article key={question.id}><QuestionContent question={question} number={startNumber + questionIndex + 1} /></article>)}</> : <>{item.questions[0] && <article><QuestionContent question={item.questions[0]} number={startNumber + 1} part="lead" /></article>}{material}{flow === 'lead-material-choices' && item.questions[0] && <article><QuestionContent question={item.questions[0]} number={startNumber + 1} part="choices" /></article>}</>}</section>
 }

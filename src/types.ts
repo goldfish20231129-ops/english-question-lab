@@ -286,6 +286,7 @@ export interface EnglishQuestionSet {
   material: string
   topic: string
   difficulty: number
+  difficultyScaleVersion?: 2
   intention: string
   choiceCount: number
   customPreset?: string

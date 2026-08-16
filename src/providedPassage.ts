@@ -8,6 +8,7 @@ import type {
   ProvidedPassageGenerationResult, ProvidedPassageQuestionType, ProvidedPassageSentence,
   ProvidedPassageState, ProvidedPassageVocabularyLevel,
 } from './types'
+import { englishDifficultyPrompt } from './difficulty'
 
 export const PROVIDED_PASSAGE_REQUEST_SCHEMA_ID = 'english-question-lab-provided-passage-request-v0.1' as const
 export const PROVIDED_PASSAGE_RESPONSE_SCHEMA_ID = 'english-question-lab-provided-passage-generation-v0.1' as const
@@ -290,8 +291,8 @@ export function generateProvidedPassagePrompt(set: EnglishQuestionSet) {
   const request = buildProvidedPassageRequest(set)
   const state = configuredSchoolProvidedSet(set).state
   const typeRules = state.questionType === 'content_match'
-    ? `- 선택지 5개와 단일 정답을 만든다. 모든 선지는 ${PROVIDED_PASSAGE_CHOICE_LANGUAGE_LABELS[state.choiceLanguage]} 완전 문장으로 통일한다.\n- 발문 극성은 ${state.contentMatchPolarity}이며 부분 일치, 범위·인과·관계 역전, 주체 교체 등 서로 다른 오답 원리를 사용한다.\n- 외부 상식이 아니라 evidenceSpans의 원문 근거만으로 판정한다. materialOperation은 null이다.`
-    : '- 새로운 삽입 문장 하나만 생성한다. candidateBoundaryIds는 원문 순서대로 정확히 5개이며 answerBoundaryId는 그중 하나다.\n- 앞뒤 근거, 다섯 위치별 이유를 반환한다. 원문에 없는 핵심 사실을 추가하지 않으며 choices는 ["①","②","③","④","⑤"]다.'
+    ? `[난이도 목표]\n${englishDifficultyPrompt('school', set.difficulty)}\n원문 자체는 바꾸지 말고 발문·선지·오답의 정교함과 근거 연결 방식으로 위 난이도를 구현한다.\n\n- 선택지 5개와 단일 정답을 만든다. 모든 선지는 ${PROVIDED_PASSAGE_CHOICE_LANGUAGE_LABELS[state.choiceLanguage]} 완전 문장으로 통일한다.\n- 발문 극성은 ${state.contentMatchPolarity}이며 부분 일치, 범위·인과·관계 역전, 주체 교체 등 서로 다른 오답 원리를 사용한다.\n- 외부 상식이 아니라 evidenceSpans의 원문 근거만으로 판정한다. materialOperation은 null이다.`
+    : `[난이도 목표]\n${englishDifficultyPrompt('school', set.difficulty)}\n원문 자체는 바꾸지 말고 삽입문장과 위치별 오답의 정교함, 앞뒤 근거 연결 방식으로 위 난이도를 구현한다.\n\n- 새로운 삽입 문장 하나만 생성한다. candidateBoundaryIds는 원문 순서대로 정확히 5개이며 answerBoundaryId는 그중 하나다.\n- 앞뒤 근거, 다섯 위치별 이유를 반환한다. 원문에 없는 핵심 사실을 추가하지 않으며 choices는 ["①","②","③","④","⑤"]다.`
   return `[PROVIDED_PASSAGE_GENERATION_V0.1]\n당신은 사용자가 제공한 영어 원문을 수정하지 않고 내신형 문항만 설계·생성하는 영어 읽기 출제자다.\n\n[절대 원칙]\n- 아래 Request의 source.passage가 유일한 권위 원문이다. 수정·요약·번역하거나 응답 JSON에 다시 출력하지 않는다.\n- sourcePassageId, sourceFingerprint, itemId, templateId, variantId를 그대로 반환한다.\n- 선택한 어휘 정책은 영어 선지·삽입 문장 등 새로 생성하는 영어에만 적용하며 원문, 고유명사, 직접 인용 근거에는 적용하지 않는다.\n- ${vocabularyRules[state.vocabularyLevel]}\n- EBS 등재율이나 외부 지식을 난이도·정답 근거로 사용하지 않는다.\n- 선언 정답을 보지 않고 다섯 선택지를 독립적으로 판정해 정답이 정확히 하나인지 확인한다.\n${typeRules}\n\n[승인 절차]\n첫 응답은 한국어 [내신 영어 기존 지문 문항 설계안]만 출력한다. sourcePassageId, fingerprint 축약, 문항 유형, 선지 언어, 어휘 수준, 발문 극성, 추론 방식, 새 표현의 역할, 오답 방식, 원문 보존 방식을 적되 실제 선지나 완성 삽입 문장은 공개하지 않는다. 마지막 문장은 Request의 approvalSentence와 정확히 같아야 한다. 명시적 승인 뒤에는 ${PROVIDED_PASSAGE_RESPONSE_SCHEMA_ID}에 맞는 JSON 객체 하나만 출력한다.\n\n[Request JSON — source passage는 이곳에 한 번만 포함]\n${JSON.stringify(request, null, 2)}`
 }
 

@@ -2,6 +2,7 @@ import { CSAT_FAMILIES, CSAT_GPT_APPROVAL_PROTOCOL, CSAT_INLINE_POSITION_CHOICES
 import { assertCsatGenerationSchema } from './generationContract'
 import { generateProvidedPassagePrompt, isProvidedPassageSet, parseProvidedPassageJson, providedPassageValidationMessages } from './providedPassage'
 import type { CsatMaterialSpec, CsatQualityReview, EnglishMode, EnglishQuestion, EnglishQuestionSet, ExamLayoutSettings, LayoutPreset, SourceKind, ValidationIssue } from './types'
+import { englishDifficultyLabel, englishDifficultyPrompt } from './difficulty'
 
 export const MODE_LABELS: Record<EnglishMode, string> = {
   school: '내신형',
@@ -108,7 +109,8 @@ export function createEnglishSet(mode: EnglishMode = 'csat'): EnglishQuestionSet
   const sourceKind: SourceKind = mode === 'school' ? 'textbook' : mode === 'csat' ? 'generated' : 'custom'
   return {
     id: crypto.randomUUID(), title: `새 ${MODE_LABELS[mode]} 영어 세트`, mode, targetLevel: mode === 'csat' ? '고3·수능 대비' : '고등학교',
-    sourceKind, materialMode: sourceKind === 'generated' ? 'generated' : 'provided', materialTitle: '', material: '', topic: '', difficulty: mode === 'csat' ? 1 : 3,
+    sourceKind, materialMode: sourceKind === 'generated' ? 'generated' : 'provided', materialTitle: '', material: '', topic: '', difficulty: mode === 'custom' ? 3 : 4,
+    difficultyScaleVersion: mode === 'custom' ? undefined : 2,
     intention: '', choiceCount: 5, customPreset: mode === 'custom' ? CUSTOM_PRESETS[0] : undefined,
     csatItems: mode === 'csat' ? [createCsatItem()] : undefined, questions: mode === 'csat' ? [] : [createQuestion(firstType, 5)], prompt: '', aiRevision: 0, validatedRevision: 0, lastImportedJson: '',
     createdAt: now, updatedAt: now,
@@ -185,7 +187,7 @@ ${CSAT_GPT_APPROVAL_PROTOCOL}
 [세트 공통값]
 - 세트 제목: ${normalized.title}
 - 기본 대상 수준: ${normalized.targetLevel}
-- 기본 난이도: ${normalized.difficulty}/5
+- 기본 난이도: ${englishDifficultyPrompt('csat', normalized.difficulty)}
 - 기본 주제·소재: ${normalized.topic || '카드별 자동 배정값 사용'}
 - 기본 출제 의도: ${normalized.intention || '유형에 맞게 설정'}
 
@@ -231,7 +233,7 @@ ${buildCsatPromptSection(normalized)}
             "directAnswerOverlap": false,
             "strongestDistractorIndex": 2,
             "decisiveReason": "정답과 가장 강력한 오답을 가르는 결정적 지문 근거",
-            "expectedDifficulty": 3
+            "expectedDifficulty": ${normalized.difficulty}
           }
         ]
       }
@@ -279,7 +281,7 @@ ${principlesSection}
 대상 수준: ${set.targetLevel}
 자료 종류: ${SOURCE_LABELS[set.sourceKind]}
 자료 작성 방식: ${materialInstruction}
-난이도: ${set.difficulty}/5
+난이도: ${set.mode === 'custom' ? `${set.difficulty}/5` : englishDifficultyPrompt(set.mode, set.difficulty)}
 공통 출제 의도: ${set.intention || '문항 유형에 맞게 설정'}
 ${csatSection}
 
@@ -659,7 +661,7 @@ function validateCsatItemQuality(item: ReturnType<typeof getCsatItems>[number], 
     if (!Number.isInteger(assessment.strongestDistractorIndex) || (assessment.strongestDistractorIndex ?? 0) < 1 || (assessment.strongestDistractorIndex ?? 0) > 5) add({ level: 'warning', questionId: question?.id, label: '강력한 오답 번호 오류', detail: `${blueprint.slot}의 가장 강력한 오답 번호는 1~5 정수여야 합니다.` })
     else if (assessment.strongestDistractorIndex === question?.answerIndex) add({ level: 'warning', questionId: question?.id, label: '강력한 오답 번호 오류', detail: `${blueprint.slot}의 가장 강력한 오답이 정답 번호와 같습니다.` })
     if (!assessment.decisiveReason?.trim()) add({ level: 'warning', questionId: question?.id, label: '결정적 구분 근거 없음', detail: `${blueprint.slot}의 정답과 가장 강력한 오답을 가르는 근거가 없습니다.` })
-    if (assessment.expectedDifficulty === undefined || assessment.expectedDifficulty < 1 || assessment.expectedDifficulty > 5) add({ level: 'warning', questionId: question?.id, label: '예상 난도 오류', detail: `${blueprint.slot}의 예상 난도는 1~5 범위로 기록해야 합니다.` })
+    if (assessment.expectedDifficulty === undefined || assessment.expectedDifficulty < 1 || assessment.expectedDifficulty > 8) add({ level: 'warning', questionId: question?.id, label: '예상 난도 오류', detail: `${blueprint.slot}의 예상 난도는 1~8 범위로 기록해야 합니다.` })
   })
 }
 
@@ -673,7 +675,7 @@ function validateCsatStructure(set: EnglishQuestionSet, add: (issue: Omit<Valida
   const hasEvery = (markers: string[]) => markers.every((marker) => set.material.includes(marker))
   if (set.choiceCount !== 5) add({ level: 'error', label: '수능형 선지 수', detail: '수능형 번호 템플릿은 5지선다로 고정됩니다.' })
   if (set.questions.length !== expected.length) add({ level: 'error', label: '고정 문항 수', detail: `${template.numberLabel}은 문항 ${expected.length}개가 필요합니다.` })
-  if (set.difficulty < template.difficultyRange[0] || set.difficulty > template.difficultyRange[1]) add({ level: 'warning', label: '권장 난도 범위', detail: `${template.numberLabel}의 권장 난도는 ${template.difficultyRange[0]}~${template.difficultyRange[1]}입니다. 현재 설정 ${set.difficulty}를 그대로 사용할 수는 있습니다.` })
+  if (set.difficulty < template.difficultyRange[0] || set.difficulty > template.difficultyRange[1]) add({ level: 'warning', label: '권장 난도 범위', detail: `${template.numberLabel}의 권장 난도는 ${englishDifficultyLabel(template.difficultyRange[0])}~${englishDifficultyLabel(template.difficultyRange[1])}입니다. 현재 설정 ${englishDifficultyLabel(set.difficulty)}을 그대로 사용할 수는 있습니다.` })
   const missingInputs = template.inputFields.filter((item) => !design.userInputs[item.key]?.trim()).map((item) => item.label)
   if (missingInputs.length) add({ level: 'warning', label: '추천 입력 미완성', detail: `AI가 임의로 결정할 항목: ${missingInputs.join(', ')}` })
   expected.forEach((blueprint, index) => {
