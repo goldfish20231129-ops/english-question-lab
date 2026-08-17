@@ -990,12 +990,12 @@ export function generateReviewPrompt(set: EnglishQuestionSet, issues: Validation
   return `[역할]\n당신은 고등학교 영어 객관식 세트의 재검토자이다. 아래 자동 검사 결과를 반영하여 원본 JSON을 수정하라.\n\n[검사 대상]\nAI 결과 리비전 ${set.aiRevision}${csatRules}\n\n[자동 검사]\n${actionable.length ? actionable.map((issue) => `- ${issue.label}: ${issue.detail}`).join('\n') : '- 형식 검사는 통과했으나 정답 유일성과 문항 자연스러움을 다시 검토할 것'}\n\n[수정 원칙]\n- 이 입력은 이미 생성된 결과의 재검토이므로 별도의 설계 승인 없이 수정된 JSON을 반환한다.\n- 먼저 기존 문항을 분석하고 최소 수정안과 적극 수정안을 내부적으로 비교한 뒤, 더 타당한 최종 JSON 하나만 반환한다. 두 수정안을 출력하지 않는다.\n- 타당한 지문과 문항은 보존한다.\n- 객관식 ${set.choiceCount}지선다와 단일 정답을 유지한다.\n- evidenceRefs는 지문에 실제로 존재하는 연속된 직접 인용으로 기록한다.\n- 오답은 각기 다른 명백한 오류 근거를 갖게 한다.\n- 일반 영어 지문은 마지막 문장까지 빈 줄 없이 하나의 연속 문단으로 수정하고, 구조형 문항은 필수 구획만 유지한다.\n- 지문 길이·정답 추론성·오답 매력도·선지 균형을 다시 채점하고 qualityReview를 갱신한다.\n- 어느 품질 점수든 8점 미만이면 한 차례 수정하고, 정답 추론성·오답 매력도·템플릿 유사도는 9점 이상을 목표로 한다.\n- 설명이나 마크다운 없이 수정된 JSON 하나만 출력한다.\n\n[원본 JSON]\n${source}`
 }
 
-export interface EnglishGptConfig { school: string; csat: string; custom: string; csatVerifier: string }
+export interface EnglishGptConfig { school: string; csat: string; custom: string; csatVerifier: string; passageTransformer: string }
 
 export { generateCsatGptInstructions }
 
 export async function loadEnglishGptConfig(): Promise<EnglishGptConfig> {
-  const empty: EnglishGptConfig = { school: '', csat: '', custom: '', csatVerifier: '' }
+  const empty: EnglishGptConfig = { school: '', csat: '', custom: '', csatVerifier: '', passageTransformer: '' }
   try {
     const response = await fetch(`${import.meta.env.BASE_URL}english-gpt-config.json`, { cache: 'no-store' })
     if (!response.ok) return empty

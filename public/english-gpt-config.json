@@ -2,5 +2,6 @@
   "school": "https://chatgpt.com/g/g-6a819c5b10d88191870faf7260155121-yeongeo-naesinhyeong-munje-jejaggi",
   "csat": "https://chatgpt.com/g/g-6a7c96e403008191b09dc5c39bfbfc1b-suneung-yeongeo-munhang-generator-v0",
   "custom": "",
-  "csatVerifier": "https://chatgpt.com/g/g-6a7969996b188191bcc93b8360241e89-geomto-suneunghyeong-ai"
+  "csatVerifier": "https://chatgpt.com/g/g-6a7969996b188191bcc93b8360241e89-geomto-suneunghyeong-ai",
+  "passageTransformer": "https://chatgpt.com/g/g-6a8325ea59548191bce9f25e0da50e67-byeonhyeong-jimun-mandeulgi-yeongeo-ai"
 }
