@@ -136,6 +136,7 @@ function SetWorkspace({ mode, bundle, setBundle, notify, onOpenVerification }: P
   const [passageTransformMode, setPassageTransformMode] = useState<PassageTransformMode>('original')
   const [passageTransformPrompt, setPassageTransformPrompt] = useState('')
   const [passageTransformInput, setPassageTransformInput] = useState('')
+  const [passageTransformApplied, setPassageTransformApplied] = useState('')
   const [gptConfig, setGptConfig] = useState<EnglishGptConfig>({ school: '', csat: '', custom: '', csatVerifier: '', passageTransformer: '' })
   const active = bundle.questionSets.find((set) => set.id === activeId && set.mode === mode)
   const schoolProvidedMode = active?.mode === 'school' && active.materialMode === 'provided'
@@ -150,7 +151,7 @@ function SetWorkspace({ mode, bundle, setBundle, notify, onOpenVerification }: P
   const activeExplanationStatus = active ? explanationStatus(active) : 'not-ready'
   const imageInput = useRef<HTMLInputElement>(null)
   useEffect(() => { if (!active) setActiveId(filtered[0]?.id ?? '') }, [mode, active, filtered])
-  useEffect(() => { setJsonInput(''); setExplanationInput(''); setExplanationPrompt(''); setIssues([]); setReviewPrompt(''); setPassageTransformMode('original'); setPassageTransformPrompt(''); setPassageTransformInput('') }, [activeId])
+  useEffect(() => { setJsonInput(''); setExplanationInput(''); setExplanationPrompt(''); setIssues([]); setReviewPrompt(''); setPassageTransformMode('original'); setPassageTransformPrompt(''); setPassageTransformInput(''); setPassageTransformApplied('') }, [activeId])
   useEffect(() => { setSelectedSetIds((current) => current.filter((id) => filtered.some((set) => set.id === id))) }, [mode, bundle.questionSets])
   useEffect(() => { void loadEnglishGptConfig().then(setGptConfig) }, [])
 
@@ -226,12 +227,13 @@ function SetWorkspace({ mode, bundle, setBundle, notify, onOpenVerification }: P
     const stem = providedPassageV02DefaultStem(nextState.questionType, nextState.contentMatchPolarity, null, null, language)
     updateSet({ providedPassage: nextState, questions: active.questions.map((question, index) => index === 0 ? { ...question, stem, schoolStemLanguage: language, schoolChoiceLanguage: nextState.questionType === 'content_match' ? language : undefined } : question), prompt: '', lastImportedJson: '' })
   }
-  const updateSchoolProvidedMaterial = (material: string) => {
+  const updateSchoolProvidedMaterial = (material: string, transformed = false) => {
     if (schoolProvidedV02 && active) {
       const nextState = updateProvidedPassageV02Material(schoolProvidedV02, material)
       const questions = syncProvidedPassageV02Questions(active, nextState.itemPlans).map((question) => ({ ...question, explanation: '', evidenceRefs: [], distractorReasons: [] }))
       updateSet({ material: nextState.originalText, providedPassageV02: nextState, providedPassageQualityReview: undefined, questions, prompt: '', aiRevision: 0, validatedRevision: 0, lastImportedJson: '' })
       setPassageTransformPrompt(''); setPassageTransformInput('')
+      if (!transformed) setPassageTransformApplied('')
       return
     }
     if (schoolProvided) updateSet({ material, providedPassage: updateProvidedPassageState(schoolProvided, material), prompt: '', lastImportedJson: '' })
@@ -245,9 +247,12 @@ function SetWorkspace({ mode, bundle, setBundle, notify, onOpenVerification }: P
     if (!active) return
     try {
       const result = parsePassageTransformationJson(passageTransformInput, active.material, passageTransformMode)
-      if (!window.confirm('변형 지문을 이 세트의 새 기준 지문으로 적용할까요? 기존 AI 문항 결과와 근거 위치는 초기화됩니다.')) return
-      updateSchoolProvidedMaterial(result.transformedPassage)
-      notify(`${PASSAGE_TRANSFORM_LABELS[passageTransformMode]} 결과를 새 기준 지문으로 적용했습니다. 문항 제작 프롬프트를 다시 생성해 주세요.`)
+      if (!window.confirm('변형 지문을 이 세트의 새 기준 지문으로 적용할까요? 현재 문항 계획과 설정은 유지되며, 이전 지문에 종속된 AI 문항 결과와 근거만 초기화됩니다.')) return
+      const appliedLabel = PASSAGE_TRANSFORM_LABELS[passageTransformMode]
+      updateSchoolProvidedMaterial(result.transformedPassage, true)
+      setPassageTransformMode('original')
+      setPassageTransformApplied(`${appliedLabel} 적용 완료 · 위 입력란의 변형 지문을 기준으로 문항 설계를 계속할 수 있습니다.`)
+      notify(`${appliedLabel} 결과를 새 기준 지문으로 적용했습니다. 기존 문항 계획을 유지한 채 계속 작업할 수 있습니다.`)
     } catch (error) { notify(error instanceof Error ? error.message : '지문 변형 결과를 가져오지 못했습니다.') }
   }
   const selectSchoolProvidedQuestionType = (questionType: 'content_match' | 'sentence_insertion') => {
@@ -379,7 +384,7 @@ function SetWorkspace({ mode, bundle, setBundle, notify, onOpenVerification }: P
             <header><div><span className="eyebrow">PROVIDED PASSAGE V0.2 · SCHOOL</span><h4>한 지문 복수 문항 설계</h4></div><span className={schoolProvidedV02.originalText && schoolProvidedV02.sourceFingerprint === fingerprintProvidedPassage(active.material) ? 'source-valid' : 'source-invalid'}>{schoolProvidedV02.originalText ? '원문 분석 완료' : '원문 필요'}</span></header>
             <label>영어 지문 입력 (필수)<textarea aria-label="내신형 영어 지문 입력" className="material-input" value={active.material} onChange={(event) => updateSchoolProvidedMaterial(event.target.value)} placeholder="수정 없이 내신 문항의 근거로 사용할 영어 원문을 붙여넣으세요." /></label>
             <p className="source-analysis-help">입력한 지문에서 문장과 삽입 후보 위치를 앱이 자동 분석합니다. ‘분석 완료’는 외부 AI 연결이 아니라, 아래에서 여러 문항을 설계할 준비가 되었다는 뜻입니다.</p>
-            <section className="passage-transform-panel"><div className="card-title-row"><div><strong>지문 변형 (선택)</strong><small>문항을 만들기 전에 변형 지문을 새 기준 지문으로 확정합니다.</small></div><label>변형 방식<select aria-label="내신형 지문 변형 방식" value={passageTransformMode} onChange={(event) => { setPassageTransformMode(event.target.value as PassageTransformMode); setPassageTransformPrompt(''); setPassageTransformInput('') }}>{(Object.keys(PASSAGE_TRANSFORM_LABELS) as PassageTransformMode[]).map((value) => <option value={value} key={value}>{PASSAGE_TRANSFORM_LABELS[value]}</option>)}</select></label></div><p>{PASSAGE_TRANSFORM_HELP[passageTransformMode]}</p>{passageTransformMode !== 'original' && <><div className="button-row"><button type="button" onClick={createPassageTransformPrompt}>변형 프롬프트 만들기</button><button type="button" disabled={!passageTransformPrompt} onClick={() => copy(passageTransformPrompt, '지문 변형 프롬프트를 복사했습니다.')}>프롬프트 복사</button><button type="button" disabled={!gptConfig.passageTransformer || !passageTransformPrompt} onClick={() => { if (gptConfig.passageTransformer) { void copy(passageTransformPrompt, '변형 프롬프트를 복사하고 변형 지문 GPT를 열었습니다.'); window.open(gptConfig.passageTransformer, '_blank', 'noopener,noreferrer') } }}>{gptConfig.passageTransformer ? '변형 지문 GPT 열기' : '변형 GPT 링크 미설정'}</button></div><textarea className="prompt-output passage-transform-prompt" readOnly value={passageTransformPrompt} placeholder="변형 프롬프트 만들기를 누르세요." /><label>외부 AI 변형 결과 JSON<small className="field-help">변형 프롬프트에 대한 JSON 객체를 붙여넣으세요. 적용 전 transformedPassage와 changes를 비교해 주세요.</small><textarea aria-label="외부 AI 지문 변형 결과 JSON" value={passageTransformInput} onChange={(event) => setPassageTransformInput(event.target.value)} placeholder='{"schemaId":"english-question-lab-passage-transformation-v1", ...}' /></label><button type="button" className="primary" disabled={!passageTransformInput.trim()} onClick={applyPassageTransformation}>변형 지문을 새 기준 지문으로 적용</button></>}</section>
+            <section className="passage-transform-panel"><div className="card-title-row"><div><strong>지문 변형 (선택)</strong><small>문항을 만들기 전에 변형 지문을 새 기준 지문으로 확정합니다.</small></div><label>변형 방식<select aria-label="내신형 지문 변형 방식" value={passageTransformMode} onChange={(event) => { setPassageTransformMode(event.target.value as PassageTransformMode); setPassageTransformPrompt(''); setPassageTransformInput(''); setPassageTransformApplied('') }}>{(Object.keys(PASSAGE_TRANSFORM_LABELS) as PassageTransformMode[]).map((value) => <option value={value} key={value}>{PASSAGE_TRANSFORM_LABELS[value]}</option>)}</select></label></div><p>{PASSAGE_TRANSFORM_HELP[passageTransformMode]}</p>{passageTransformApplied && <p className="provided-validation pass" role="status"><strong>현재 기준 지문</strong><span>{passageTransformApplied}</span></p>}{passageTransformMode !== 'original' && <><div className="button-row"><button type="button" onClick={createPassageTransformPrompt}>변형 프롬프트 만들기</button><button type="button" disabled={!passageTransformPrompt} onClick={() => copy(passageTransformPrompt, '지문 변형 프롬프트를 복사했습니다.')}>프롬프트 복사</button><button type="button" disabled={!gptConfig.passageTransformer || !passageTransformPrompt} onClick={() => { if (gptConfig.passageTransformer) { void copy(passageTransformPrompt, '변형 프롬프트를 복사하고 변형 지문 GPT를 열었습니다.'); window.open(gptConfig.passageTransformer, '_blank', 'noopener,noreferrer') } }}>{gptConfig.passageTransformer ? '변형 지문 GPT 열기' : '변형 GPT 링크 미설정'}</button></div><textarea className="prompt-output passage-transform-prompt" readOnly value={passageTransformPrompt} placeholder="변형 프롬프트 만들기를 누르세요." /><label>외부 AI 변형 결과 JSON<small className="field-help">변형 프롬프트에 대한 JSON 객체를 붙여넣으세요. 적용하면 변형 지문이 위 입력란의 새 기준 지문이 되고 현재 문항 계획은 유지됩니다.</small><textarea aria-label="외부 AI 지문 변형 결과 JSON" value={passageTransformInput} onChange={(event) => setPassageTransformInput(event.target.value)} placeholder='{"schemaId":"english-question-lab-passage-transformation-v1", ...}' /></label><button type="button" className="primary" disabled={!passageTransformInput.trim()} onClick={applyPassageTransformation}>변형 지문을 새 기준 지문으로 적용하고 계속</button></>}</section>
             <div className="source-identity"><span><b>sourcePassageId</b> {schoolProvidedV02.sourcePassageId}</span><span><b>sourceFingerprint</b> {schoolProvidedV02.sourceFingerprint}</span><span><b>문장/경계</b> {schoolProvidedV02.sentences.length}문장 · {schoolProvidedV02.boundaries.length}경계</span></div>
             <div className="card-title-row"><div><strong>문항 계획</strong><small>일반 문항과 요약문은 같은 지문을 공유하고, 문장 삽입만 마지막 독립 블록으로 출력됩니다. 최대 {PROVIDED_PASSAGE_V02_MAX_ITEMS}문항입니다.</small></div><div className="provided-plan-actions"><button disabled={schoolProvidedV02.itemPlans.length >= PROVIDED_PASSAGE_V02_MAX_ITEMS} onClick={() => addSchoolProvidedV02Plan('content_match')}>+ 내용 일치</button><button disabled={schoolProvidedV02.itemPlans.length >= PROVIDED_PASSAGE_V02_MAX_ITEMS} onClick={() => addSchoolProvidedV02Plan('content_inference')}>+ 내용 이해</button><button disabled={schoolProvidedV02.itemPlans.length >= PROVIDED_PASSAGE_V02_MAX_ITEMS} onClick={() => addSchoolProvidedV02Plan('grammar')}>+ 어법</button><button disabled={schoolProvidedV02.itemPlans.length >= PROVIDED_PASSAGE_V02_MAX_ITEMS} onClick={() => addSchoolProvidedV02Plan('summary')}>+ 요약문 완성</button><button disabled={schoolProvidedV02.itemPlans.length >= PROVIDED_PASSAGE_V02_MAX_ITEMS || schoolProvidedV02.itemPlans.some((plan) => plan.questionType === 'sentence_insertion')} onClick={() => addSchoolProvidedV02Plan('sentence_insertion')}>+ 문장 삽입</button></div></div>
             {schoolProvidedV02.boundaries.length < 6 && <p className="provided-insertion-help">문장 삽입에는 후보 위치 5개가 필요합니다. 마침표로 끝나는 영어 문장을 최소 5개 입력하면 문장 삽입 버튼을 사용할 수 있습니다.</p>}
