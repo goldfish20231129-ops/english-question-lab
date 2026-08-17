@@ -171,16 +171,16 @@ export function createEnglishSet(mode: EnglishMode = 'csat'): EnglishQuestionSet
   }
 }
 
-export function createExamLayout(preset: LayoutPreset = 'school'): ExamLayoutSettings {
+export function createExamLayout(preset: LayoutPreset = 'school-exam'): ExamLayoutSettings {
   return { ...LAYOUT_PRESETS[preset] }
 }
 
 export function preferredExamPresetForSets(sets: EnglishQuestionSet[]): LayoutPreset {
-  return sets.some((set) => set.mode === 'csat') ? 'csat' : 'school'
+  return sets.some((set) => set.mode === 'csat') ? 'csat' : 'school-exam'
 }
 
 export function layoutForFirstSelectedSet(layout: ExamLayoutSettings, set: EnglishQuestionSet, hasContent: boolean): ExamLayoutSettings {
-  if (hasContent || set.mode !== 'csat' || layout.preset !== 'school') return layout
+  if (hasContent || set.mode !== 'csat' || (layout.preset !== 'school' && layout.preset !== 'school-exam')) return layout
   return {
     ...createExamLayout('csat'),
     institution: layout.institution,

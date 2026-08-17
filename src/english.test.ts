@@ -176,12 +176,13 @@ describe('영어 세트 공통 흐름', () => {
   })
 
   it('수능형 세트가 있으면 새 시험지의 권장 기본 양식을 수능형으로 정한다', () => {
-    expect(preferredExamPresetForSets([createEnglishSet('school')])).toBe('school')
+    expect(createExamLayout().preset).toBe('school-exam')
+    expect(preferredExamPresetForSets([createEnglishSet('school')])).toBe('school-exam')
     expect(preferredExamPresetForSets([createEnglishSet('school'), createEnglishSet('csat')])).toBe('csat')
   })
 
   it('빈 학교형 시험지에 첫 수능형 세트를 넣을 때만 수능형 양식을 적용한다', () => {
-    const schoolLayout = { ...createExamLayout('school'), institution: '테스트 학원' }
+    const schoolLayout = { ...createExamLayout('school-exam'), institution: '테스트 학원' }
     const csatSet = createEnglishSet('csat')
     const next = layoutForFirstSelectedSet(schoolLayout, csatSet, false)
     expect(next).toMatchObject({ preset: 'csat', columns: 2, institution: '테스트 학원' })
