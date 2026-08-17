@@ -154,6 +154,8 @@ describe('내신형 새 지문 혼합 세트 출력', () => {
     expect(html).toContain('csat-summary-arrow')
     expect(html).toContain('english-summary-blank')
     expect(html).toContain('school-choice-container-matrix')
+    expect(html).toContain('school-choice-matrix-header')
+    expect(html).toContain('<b>(A)</b><b>(B)</b>')
     expect(html).toContain('<span>enables</span><span>revise</span>')
   })
 

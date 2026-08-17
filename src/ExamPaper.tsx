@@ -158,8 +158,9 @@ export function QuestionContent({ question, number, part = 'full', set, preset }
   const showLead = part === 'full' || part === 'lead'
   const showChoices = (part === 'full' || part === 'choices') && !isInlinePositionTemplate(question.csatTemplateId) && !usesInlineSchoolChoices(set, question)
   const choiceLayout = set?.mode === 'school' ? schoolQuestionChoiceLayout(question) : 'vertical'
+  const showSummaryChoiceHeader = set?.mode === 'school' && question.type === '요약문 완성' && choiceLayout === 'matrix'
   const stem = set?.mode === 'school' ? schoolQuestionDisplayStem(set, question) : question.stem
-  return <>{showLead && <h4><b>{number}.</b> <EnglishText text={stem} />{question.score && (preset === 'school-exam' || question.score !== 2) && <em>[{question.score}점]</em>}</h4>}{showLead && <QuestionScopedMaterial set={set} question={question} />}{showChoices && <div className={`school-choice-container school-choice-container-${choiceLayout}`}><ol>{question.choices.map((choice, index) => <li key={index}><span>{CIRCLED[index] ?? `${index + 1}.`}</span><ChoiceText choice={choice} matrix={choiceLayout === 'matrix'} /></li>)}</ol></div>}</>
+  return <>{showLead && <h4><b>{number}.</b> <EnglishText text={stem} />{question.score && (preset === 'school-exam' || question.score !== 2) && <em>[{question.score}점]</em>}</h4>}{showLead && <QuestionScopedMaterial set={set} question={question} />}{showChoices && <div className={`school-choice-container school-choice-container-${choiceLayout}`}>{showSummaryChoiceHeader && <div className="school-choice-matrix-header" aria-label="요약문 빈칸 선지 열"><span aria-hidden="true" /><span className="school-choice-matrix-header-labels"><b>(A)</b><b>(B)</b></span></div>}<ol>{question.choices.map((choice, index) => <li key={index}><span>{CIRCLED[index] ?? `${index + 1}.`}</span><ChoiceText choice={choice} matrix={choiceLayout === 'matrix'} /></li>)}</ol></div>}</>
 }
 
 const isInlineSchoolGrammar = (set: EnglishQuestionSet | undefined, question: EnglishQuestion | undefined) => Boolean(question?.type === '어법' && usesInlineSchoolChoices(set, question))
