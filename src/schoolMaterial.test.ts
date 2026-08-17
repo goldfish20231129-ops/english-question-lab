@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { createEnglishSet, createQuestion } from './english'
-import { cleanInsertionMarkupForOtherQuestion, deriveGeneratedSchoolInsertionSpec, generatedSchoolInsertionMarkupIssues, generatedSchoolSharedMaterialPresentation, isGeneratedSchoolSet, orderedGeneratedSchoolQuestions, schoolInlineChoiceLabels, schoolQuestionMaterialPresentation, usesInlineGeneratedSchoolChoices, usesQuestionScopedSchoolMaterial } from './schoolMaterial'
+import { cleanInsertionMarkupForOtherQuestion, deriveGeneratedSchoolInsertionSpec, generatedSchoolInsertionMarkupIssues, generatedSchoolSharedMaterialPresentation, isGeneratedSchoolSet, orderedGeneratedSchoolQuestions, schoolInlineChoiceLabels, schoolQuestionDisplayStem, schoolQuestionMaterialPresentation, usesInlineGeneratedSchoolChoices, usesQuestionScopedSchoolMaterial } from './schoolMaterial'
 
 const MARKED = 'The class reviewed the claim. [[삽입위치:①]] [[삽입문장:This evidence changed their view.]] They compared two explanations. [[삽입위치:②]] The students checked the source. [[삽입위치:③]] They revised the conclusion. [[삽입위치:④]] The teacher summarized the lesson. [[삽입위치:⑤]]'
 
@@ -94,13 +94,15 @@ describe('새 자료 내신형 문항별 지문 표시', () => {
     set.questions = [grammar, insertion]
     set.material = '① [[밑줄:They]] begin. [[삽입위치:①]] ② [[밑줄:This]] continues. [[삽입위치:②]] ③ [[밑줄:which]] matters. [[삽입위치:③]] ④ [[밑줄:Students]] respond. [[삽입위치:④]] ⑤ [[밑줄:Finally]] it ends. [[삽입위치:⑤]] [[삽입문장:The evidence changes the conclusion.]]'
 
-    expect(schoolInlineChoiceLabels(set, grammar)).toEqual(['ㄱ', 'ㄴ', 'ㄷ', 'ㄹ', 'ㅁ'])
-    expect(schoolInlineChoiceLabels(set, insertion)).toEqual(['a', 'b', 'c', 'd', 'e'])
+    expect(schoolInlineChoiceLabels(set, grammar)).toEqual(['㉠', '㉡', '㉢', '㉣', '㉤'])
+    expect(schoolInlineChoiceLabels(set, insertion)).toEqual(['ⓐ', 'ⓑ', 'ⓒ', 'ⓓ', 'ⓔ'])
+    expect(schoolQuestionDisplayStem(set, grammar)).toContain('선택 기호: ㉠~㉤')
+    expect(schoolQuestionDisplayStem(set, insertion)).toContain('선택 기호: ⓐ~ⓔ')
     const spec = generatedSchoolSharedMaterialPresentation(set)?.spec
     expect(spec).toMatchObject({ kind: 'insertion' })
     if (spec?.kind !== 'insertion') throw new Error('삽입형 자료가 필요합니다.')
-    expect(spec.body).toContain('ㄱ [[밑줄:They]]')
-    expect(spec.body).toContain('[[삽입위치:a]]')
+    expect(spec.body).toContain('㉠ [[밑줄:They]]')
+    expect(spec.body).toContain('[[삽입위치:ⓐ]]')
     expect(spec.body).not.toContain('[[삽입위치:①]]')
   })
 

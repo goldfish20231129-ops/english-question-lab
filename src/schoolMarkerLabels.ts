@@ -1,10 +1,9 @@
 export const SCHOOL_NUMERIC_MARKER_LABELS = ['①', '②', '③', '④', '⑤'] as const
 
 const SCHOOL_DISTINCT_MARKER_LABEL_GROUPS = [
-  ['ㄱ', 'ㄴ', 'ㄷ', 'ㄹ', 'ㅁ'],
-  ['a', 'b', 'c', 'd', 'e'],
-  ['A', 'B', 'C', 'D', 'E'],
-  ['i', 'ii', 'iii', 'iv', 'v'],
+  ['㉠', '㉡', '㉢', '㉣', '㉤'],
+  ['ⓐ', 'ⓑ', 'ⓒ', 'ⓓ', 'ⓔ'],
+  ['Ⓐ', 'Ⓑ', 'Ⓒ', 'Ⓓ', 'Ⓔ'],
   ['α', 'β', 'γ', 'δ', 'ε'],
 ] as const
 
@@ -25,4 +24,8 @@ export function isSchoolMarkerLabelSet(value: string[]) {
   const key = value.join('|')
   return key === SCHOOL_NUMERIC_MARKER_LABELS.join('|')
     || SCHOOL_DISTINCT_MARKER_LABEL_GROUPS.some((group) => key === group.join('|'))
+}
+
+export function schoolMarkerRange(labels: string[]) {
+  return labels.length ? `${labels[0]}~${labels.at(-1)}` : '①~⑤'
 }

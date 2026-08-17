@@ -62,7 +62,7 @@ choiceLanguage가 ko이면 모든 선지는 한국어, en이면 모든 선지는
 
 `summary`는 `templateId: school-summary`, `choiceLanguage: en`, `contentMatchPolarity: null`, `grammarTarget: null`, `grammarMode: null`, `requiredCandidateBoundaryCount: null`을 사용한다. 공통 권위 원문은 반복하거나 수정하지 않고 `question.summaryText`에 원문의 중심 내용과 핵심 관계를 재진술한 자연스러운 영어 한 문장을 별도로 작성한다. Request의 `requiredStem`은 다른 유형과 마찬가지로 글자 단위로 그대로 사용하고, materialOperation은 null로 반환한다.
 
-`summaryText`에는 `[[요약빈칸:A]]`와 `[[요약빈칸:B]]`를 각각 정확히 한 번 넣는다. choices는 `A단어|B단어` 형식의 서로 다른 영어 단어쌍 다섯 개로 작성한다. 각 choice에는 `|`가 정확히 하나 있어야 하고 양쪽 값이 모두 비어 있지 않아야 한다. 정답은 두 빈칸을 문법적·의미적·논리적으로 모두 충족하는 하나뿐이어야 한다.
+`summaryText`에는 `[[요약빈칸:A]]`와 `[[요약빈칸:B]]`를 각각 정확히 한 번 넣는다. choices는 `A값|B값` 형식의 서로 다른 단어쌍 다섯 개로 작성하되 발문과 같은 언어를 사용한다. 각 choice에는 `|`가 정확히 하나 있어야 하고 양쪽 값이 모두 비어 있지 않아야 한다. 정답은 두 빈칸을 문법적·의미적·논리적으로 모두 충족하는 하나뿐이어야 한다.
 
 오답은 한 빈칸만 부분적으로 맞거나 핵심 관계 역전, 원인·결과 전도, 범위 확대·축소, 주체 변경, 긍정·부정 방향 왜곡, 부차적 내용의 중심 내용 대체 중 서로 다른 오류를 사용한다. 다섯 단어쌍은 길이·구체성·문법 구조·어휘 수준을 균형 있게 맞추며 정답만 두드러지게 만들지 않는다. 실제 기출 문장이나 선지를 그대로 복제하지 않는다.
 
@@ -76,7 +76,9 @@ choiceLanguage가 ko이면 모든 선지는 한국어, en이면 모든 선지는
 
 controlled_error_variant의 구체 grammarTarget은 우선값이다. 원문에 없으면 다른 판정 가능 태그를 고른다. source_form_check의 태그만 강제값이다. grammarTarget이 `null`이어도 원문에서 자동 선택한다. Response의 item·grammar_check·ruleCheck에는 실제로 선택한 태그를 기록하고 null은 금지한다.
 
-`source_form_check`는 sourceForm과 presentedForm이 같다. `controlled_error_variant`는 서로 겹치지 않는 최소 표적 5개를 원문 순서대로 evidenceSpans에 두고 choices를 제작 프롬프트가 해당 itemId에 배정한 기호 배열과 정확히 같게 한다. 표식형 문항이 하나면 `①~⑤`, 같은 지문에 둘 이상이면 문항 순서대로 `ㄱ~ㅁ`, `a~e`처럼 서로 다른 기호군을 쓴다. 한 testedSpan의 presentedForm만 최소 변형하고 answerIndex를 그 순번으로 둔다. 항목을 가능한 한 분산하며 철자·단순 어휘는 표적으로 쓰지 않는다. 원문은 바꾸지 않고 sourceTextModified는 false다.
+`source_form_check`는 sourceForm과 presentedForm이 같다. `controlled_error_variant`는 서로 겹치지 않는 최소 표적 5개를 원문 순서대로 evidenceSpans에 두고 choices를 제작 프롬프트가 해당 itemId에 배정한 기호 배열과 정확히 같게 한다. 표식형 문항이 하나면 `①~⑤`, 같은 지문에 둘 이상이면 문항 순서대로 `㉠~㉤`, `ⓐ~ⓔ`처럼 동그라미가 포함된 서로 다른 기호군을 쓴다. 발문에는 해당 선택 기호 범위를 함께 제시한다. 한 testedSpan의 presentedForm만 최소 변형하고 answerIndex를 그 순번으로 둔다. 항목을 가능한 한 분산하며 철자·단순 어휘는 표적으로 쓰지 않는다. 원문은 바꾸지 않고 sourceTextModified는 false다.
+
+발문과 내용 선지는 `stemLanguage` 하나로 통일한다. `ko`이면 둘 다 한국어, `en`이면 둘 다 영어로 작성한다. 위치·표식·배열 기호는 언어 조건에서 제외한다.
 
 grammar_check에는 grammarTarget, grammarMode, testedSpan, sourceForm, presentedForm, ruleCheck를 모두 둔다. testedSpan은 문장 전체가 아닌 밑줄 최소 범위이고 sourceForm은 testedSpan.text와 같다. ruleCheck는 판정 규칙·혼동 구문·유일성을 기록한다. 유일하지 않으면 오류만 반환한다.
 

@@ -1,7 +1,7 @@
 import { normalizeCsatSet } from './csat'
 import { normalizeEnglishTargetLevel } from './english'
 import { normalizeExamDocument } from './examLayout'
-import { inferSchoolQuestionTemplate } from './schoolCatalog'
+import { inferSchoolQuestionTemplate, schoolQuestionUsesChoiceLanguage } from './schoolCatalog'
 import type { EnglishExamDocument, EnglishQuestionSet, MediaAsset, StudioBundle } from './types'
 
 const DB_NAME = 'english-question-lab-studio-v1'
@@ -108,7 +108,14 @@ export function normalizeQuestionSet(value: EnglishQuestionSet): EnglishQuestion
     schoolInsertionPresentation: normalized.schoolInsertionPresentation ?? 'isolated',
     questions: normalized.questions.map((question) => {
       const template = inferSchoolQuestionTemplate(question)
-      return { ...question, schoolTemplateId: question.schoolTemplateId ?? template.id, schoolChoiceLayout: question.schoolChoiceLayout ?? template.choiceLayout }
+      const schoolStemLanguage = question.schoolStemLanguage ?? (/[A-Za-z]/.test(question.stem) && !/[가-힣]/.test(question.stem) ? 'en' : 'ko')
+      return {
+        ...question,
+        schoolTemplateId: question.schoolTemplateId ?? template.id,
+        schoolChoiceLayout: question.schoolChoiceLayout ?? template.choiceLayout,
+        schoolStemLanguage,
+        schoolChoiceLanguage: schoolQuestionUsesChoiceLanguage(question) ? schoolStemLanguage : undefined,
+      }
     }),
   }
 }

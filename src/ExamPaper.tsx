@@ -4,7 +4,7 @@ import { CsatMaterialView } from './CsatMaterialView'
 import { buildExamFlowBlocks, examFlowMeasurementKey, geometryKey, getOversizedQuestionIssues, paginateAtomicAnswerBlocks, paginateExamBlocks, resolveExamEntries, type ExamFlowBlock, type ExamLayoutMetrics } from './examLayout'
 import { providedPassagePresentationSpec } from './providedPassage'
 import { humanizeProvidedPassageBoundaryReferences, orderedProvidedPassageV02Questions, providedPassageV02PresentationSpec, providedPassageV02QuestionMaterialText, providedPassageV02SharedMaterialText, providedPassageV02SharedPresentationSpec } from './providedPassageV02'
-import { generatedSchoolSharedMaterialPresentation, isSchoolInsertionQuestion, isSchoolSummaryQuestion, orderedSchoolQuestions, schoolInlineChoiceLabels, schoolQuestionMaterialPresentation, usesInlineSchoolChoices, usesQuestionScopedSchoolMaterial } from './schoolMaterial'
+import { generatedSchoolSharedMaterialPresentation, isSchoolInsertionQuestion, isSchoolSummaryQuestion, orderedSchoolQuestions, schoolInlineChoiceLabels, schoolQuestionDisplayStem, schoolQuestionMaterialPresentation, usesInlineSchoolChoices, usesQuestionScopedSchoolMaterial } from './schoolMaterial'
 import { schoolQuestionChoiceLayout } from './schoolCatalog'
 import type { CsatItemDesign, EnglishExamDocument, EnglishQuestion, EnglishQuestionSet, ExamLayoutSettings, LayoutPreset, MediaAsset } from './types'
 import { englishDifficultyLabel } from './difficulty'
@@ -158,7 +158,8 @@ export function QuestionContent({ question, number, part = 'full', set, preset }
   const showLead = part === 'full' || part === 'lead'
   const showChoices = (part === 'full' || part === 'choices') && !isInlinePositionTemplate(question.csatTemplateId) && !usesInlineSchoolChoices(set, question)
   const choiceLayout = set?.mode === 'school' ? schoolQuestionChoiceLayout(question) : 'vertical'
-  return <>{showLead && <h4><b>{number}.</b> <EnglishText text={question.stem} />{question.score && (preset === 'school-exam' || question.score !== 2) && <em>[{question.score}점]</em>}</h4>}{showLead && <QuestionScopedMaterial set={set} question={question} />}{showChoices && <div className={`school-choice-container school-choice-container-${choiceLayout}`}><ol>{question.choices.map((choice, index) => <li key={index}><span>{CIRCLED[index] ?? `${index + 1}.`}</span><ChoiceText choice={choice} matrix={choiceLayout === 'matrix'} /></li>)}</ol></div>}</>
+  const stem = set?.mode === 'school' ? schoolQuestionDisplayStem(set, question) : question.stem
+  return <>{showLead && <h4><b>{number}.</b> <EnglishText text={stem} />{question.score && (preset === 'school-exam' || question.score !== 2) && <em>[{question.score}점]</em>}</h4>}{showLead && <QuestionScopedMaterial set={set} question={question} />}{showChoices && <div className={`school-choice-container school-choice-container-${choiceLayout}`}><ol>{question.choices.map((choice, index) => <li key={index}><span>{CIRCLED[index] ?? `${index + 1}.`}</span><ChoiceText choice={choice} matrix={choiceLayout === 'matrix'} /></li>)}</ol></div>}</>
 }
 
 const isInlineSchoolGrammar = (set: EnglishQuestionSet | undefined, question: EnglishQuestion | undefined) => Boolean(question?.type === '어법' && usesInlineSchoolChoices(set, question))

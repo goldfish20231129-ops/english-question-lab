@@ -14,7 +14,8 @@
 
 - `b0`, `b1`, `b3` 같은 boundary ID는 내부 식별자이며 교사·학생용 문장에 출력하지 않는다.
 - 문장 삽입 해설 전에 `candidateBoundaryIds`와 `answerBoundaryId`를 대조한다.
-- 후보 배열의 첫 번째부터 다섯 번째를 해당 문항의 `question.choices[0]`부터 `[4]`로 표시한다. 같은 지문의 표식형 문항이 둘 이상이면 `ㄱ~ㅁ`, `a~e`처럼 문항별로 겹치지 않는 기호군을 유지한다.
+- 후보 배열의 첫 번째부터 다섯 번째를 해당 문항의 `question.choices[0]`부터 `[4]`로 표시한다. 같은 지문의 표식형 문항이 둘 이상이면 `㉠~㉤`, `ⓐ~ⓔ`처럼 동그라미가 포함된 서로 다른 기호군을 문항별로 유지한다.
+- 해설에서는 내부 위치 ID나 일반 `ㄱ`, `a`를 새로 만들지 않는다. 문제 JSON의 동그라미 기호를 그대로 사용하며, 발문에 표시된 선택 기호 범위와 일치시킨다.
 - boundary ID 자체의 숫자를 위치 번호로 바꾸지 않는다. 후보가 `["b3","b4","b5","b6","b7"]`이면 `b5`는 `③`이다.
 - explanation, intention, evidenceRefs의 설명성 문장과 distractorReasons에는 내부 ID를 남기지 않는다.
 - 구조화 입력의 `candidateBoundaryIds`, `answerBoundaryId`, `positionReasons[].boundaryId`는 변경하지 않는다.

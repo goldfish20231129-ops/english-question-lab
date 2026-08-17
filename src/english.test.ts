@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { applyCsatItemTemplate, createCsatItem, createCsatQuestions } from './csat'
-import { ENGLISH_TOPIC_PRESETS, applyCustomPreset, assignAutomaticCsatTopics, createEnglishSet, createExamLayout, createQuestion, defaultQuestionStem, generateEnglishPrompt, generateReviewPrompt, layoutForFirstSelectedSet, normalizeEnglishTargetLevel, parseEnglishSetJson, preferredExamPresetForSets } from './english'
+import { ENGLISH_TOPIC_PRESETS, applyCustomPreset, assignAutomaticCsatTopics, createEnglishSet, createExamLayout, createQuestion, defaultQuestionStem, generateEnglishPrompt, generateReviewPrompt, layoutForFirstSelectedSet, normalizeEnglishTargetLevel, parseEnglishSetJson, preferredExamPresetForSets, validateEnglishSet } from './english'
 import { createBackup, normalizeUiSettings, parseBackup } from './storage'
 
 describe('영어 세트 공통 흐름', () => {
@@ -84,7 +84,8 @@ describe('영어 세트 공통 흐름', () => {
 
     const invalidChoices = [...choices]
     invalidChoices[2] = '학생은 근거를 비교한다.'
-    expect(() => parseEnglishSetJson(JSON.stringify({ title: 'Mixed labels', materialTitle: '', material: 'Students compare accounts before reaching a conclusion.', materialSpec: null, questions: [{ type: question.type, stem: question.stem, choices: invalidChoices, answerIndex: 1, score: 2 }] }), set)).toThrow(/영어 선지/)
+    const mixed = parseEnglishSetJson(JSON.stringify({ title: 'Mixed labels', materialTitle: '', material: 'Students compare accounts before reaching a conclusion.', materialSpec: null, questions: [{ type: question.type, stem: question.stem, choices: invalidChoices, answerIndex: 1, score: 2 }] }), set)
+    expect(validateEnglishSet(mixed).some((issue) => issue.detail.includes('영어가 아닌 선지'))).toBe(true)
   })
 
   it('새 자료 내신형은 문장 삽입을 포함한 다문항을 한 번의 전용 경로로 요청한다', () => {
@@ -125,7 +126,9 @@ describe('영어 세트 공통 흐름', () => {
     const questionJson = (question: ReturnType<typeof createQuestion>) => ({
       type: question.type,
       stem: question.stem,
-      choices: question.type === '문장 삽입' ? ['①', '②', '③', '④', '⑤'] : ['a', 'b', 'c', 'd', 'e'],
+      choices: question.type === '내용 이해'
+        ? ['가장 타당한 추론', '범위를 넓힌 추론', '인과를 바꾼 추론', '주체를 바꾼 추론', '근거가 없는 추론']
+        : ['①', '②', '③', '④', '⑤'],
       answerIndex: 2,
       explanation: '해설',
       intention: '출제 의도',
@@ -158,6 +161,9 @@ describe('영어 세트 공통 흐름', () => {
   it('새 자료 내신형 요약문을 문항별 (A)·(B) 구조로 가져온다', () => {
     const set = createEnglishSet('school')
     const summary = createQuestion('요약문 완성', 5, 'school')
+    summary.schoolStemLanguage = 'en'
+    summary.schoolChoiceLanguage = 'en'
+    summary.stem = defaultQuestionStem(summary.type, 'en')
     set.questions = [summary]
     const summaryText = 'Comparing accounts [[요약빈칸:A]] learners to [[요약빈칸:B]] their judgments.'
     const raw = JSON.stringify({
@@ -174,6 +180,9 @@ describe('영어 세트 공통 흐름', () => {
   it('요약문 (A)·(B) 표식이나 단어쌍이 빠지면 가져오기를 거부한다', () => {
     const set = createEnglishSet('school')
     const summary = createQuestion('요약문 완성', 5, 'school')
+    summary.schoolStemLanguage = 'en'
+    summary.schoolChoiceLanguage = 'en'
+    summary.stem = defaultQuestionStem(summary.type, 'en')
     set.questions = [summary]
     const base = { title: 'Summary set', materialTitle: '', material: 'A source passage.', materialSpec: null }
     const question = { type: summary.type, stem: summary.stem, summaryText: 'A claim [[요약빈칸:A]] evidence.', choices: ['supports|carefully', 'rejects|quickly', 'copies|fully', 'hides|often', 'shows|clearly'], answerIndex: 1, score: 2 }

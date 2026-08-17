@@ -8,7 +8,7 @@ describe('기존 지문 V0.2 표식 기호 배정', () => {
     const insertion = createProvidedPassageV02Plan('insertion', 'sentence_insertion')
     const state = createProvidedPassageV02State('Students compare evidence before they revise a conclusion.', [grammar, insertion])
 
-    expect(providedPassageV02MarkerLabels(state, grammar.itemId)).toEqual(['ㄱ', 'ㄴ', 'ㄷ', 'ㄹ', 'ㅁ'])
-    expect(providedPassageV02MarkerLabels(state, insertion.itemId)).toEqual(['a', 'b', 'c', 'd', 'e'])
+    expect(providedPassageV02MarkerLabels(state, grammar.itemId)).toEqual(['㉠', '㉡', '㉢', '㉣', '㉤'])
+    expect(providedPassageV02MarkerLabels(state, insertion.itemId)).toEqual(['ⓐ', 'ⓑ', 'ⓒ', 'ⓓ', 'ⓔ'])
   })
 })

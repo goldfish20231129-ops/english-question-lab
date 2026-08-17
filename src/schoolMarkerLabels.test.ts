@@ -8,7 +8,7 @@ describe('내신형 공통 지문 표식 기호 배정', () => {
 
   it('둘 이상이면 문항별로 겹치지 않는 기호군을 배정한다', () => {
     const ids = ['grammar', 'insertion']
-    expect(allocateSchoolMarkerLabels(ids, 'grammar')).toEqual(['ㄱ', 'ㄴ', 'ㄷ', 'ㄹ', 'ㅁ'])
-    expect(allocateSchoolMarkerLabels(ids, 'insertion')).toEqual(['a', 'b', 'c', 'd', 'e'])
+    expect(allocateSchoolMarkerLabels(ids, 'grammar')).toEqual(['㉠', '㉡', '㉢', '㉣', '㉤'])
+    expect(allocateSchoolMarkerLabels(ids, 'insertion')).toEqual(['ⓐ', 'ⓑ', 'ⓒ', 'ⓓ', 'ⓔ'])
   })
 })

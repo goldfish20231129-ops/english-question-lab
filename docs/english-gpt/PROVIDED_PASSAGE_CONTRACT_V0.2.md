@@ -32,7 +32,9 @@ Provided Passage V0.2는 `school_english_provided_passage`와 `English`만 지�
 
 ## 문장 삽입 위치 식별자
 
-`candidateBoundaryIds`, `answerBoundaryId`, `positionReasons[].boundaryId`는 원문 위치 연결을 위한 내부 좌표이므로 Request와 Response에서 그대로 보존한다. 교사·학생용 문장은 내부 ID를 출력하지 않고 `candidateBoundaryIds[0]`부터 `[4]`까지를 해당 문항의 `question.choices[0]`부터 `[4]`로 표시한다. 표식형 문항이 하나면 `①~⑤`, 같은 지문에 둘 이상이면 문항 순서대로 `ㄱ~ㅁ`, `a~e`처럼 겹치지 않는 기호군을 사용한다. ID에 포함된 숫자를 위치 번호로 해석하지 않는다. `answerIndex`는 `candidateBoundaryIds.indexOf(answerBoundaryId) + 1`과 같아야 하며, 해설의 정답 위치 기호도 같은 계산 결과를 사용한다.
+`candidateBoundaryIds`, `answerBoundaryId`, `positionReasons[].boundaryId`는 원문 위치 연결을 위한 내부 좌표이므로 Request와 Response에서 그대로 보존한다. 교사·학생용 문장은 내부 ID를 출력하지 않고 `candidateBoundaryIds[0]`부터 `[4]`까지를 해당 문항의 `question.choices[0]`부터 `[4]`로 표시한다. 표식형 문항이 하나면 `①~⑤`, 같은 지문에 둘 이상이면 문항 순서대로 `㉠~㉤`, `ⓐ~ⓔ`처럼 동그라미가 포함된 겹치지 않는 기호군을 사용한다. 발문에는 그 문항의 선택 기호 범위를 함께 표시한다. ID에 포함된 숫자를 위치 번호로 해석하지 않는다. `answerIndex`는 `candidateBoundaryIds.indexOf(answerBoundaryId) + 1`과 같아야 하며, 해설의 정답 위치 기호도 같은 계산 결과를 사용한다.
+
+발문과 내용 선지는 `stemLanguage` 하나로 통일한다. `stemLanguage`가 `ko`이면 발문과 내용 선지를 모두 한국어로, `en`이면 모두 영어로 작성한다. 위치·표식·배열 기호에는 언어를 적용하지 않는다.
 
 ## 어법 태그
 

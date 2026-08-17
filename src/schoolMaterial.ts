@@ -1,5 +1,5 @@
 import type { CsatMaterialSpec, EnglishQuestion, EnglishQuestionSet } from './types'
-import { allocateSchoolMarkerLabels, SCHOOL_NUMERIC_MARKER_LABELS } from './schoolMarkerLabels'
+import { allocateSchoolMarkerLabels, schoolMarkerRange, SCHOOL_NUMERIC_MARKER_LABELS } from './schoolMarkerLabels'
 
 const INSERTION_SENTENCE_MARKUP = /\[\[삽입문장(?::[^\]]*)?\]\]\s*/g
 const INSERTION_POSITION_MARKUP = /\s*\[\[삽입위치(?::[^\]]*)?\]\]/g
@@ -51,6 +51,22 @@ export function schoolInlineChoiceLabels(set: EnglishQuestionSet, question: Engl
   return allocateSchoolMarkerLabels(schoolInlineMarkerQuestionIds(set), question.id)
 }
 
+export function schoolQuestionDisplayStem(set: EnglishQuestionSet, question: EnglishQuestion) {
+  if (!isInlineSchoolMarkerQuestion(set, question)) return question.stem
+  const range = schoolMarkerRange(schoolInlineChoiceLabels(set, question))
+  const english = question.schoolStemLanguage === 'en'
+  const fallback = isSchoolInsertionQuestion(question)
+    ? english
+      ? 'Which position is the most appropriate for the given sentence?'
+      : '글의 흐름으로 보아, 주어진 문장이 들어가기에 가장 적절한 곳은?'
+    : english
+      ? 'Which of the underlined parts is grammatically incorrect?'
+      : '다음 글의 밑줄 친 부분 중, 어법상 틀린 것은?'
+  const stem = question.stem.trim() || fallback
+  if (stem.includes(range)) return stem
+  return `${stem} (${english ? 'Choice symbols' : '선택 기호'}: ${range})`
+}
+
 function relabelGeneratedSchoolInsertionBody(set: EnglishQuestionSet, body: string) {
   const insertion = orderedSchoolQuestions(set).find(isSchoolInsertionQuestion)
   if (!insertion) return body
@@ -64,7 +80,7 @@ function relabelGeneratedSchoolGrammarTargets(set: EnglishQuestionSet, text: str
   if (!grammar || schoolInlineMarkerQuestionIds(set).length < 2) return text
   const labels = schoolInlineChoiceLabels(set, grammar)
   let targetIndex = 0
-  return text.replace(/(?:[①②③④⑤ㄱㄴㄷㄹㅁa-eA-E]\s*)?\[\[밑줄:([^\]]+)\]\]/g, (_match, target: string) => {
+  return text.replace(/(?:[①②③④⑤㉠㉡㉢㉣㉤ⓐⓑⓒⓓⓔⒶⒷⒸⒹⒺㄱㄴㄷㄹㅁa-eA-E]\s*)?\[\[밑줄:([^\]]+)\]\]/g, (_match, target: string) => {
     const label = labels[targetIndex++]
     return label ? `${label} [[밑줄:${target}]]` : `[[밑줄:${target}]]`
   })

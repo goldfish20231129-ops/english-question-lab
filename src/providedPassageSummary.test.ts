@@ -61,10 +61,10 @@ function summaryResponse() {
 }
 
 describe('Provided Passage V0.2 summary completion', () => {
-  it('builds the summary contract with English word-pair choices', () => {
+  it('builds the summary contract with stem and word-pair choices in the same language', () => {
     const set = configuredSummarySet()
     const item = buildProvidedPassageV02Request(set).items[0]
-    expect(item).toMatchObject({ questionType: 'summary', templateId: 'school-summary', choiceLanguage: 'en' })
+    expect(item).toMatchObject({ questionType: 'summary', templateId: 'school-summary', choiceLanguage: 'ko' })
     expect(item.requiredStem).toContain('(A)와 (B)')
     expect(generateProvidedPassageV02Prompt(set)).toContain('question.summaryText')
   })

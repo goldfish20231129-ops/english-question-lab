@@ -3,7 +3,7 @@ import { assertCsatGenerationSchema } from './generationContract'
 import { generateProvidedPassagePrompt, isProvidedPassageSet, parseProvidedPassageJson, providedPassageValidationMessages } from './providedPassage'
 import { generateProvidedPassageV02Prompt, parseProvidedPassageV02Json, providedPassageV02ValidationMessages } from './providedPassageV02'
 import { MAX_SCHOOL_SET_QUESTIONS, SCHOOL_QUESTION_TEMPLATES, inferSchoolQuestionTemplate, schoolCatalogPromptSection, schoolQuestionTypes, schoolQuestionUsesChoiceLanguage, validateSchoolTemplateMarkup } from './schoolCatalog'
-import { generatedSchoolInsertionMarkupIssues, orderedGeneratedSchoolQuestions, schoolInlineChoiceLabels } from './schoolMaterial'
+import { generatedSchoolInsertionMarkupIssues, orderedGeneratedSchoolQuestions, schoolInlineChoiceLabels, schoolQuestionDisplayStem } from './schoolMaterial'
 import type { CsatMaterialSpec, CsatQualityReview, EnglishMode, EnglishQuestion, EnglishQuestionSet, ExamLayoutSettings, LayoutPreset, ProvidedPassageChoiceLanguage, SourceKind, ValidationIssue } from './types'
 import { englishDifficultyLabel, englishDifficultyPrompt } from './difficulty'
 import { stripLeadingChoiceMarker } from './utils'
@@ -151,7 +151,7 @@ export function createQuestion(type: string, choiceCount = 5, mode?: EnglishMode
     question.schoolTemplateId = template?.id
     question.schoolChoiceLayout = template?.choiceLayout
     question.schoolStemLanguage = 'ko'
-    question.schoolChoiceLanguage = template?.id === 'summary' ? 'en' : 'ko'
+    question.schoolChoiceLanguage = 'ko'
   }
   return question
 }
@@ -299,7 +299,7 @@ export function generateEnglishPrompt(set: EnglishQuestionSet): string {
   const generatedSchoolInsertionCount = set.mode === 'school' && set.materialMode === 'generated' ? orderedQuestions.filter((question) => question.type === '문장 삽입').length : 0
   if (generatedSchoolInsertionCount > 1) throw new Error('새 자료 작성 세트에서는 문장 삽입을 한 문항만 포함할 수 있습니다. 서로 다른 삽입 문장은 별도 세트로 나눠 주세요.')
   const plan = set.mode === 'school'
-    ? schoolCatalogPromptSection(orderedQuestions)
+    ? schoolCatalogPromptSection(set, orderedQuestions)
     : orderedQuestions.map((question, index) => `- 문항 ${index + 1}: ${question.type}\n  발문: ${question.stem || '(AI가 유형에 맞게 작성)'}\n  선지 수: ${set.choiceCount}\n  출제 의도: ${question.intention || set.intention || '(유형에 맞게 설정)'}`).join('\n')
   const materialInstruction = set.materialMode === 'provided'
     ? `아래 등록 자료를 중심 근거로 사용한다.\n\n${set.material || '(사용자가 자료를 입력해야 함)'}`
@@ -329,7 +329,7 @@ export function generateEnglishPrompt(set: EnglishQuestionSet): string {
 - 아래 문항 구성을 한 번의 응답에 모두 생성하고 최상위 questions 배열의 순서를 그대로 지킨다.
 - 일반 내용 선지의 choices에는 ①~⑤나 1.~5. 같은 번호를 넣지 않고 선지 본문만 작성한다. 번호는 앱이 자동으로 표시한다.
 - 모든 일반 문항은 하나의 공통 material을 공유하며, 문항마다 지문을 반복 생성하지 않는다.
-- 각 문항의 발문 언어와 선지 언어를 독립적으로 지킨다. 영어는 자연스러운 영어만, 한국어는 자연스러운 한국어만 사용한다. 위치 번호·표식·배열형 선지는 언어 조건에서 제외한다.
+- 각 문항은 발문과 내용 선지를 하나의 문항 언어로 통일한다. 문항 언어가 영어이면 발문과 선지를 모두 자연스러운 영어로, 한국어이면 모두 자연스러운 한국어로 작성한다. 위치 번호·표식은 언어 조건에서 제외한다.
 - 내용 이해는 지문에 그대로 진술된 사실을 다시 찾는 문항이 아니다. 지문의 둘 이상의 단서 또는 하나의 충분한 함의를 근거로 가장 타당하게 추론할 수 있는 내용 하나를 고르게 한다.
 - 내용 이해의 정답은 외부 배경지식 없이 지문만으로 도출되어야 하며, 과도한 일반화·인과 비약·범위 왜곡·주체 변경을 오답 원리로 활용한다.
 - 문장 삽입은 다른 유형과 함께 만들 수 있으나 한 세트에 최대 한 문항만 둔다.
@@ -339,8 +339,8 @@ ${inlineMarkerRules || '- 표식형 문항 없음'}
 - 문장 삽입이 있으면 material에 [[삽입문장:문장]] 1개와 해당 문장 삽입 문항의 다섯 표시 기호를 사용한 [[삽입위치:기호]]를 순서대로 각각 1개씩 표시한다. 다른 문항의 내용과 정답 근거는 같은 지문의 삽입 표식을 제외한 본문을 기준으로 한다.
 - 어법 오류 찾기는 다섯 [[밑줄:표현]] 바로 앞에 해당 어법 문항의 표시 기호를 순서대로 한 번씩 붙인다.
 ${insertionPresentationRule}
-- 요약문 완성은 공통 material을 바꾸거나 반복하지 않는다. 해당 questions[] 항목의 summaryText에 원문을 재진술한 영어 한 문장을 별도로 작성한다.
-- summaryText에는 [[요약빈칸:A]]와 [[요약빈칸:B]]를 각각 정확히 한 번 넣고, choices는 ["A단어|B단어", ...] 형식의 다섯 단어쌍으로 작성한다.
+- 요약문 완성은 공통 material을 바꾸거나 반복하지 않는다. 해당 questions[] 항목의 summaryText에 원문을 재진술한 한 문장을 별도로 작성한다.
+- summaryText에는 [[요약빈칸:A]]와 [[요약빈칸:B]]를 각각 정확히 한 번 넣고, choices는 문항 언어와 같은 언어의 ["A단어|B단어", ...] 형식 다섯 단어쌍으로 작성한다.
 - 공통 보기형은 [[보기:a. word|b. word|c. word|d. word|e. word]]와 라벨 빈칸 [[빈칸:ⓐ]] 형식을 사용한다.
 - 복수 빈칸 조합형의 각 choice는 (A), (B), (C) 값을 세로줄 문자 | 로 구분한다.
 - 설계안이나 승인 질문을 먼저 출력하지 말고, 이 프롬프트의 출력 JSON 형식에 맞는 객체 하나를 바로 반환한다.
@@ -535,7 +535,9 @@ export function parseEnglishSetJson(raw: string, base: EnglishQuestionSet): Engl
     if (typeof item.stem !== 'string') throw new Error(`${index + 1}번 문항에 stem이 필요합니다.`)
     const expected = expectedQuestions[index]
     if (generatedSchool && item.type !== expected?.type) throw new Error(`${index + 1}번 문항 유형은 요청한 '${expected?.type}'이어야 합니다.`)
-    if (generatedSchool && item.stem.trim() !== expected?.stem.trim()) throw new Error(`${index + 1}번 문항 발문이 요청한 발문과 다릅니다.`)
+    const expectedStem = expected ? schoolQuestionDisplayStem(base, expected) : undefined
+    const acceptedStems = new Set([expectedStem?.trim(), expected?.stem.trim()].filter((stem): stem is string => Boolean(stem)))
+    if (generatedSchool && !acceptedStems.has(item.stem.trim())) throw new Error(`${index + 1}번 문항 발문이 요청한 발문과 다릅니다.`)
     const type = typeof item.type === 'string' ? item.type : base.questions[index]?.type ?? '내용 이해'
     const expectedTemplate = expected ? inferSchoolQuestionTemplate(expected) : SCHOOL_QUESTION_TEMPLATES.find((template) => template.questionType === type)
     const expectsInlineMarkers = generatedSchool && expected && (expected.type === '문장 삽입' || expected.schoolTemplateId === 'grammar-error')
@@ -558,17 +560,15 @@ export function parseEnglishSetJson(raw: string, base: EnglishQuestionSet): Engl
       if (markerA !== 1 || markerB !== 1) throw new Error(`${index + 1}번 요약문에는 [[요약빈칸:A]]와 [[요약빈칸:B]]가 각각 정확히 1개 필요합니다.`)
       if (choices.some((choice) => choice.split('|').map((cell) => cell.trim()).filter(Boolean).length !== 2)) throw new Error(`${index + 1}번 요약문 선지는 A단어|B단어 형식이어야 합니다.`)
     }
-    if (generatedSchool && expected?.schoolChoiceLanguage === 'en' && schoolQuestionUsesChoiceLanguage(expected)
-      && choices.some((choice) => /[가-힣]/.test(choice) || !/[A-Za-z]/.test(choice))) throw new Error(`${index + 1}번 문항은 영어 선지로 통일해야 합니다.`)
     return {
       id: crypto.randomUUID(), type,
-      stem: item.stem.trim(), choices, answerIndex: parseAnswerIndex(item.answerIndex ?? item.answer, choiceCount),
+      stem: expected?.stem.trim() ?? item.stem.trim(), choices, answerIndex: parseAnswerIndex(item.answerIndex ?? item.answer, choiceCount),
       explanation: typeof item.explanation === 'string' ? item.explanation.trim() : '', intention: typeof item.intention === 'string' ? item.intention.trim() : '',
       evidenceRefs: cleanStrings(item.evidenceRefs), distractorReasons: cleanStrings(item.distractorReasons), score: typeof item.score === 'number' ? item.score : 2,
       schoolTemplateId: expectedTemplate?.id,
       schoolChoiceLayout: expected?.schoolChoiceLayout ?? expectedTemplate?.choiceLayout,
       schoolStemLanguage: expected?.schoolStemLanguage ?? 'ko',
-      schoolChoiceLanguage: expected?.schoolChoiceLanguage ?? (expectedTemplate?.id === 'summary' ? 'en' : 'ko'),
+      schoolChoiceLanguage: schoolQuestionUsesChoiceLanguage(expected ?? { type, schoolTemplateId: expectedTemplate?.id }) ? expected?.schoolStemLanguage ?? 'ko' : undefined,
       schoolSummaryText,
     }
   })
