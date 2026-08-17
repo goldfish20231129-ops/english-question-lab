@@ -45,13 +45,20 @@ function paperStyle(layout: ExamLayoutSettings): CSSProperties {
 function Header({ exam, pageNumber, layout, questionCount, totalScore }: { exam: EnglishExamDocument; pageNumber: number; layout: ExamLayoutSettings; questionCount: number; totalScore: number }) {
   if (layout.preset === 'school-exam') {
     const school = layout.schoolExamHeader ?? { subjectName: '영어', subjectCode: '', examSession: '', authorName: '', showApprovalGrid: true }
-    if (pageNumber > 1) return <header className="paper-header preset-school-exam school-exam-running-header"><span>{layout.institution || '학교·기관명'}</span><strong>{exam.title}</strong><span>{school.subjectName || '영어'}{school.subjectCode ? ` (${school.subjectCode})` : ''}</span>{layout.showPageNumbers && <b>{pageNumber}</b>}</header>
+    if (pageNumber > 1) return null
     return <header className="paper-header preset-school-exam school-exam-first-header">
-      <div className="school-exam-title"><small>{layout.institution || '학교·기관명'}</small><h1>{exam.title}</h1><span>{school.examSession || layout.dateLabel || '시행일·교시'}</span></div>
-      <div className="school-exam-meta"><span><b>과목</b>{school.subjectName || '영어'}</span><span><b>과목 코드</b>{school.subjectCode || '—'}</span><span><b>대상</b>{layout.gradeLabel || '학년·반'}</span><span><b>객관식</b>{questionCount}문항 · {Number(totalScore.toFixed(2))}점</span></div>
-      <div className="school-exam-student"><span>학년 ____</span><span>반 ____</span><span>번호 ____</span><span>이름 ____________</span></div>
-      {(school.showApprovalGrid || school.authorName) && <div className="school-exam-approval"><span><b>출제자</b>{school.authorName || '—'}</span>{school.showApprovalGrid && <><span><b>검토</b>&nbsp;</span><span><b>결재</b>&nbsp;</span></>}</div>}
-      {layout.showPageNumbers && <b>{pageNumber}</b>}
+      <div className="school-exam-brand"><span aria-hidden="true">E</span><strong>{layout.institution || '학교·기관명'}</strong></div>
+      <div className="school-exam-title"><h1>{exam.title}</h1><span>{school.examSession || layout.dateLabel || '시행일·교시'}</span></div>
+      {(school.showApprovalGrid || school.authorName)
+        ? <div className="school-exam-approval"><span><b>출제자</b>{school.authorName || '\u00a0'}</span><span><b>검토</b>&nbsp;</span><span><b>결재</b>&nbsp;</span></div>
+        : <div className="school-exam-approval school-exam-approval-empty" />}
+      <div className="school-exam-meta">
+        <span><b>과목</b>{school.subjectName || '영어'}</span>
+        <span><b>코드</b>{school.subjectCode || '—'}</span>
+        <span><b>학년</b>{layout.gradeLabel || '—'}</span>
+        <span><b>배점</b>객관식 {questionCount}문항 · {Number(totalScore.toFixed(2))}점</span>
+        <span className="school-exam-student"><b>수험자</b>반 ___ · 번호 ___ · 이름 __________</span>
+      </div>
     </header>
   }
   return <header className={`paper-header preset-${layout.preset}`}>
@@ -62,12 +69,13 @@ function Header({ exam, pageNumber, layout, questionCount, totalScore }: { exam:
 }
 
 function Footer({ layout, pageNumber, total }: { layout: ExamLayoutSettings; pageNumber: number; total: number }) {
+  if (layout.preset === 'school-exam') return <footer className="paper-footer school-exam-footer"><span className="school-exam-footer-brand"><b aria-hidden="true">E</b>{layout.institution || '학교·기관명'}</span><span>{layout.footerText || `${layout.schoolExamHeader?.subjectName || '영어'} 시험지`}</span>{layout.showPageNumbers ? <strong>{pageNumber}/{total}</strong> : <strong />}</footer>
   return <footer className="paper-footer"><span>{layout.footerText}</span>{layout.showPageNumbers && <strong>{pageNumber} / {total}</strong>}</footer>
 }
 
 function SetHeader({ block }: { block: ExamFlowBlock }) {
   const set = block.set!
-  if (block.effectiveLayout.preset === 'school-exam') return <div className="paper-set-header school-exam-group-header" data-flow-id={block.id}><strong>[{block.groupNumberLabel}] 다음 글을 읽고, 물음에 답하시오.</strong>{set.materialTitle && <small>{set.materialTitle}</small>}</div>
+  if (block.effectiveLayout.preset === 'school-exam') return <div className="paper-set-header school-exam-group-header" data-flow-id={block.id}><strong>[{block.groupNumberLabel?.replaceAll('~', '-')}] 다음 글을 읽고, 물음에 답하시오.</strong></div>
   return <div className="paper-set-header" data-flow-id={block.id}><span>{set.mode === 'csat' ? '수능형' : set.mode === 'school' ? '내신형' : '맞춤형'}</span><strong>{set.title}</strong>{set.materialTitle && <small>{set.materialTitle}</small>}</div>
 }
 

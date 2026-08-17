@@ -100,6 +100,16 @@ export function normalizeExamDocument(exam: EnglishExamDocument, sets: EnglishQu
       lineHeight: Math.abs(normalizedLayout.lineHeight - 1.62) < 0.001 ? 1.32 : normalizedLayout.lineHeight,
       questionGap: Math.abs(normalizedLayout.questionGap - 6) < 0.001 ? 3.5 : normalizedLayout.questionGap,
     }
+    : normalizedLayout.preset === 'school-exam' && (normalizedLayout.layoutRevision ?? 1) < 2
+      ? {
+        ...normalizedLayout,
+        layoutRevision: 2,
+        marginTop: Math.abs(normalizedLayout.marginTop - 8) < 0.001 ? 7.5 : normalizedLayout.marginTop,
+        marginBottom: Math.abs(normalizedLayout.marginBottom - 11) < 0.001 ? 9 : normalizedLayout.marginBottom,
+        fontSize: Math.abs(normalizedLayout.fontSize - 9.2) < 0.001 ? 8.4 : normalizedLayout.fontSize,
+        lineHeight: Math.abs(normalizedLayout.lineHeight - 1.42) < 0.001 ? 1.3 : normalizedLayout.lineHeight,
+        questionGap: Math.abs(normalizedLayout.questionGap - 3.5) < 0.001 ? 3 : normalizedLayout.questionGap,
+      }
     : normalizedLayout
   return { ...exam, layout, setOverrides, contentEntries: entries, entryOverrides, setIds: [...new Set(entries.map((entry) => entry.setId))] }
 }

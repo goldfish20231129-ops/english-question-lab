@@ -301,6 +301,17 @@ describe('공통 조판 회귀', () => {
     expect(normalizeExamDocument(customized, [set]).layout.fontSize).toBe(9.4)
   })
 
+  it('기존 학교형 2단 기본값만 실제 학교 시험지 밀도로 이전한다', () => {
+    const set = createEnglishSet('school')
+    const legacy = exam()
+    legacy.layout = { ...createExamLayout('school-exam'), layoutRevision: 1, marginTop: 8, marginBottom: 11, fontSize: 9.2, lineHeight: 1.42, questionGap: 3.5 }
+    const migrated = normalizeExamDocument(legacy, [set])
+    expect(migrated.layout).toMatchObject({ layoutRevision: 2, marginTop: 7.5, marginBottom: 9, fontSize: 8.4, lineHeight: 1.3, questionGap: 3 })
+
+    const customized = { ...legacy, layout: { ...legacy.layout, fontSize: 9 } }
+    expect(normalizeExamDocument(customized, [set]).layout.fontSize).toBe(9)
+  })
+
   it('관련 없는 세트 데이터는 변경하지 않는다', () => {
     const school = createEnglishSet('school') as EnglishQuestionSet
     const before = JSON.stringify(school)
@@ -362,7 +373,7 @@ describe('공통 조판 회귀', () => {
 
     const normalized = normalizeExamDocument(doc, [set])
     const blocks = buildExamFlowBlocks(normalized, [set], [])
-    expect(normalized.layout).toMatchObject({ preset: 'school-exam', columns: 2, answerColumns: 1 })
+    expect(normalized.layout).toMatchObject({ preset: 'school-exam', layoutRevision: 2, columns: 2, answerColumns: 1, fontSize: 8.4, lineHeight: 1.3, questionGap: 3 })
     expect(blocks.find((block) => block.kind === 'set-header')).toMatchObject({ groupNumberLabel: '1~3', keepWithNext: true })
     expect(blocks.filter((block) => block.kind === 'material')).toHaveLength(1)
     expect(blocks.filter((block) => block.kind === 'question').map((block) => block.questionNumber)).toEqual([1, 2, 3])

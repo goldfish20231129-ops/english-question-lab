@@ -149,9 +149,11 @@ describe('내신형 새 지문 혼합 세트 출력', () => {
 
     const html = renderToStaticMarkup(createElement(ExamQuestionPages, { exam, sets: [set], assets: [] }))
     expect(html).toContain('preset-school-exam')
+    expect(html).toContain('school-exam-brand')
+    expect(html).toContain('school-exam-footer')
     expect(html).toContain('예시 교육 기관')
     expect(html).toContain('2문항 · 5.5점')
-    expect(html).toContain('[1~2] 다음 글을 읽고, 물음에 답하시오.')
+    expect(html).toContain('[1-2] 다음 글을 읽고, 물음에 답하시오.')
     expect(html).toContain('[2.5점]')
     expect(html).toContain('school-choice-container-matrix')
   })
