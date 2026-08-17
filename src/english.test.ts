@@ -77,6 +77,15 @@ describe('영어 세트 공통 흐름', () => {
     expect(() => generateEnglishPrompt(set)).toThrow(/한 문항만/)
   })
 
+  it('내신형 새 자료는 한 번에 최대 5문항까지만 생성한다', () => {
+    const set = createEnglishSet('school')
+    set.questions = Array.from({ length: 5 }, () => createQuestion('내용 이해'))
+    expect(generateEnglishPrompt(set)).toContain('한 세트에서 생성하는 문항은 최대 5개')
+
+    set.questions = [...set.questions, createQuestion('내용 일치 및 불일치')]
+    expect(() => generateEnglishPrompt(set)).toThrow(/최대 5문항/)
+  })
+
   it('새 자료 내신형 JSON은 일반 문항 뒤에 삽입 문항을 정규화하고 설계 유형·발문을 보존한다', () => {
     const set = createEnglishSet('school')
     const content = createQuestion('내용 이해')

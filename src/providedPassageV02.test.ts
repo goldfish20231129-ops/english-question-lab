@@ -9,7 +9,7 @@ import { transitionSchoolProvidedPassageMode } from './providedPassage'
 import {
   adaptProvidedPassageV02Response, buildProvidedPassageV02Request, createProvidedPassageV02Plan,
   generateProvidedPassageV02Prompt, orderedProvidedPassageV02Plans, providedPassageV02BlockingReason, providedPassageV02DefaultStem, providedPassageV02GrammarPresentation,
-  providedPassageV02PresentationSpec, providedPassageV02QuestionMaterialText, providedPassageV02TransitionBlockingReason,
+  providedPassageV02PresentationSpec, providedPassageV02QuestionMaterialText, providedPassageV02TransitionBlockingReason, PROVIDED_PASSAGE_V02_MAX_ITEMS,
   providedPassageV02SharedMaterialText, syncProvidedPassageV02Questions, transitionSchoolProvidedPassageV02,
 } from './providedPassageV02'
 import type { EnglishQuestionSet, ProvidedPassageV02ItemPlan } from './types'
@@ -110,6 +110,12 @@ function mixedResponse() {
 }
 
 describe('Provided Passage V0.2', () => {
+  it('limits one provided-passage set to five requested questions', () => {
+    expect(PROVIDED_PASSAGE_V02_MAX_ITEMS).toBe(5)
+    const plans = Array.from({ length: 6 }, (_, index) => createProvidedPassageV02Plan(`content-${index + 1}`, 'content_match'))
+    expect(providedPassageV02BlockingReason(configured(plans))).toMatch(/1~5개/)
+  })
+
   it('normalizes pasted line breaks into one authoritative paragraph before fingerprinting', () => {
     const seed = createEnglishSet('school')
     seed.material = 'First line wraps here.\r\nSecond line continues.\n\nThird line closes.'

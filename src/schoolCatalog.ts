@@ -1,5 +1,7 @@
 import type { EnglishQuestion, EnglishQuestionSet, SchoolChoiceLayout, SchoolQuestionTemplateId } from './types'
 
+export const MAX_SCHOOL_SET_QUESTIONS = 5
+
 export interface SchoolQuestionTemplateDefinition {
   id: SchoolQuestionTemplateId
   label: string

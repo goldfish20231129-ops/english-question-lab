@@ -2,7 +2,7 @@ import { CSAT_FAMILIES, CSAT_GPT_APPROVAL_PROTOCOL, CSAT_INLINE_POSITION_CHOICES
 import { assertCsatGenerationSchema } from './generationContract'
 import { generateProvidedPassagePrompt, isProvidedPassageSet, parseProvidedPassageJson, providedPassageValidationMessages } from './providedPassage'
 import { generateProvidedPassageV02Prompt, parseProvidedPassageV02Json, providedPassageV02ValidationMessages } from './providedPassageV02'
-import { SCHOOL_QUESTION_TEMPLATES, inferSchoolQuestionTemplate, schoolCatalogPromptSection, schoolQuestionTypes, validateSchoolTemplateMarkup } from './schoolCatalog'
+import { MAX_SCHOOL_SET_QUESTIONS, SCHOOL_QUESTION_TEMPLATES, inferSchoolQuestionTemplate, schoolCatalogPromptSection, schoolQuestionTypes, validateSchoolTemplateMarkup } from './schoolCatalog'
 import { generatedSchoolInsertionMarkupIssues, orderedGeneratedSchoolQuestions } from './schoolMaterial'
 import type { CsatMaterialSpec, CsatQualityReview, EnglishMode, EnglishQuestion, EnglishQuestionSet, ExamLayoutSettings, LayoutPreset, SourceKind, ValidationIssue } from './types'
 import { englishDifficultyLabel, englishDifficultyPrompt } from './difficulty'
@@ -255,6 +255,7 @@ export function generateEnglishPrompt(set: EnglishQuestionSet): string {
   }
   if (set.mode === 'csat') return generateCsatBatchPrompt(set)
   const orderedQuestions = orderedGeneratedSchoolQuestions(set)
+  if (set.mode === 'school' && orderedQuestions.length > MAX_SCHOOL_SET_QUESTIONS) throw new Error(`내신형 세트는 한 번에 최대 ${MAX_SCHOOL_SET_QUESTIONS}문항까지 만들 수 있습니다. 문항을 줄여 주세요.`)
   const generatedSchoolInsertionCount = set.mode === 'school' && set.materialMode === 'generated' ? orderedQuestions.filter((question) => question.type === '문장 삽입').length : 0
   if (generatedSchoolInsertionCount > 1) throw new Error('새 자료 작성 세트에서는 문장 삽입을 한 문항만 포함할 수 있습니다. 서로 다른 삽입 문장은 별도 세트로 나눠 주세요.')
   const plan = set.mode === 'school'
@@ -280,6 +281,7 @@ export function generateEnglishPrompt(set: EnglishQuestionSet): string {
     : '- 문장 삽입 문항은 questions 배열의 마지막 문항으로 두고, 공통 지문과 같은 내용을 사용하되 삽입 문장 상자와 위치 표시가 있는 독립 블록으로 출력할 수 있게 한다.'
   const schoolGeneratedContract = set.mode === 'school' && set.materialMode === 'generated' ? `[생성 경로]
 - mode는 school_english_generated_passage다. Provided Passage의 sourcePassageId, fingerprint, sentence ID, boundary ID를 요구하지 않는다.
+- 한 세트에서 생성하는 문항은 최대 ${MAX_SCHOOL_SET_QUESTIONS}개다.
 - 아래 문항 구성을 한 번의 응답에 모두 생성하고 최상위 questions 배열의 순서를 그대로 지킨다.
 - 모든 일반 문항은 하나의 공통 material을 공유하며, 문항마다 지문을 반복 생성하지 않는다.
 - 내용 이해는 지문에 그대로 진술된 사실을 다시 찾는 문항이 아니다. 지문의 둘 이상의 단서 또는 하나의 충분한 함의를 근거로 가장 타당하게 추론할 수 있는 내용 하나를 고르게 한다.
@@ -461,6 +463,8 @@ export function parseEnglishSetJson(raw: string, base: EnglishQuestionSet): Engl
   if (!input.questions.length) throw new Error('최소 한 문항이 필요합니다.')
   const generatedSchool = base.mode === 'school' && base.materialMode === 'generated'
   const expectedQuestions = orderedGeneratedSchoolQuestions(base)
+  if (generatedSchool && expectedQuestions.length > MAX_SCHOOL_SET_QUESTIONS) throw new Error(`내신형 세트는 한 번에 최대 ${MAX_SCHOOL_SET_QUESTIONS}문항까지 가져올 수 있습니다.`)
+  if (generatedSchool && input.questions.length > MAX_SCHOOL_SET_QUESTIONS) throw new Error(`내신형 AI 결과는 최대 ${MAX_SCHOOL_SET_QUESTIONS}문항까지만 가져올 수 있습니다.`)
   if (generatedSchool && input.questions.length !== expectedQuestions.length) throw new Error(`요청한 ${expectedQuestions.length}개 문항과 응답의 ${input.questions.length}개 문항 수가 다릅니다.`)
   const inputQuestions = generatedSchool && base.schoolInsertionPresentation !== 'shared'
     ? [...input.questions].sort((left, right) => {
@@ -846,6 +850,7 @@ export function validateEnglishSet(set: EnglishQuestionSet): ValidationIssue[] {
   if (set.mode === 'school' && set.providedPassage) providedPassageValidationMessages(set).forEach((message) => add(message))
   if (set.mode === 'school' && set.providedPassageV02) providedPassageV02ValidationMessages(set).forEach((message) => add(message))
   if (set.mode === 'school' && set.materialMode === 'generated') {
+    if (set.questions.length > MAX_SCHOOL_SET_QUESTIONS) add({ level: 'warning', label: '내신형 세트 문항 수', detail: `기존 ${set.questions.length}문항은 보존되지만, 다음 AI 생성은 최대 ${MAX_SCHOOL_SET_QUESTIONS}문항까지 가능합니다.` })
     const insertionCount = set.questions.filter((question) => question.type === '문장 삽입').length
     if (insertionCount > 1) add({ level: 'error', label: '문장 삽입 문항 수', detail: '새 자료 작성 세트에는 문장 삽입을 한 문항만 포함할 수 있습니다.' })
     generatedSchoolInsertionMarkupIssues(set).forEach((detail) => add({ level: 'error', label: '문장 삽입 자료 구조', detail }))
