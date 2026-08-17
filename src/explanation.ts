@@ -28,6 +28,8 @@ function explanationSource(set: EnglishQuestionSet) {
     answerIndex: question.answerIndex,
     score: question.score ?? 2,
     schoolSummaryText: question.schoolSummaryText ?? null,
+    schoolStemLanguage: question.schoolStemLanguage ?? null,
+    schoolChoiceLanguage: question.schoolChoiceLanguage ?? null,
   }))
   if (set.mode === 'csat') {
     return {

@@ -43,4 +43,21 @@ describe('내신형 객관식 템플릿 카탈로그', () => {
     summary.schoolSummaryText = 'The evidence [[요약빈칸:A]] the claim.'
     expect(validateSchoolTemplateMarkup(set)[0]).toContain('[[요약빈칸:B]]')
   })
+
+  it('명시적으로 선택한 영어 발문과 영어 선지만 언어를 검사한다', () => {
+    const set = createEnglishSet('school')
+    const question = createQuestion('내용 이해', 5, 'school')
+    question.schoolStemLanguage = 'en'
+    question.schoolChoiceLanguage = 'en'
+    question.stem = 'Which of the following can be inferred from the passage?'
+    question.choices = ['A reasonable inference.', 'A second inference.', 'A third inference.', 'A fourth inference.', 'A fifth inference.']
+    set.questions = [question]
+    set.material = 'The passage provides enough information for a careful inference.'
+    expect(validateSchoolTemplateMarkup(set)).toEqual([])
+
+    question.stem = '다음 글에서 추론할 수 있는 것은?'
+    question.choices[1] = '한국어 선지'
+    expect(validateSchoolTemplateMarkup(set).join(' ')).toContain('발문 언어가 영어')
+    expect(validateSchoolTemplateMarkup(set).join(' ')).toContain('선지 언어가 영어')
+  })
 })

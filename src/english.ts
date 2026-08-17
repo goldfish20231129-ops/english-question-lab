@@ -2,9 +2,9 @@ import { CSAT_FAMILIES, CSAT_GPT_APPROVAL_PROTOCOL, CSAT_INLINE_POSITION_CHOICES
 import { assertCsatGenerationSchema } from './generationContract'
 import { generateProvidedPassagePrompt, isProvidedPassageSet, parseProvidedPassageJson, providedPassageValidationMessages } from './providedPassage'
 import { generateProvidedPassageV02Prompt, parseProvidedPassageV02Json, providedPassageV02ValidationMessages } from './providedPassageV02'
-import { MAX_SCHOOL_SET_QUESTIONS, SCHOOL_QUESTION_TEMPLATES, inferSchoolQuestionTemplate, schoolCatalogPromptSection, schoolQuestionTypes, validateSchoolTemplateMarkup } from './schoolCatalog'
+import { MAX_SCHOOL_SET_QUESTIONS, SCHOOL_QUESTION_TEMPLATES, inferSchoolQuestionTemplate, schoolCatalogPromptSection, schoolQuestionTypes, schoolQuestionUsesChoiceLanguage, validateSchoolTemplateMarkup } from './schoolCatalog'
 import { generatedSchoolInsertionMarkupIssues, orderedGeneratedSchoolQuestions } from './schoolMaterial'
-import type { CsatMaterialSpec, CsatQualityReview, EnglishMode, EnglishQuestion, EnglishQuestionSet, ExamLayoutSettings, LayoutPreset, SourceKind, ValidationIssue } from './types'
+import type { CsatMaterialSpec, CsatQualityReview, EnglishMode, EnglishQuestion, EnglishQuestionSet, ExamLayoutSettings, LayoutPreset, ProvidedPassageChoiceLanguage, SourceKind, ValidationIssue } from './types'
 import { englishDifficultyLabel, englishDifficultyPrompt } from './difficulty'
 import { stripLeadingChoiceMarker } from './utils'
 
@@ -100,8 +100,35 @@ const DEFAULT_STEMS: Record<string, string> = {
   '공통 보기 빈칸': '윗글의 빈칸에 들어갈 말로 가장 적절한 것을 <보기>에서 고른 것은?',
 }
 
-export function defaultQuestionStem(type: string) {
-  return DEFAULT_STEMS[type] ?? '다음 글을 읽고 물음에 답하시오.'
+const ENGLISH_DEFAULT_STEMS: Record<string, string> = {
+  목적: 'What is the main purpose of the passage?',
+  '심경 및 분위기': "Which of the following best describes the writer's change in emotion?",
+  주장: "Which of the following best expresses the writer's claim?",
+  요지: 'What is the main idea of the passage?',
+  주제: 'What is the main topic of the passage?',
+  제목: 'Which of the following is the best title for the passage?',
+  '함축 의미': 'What does the underlined expression imply in the passage?',
+  '내용 일치 및 불일치': 'Which of the following is NOT consistent with the passage?',
+  '도표 및 실용문': 'Which of the following is NOT consistent with the information above?',
+  어법: 'Which of the underlined parts is grammatically incorrect?',
+  어휘: 'Which of the underlined words is contextually inappropriate?',
+  '빈칸 추론': 'Which of the following best completes the blank?',
+  '무관한 문장': 'Which sentence is irrelevant to the overall flow of the passage?',
+  '글의 순서': 'Which of the following is the most appropriate order of the paragraphs following the given passage?',
+  '순서 배열': 'Which of the following is the most appropriate order of the paragraphs following the given passage?',
+  '문장 삽입': 'Where is the most appropriate place for the given sentence?',
+  '요약문 완성': 'Which pair of words best completes blanks (A) and (B) in the summary?',
+  '장문 독해': 'Which of the following is most appropriate according to the passage?',
+  '내용 이해': 'Which of the following can be inferred from the passage?',
+  '어법상 옳은 표현 조합': 'Which of the following correctly identifies all grammatically correct underlined parts?',
+  '복수 빈칸 조합': 'Which of the following best completes blanks (A), (B), and (C)?',
+  '공통 보기 빈칸': 'Which of the following best fills the blanks using the words in the box?',
+}
+
+export function defaultQuestionStem(type: string, language: ProvidedPassageChoiceLanguage = 'ko') {
+  return language === 'en'
+    ? ENGLISH_DEFAULT_STEMS[type] ?? 'Read the passage and answer the question.'
+    : DEFAULT_STEMS[type] ?? '다음 글을 읽고 물음에 답하시오.'
 }
 
 export function createQuestion(type: string, choiceCount = 5, mode?: EnglishMode): EnglishQuestion {
@@ -113,6 +140,8 @@ export function createQuestion(type: string, choiceCount = 5, mode?: EnglishMode
     const template = SCHOOL_QUESTION_TEMPLATES.find((candidate) => candidate.questionType === type)
     question.schoolTemplateId = template?.id
     question.schoolChoiceLayout = template?.choiceLayout
+    question.schoolStemLanguage = 'ko'
+    question.schoolChoiceLanguage = template?.id === 'summary' ? 'en' : 'ko'
   }
   return question
 }
@@ -286,6 +315,7 @@ export function generateEnglishPrompt(set: EnglishQuestionSet): string {
 - 아래 문항 구성을 한 번의 응답에 모두 생성하고 최상위 questions 배열의 순서를 그대로 지킨다.
 - 일반 내용 선지의 choices에는 ①~⑤나 1.~5. 같은 번호를 넣지 않고 선지 본문만 작성한다. 번호는 앱이 자동으로 표시한다.
 - 모든 일반 문항은 하나의 공통 material을 공유하며, 문항마다 지문을 반복 생성하지 않는다.
+- 각 문항의 발문 언어와 선지 언어를 독립적으로 지킨다. 영어는 자연스러운 영어만, 한국어는 자연스러운 한국어만 사용한다. 위치 번호·표식·배열형 선지는 언어 조건에서 제외한다.
 - 내용 이해는 지문에 그대로 진술된 사실을 다시 찾는 문항이 아니다. 지문의 둘 이상의 단서 또는 하나의 충분한 함의를 근거로 가장 타당하게 추론할 수 있는 내용 하나를 고르게 한다.
 - 내용 이해의 정답은 외부 배경지식 없이 지문만으로 도출되어야 하며, 과도한 일반화·인과 비약·범위 왜곡·주체 변경을 오답 원리로 활용한다.
 - 문장 삽입은 다른 유형과 함께 만들 수 있으나 한 세트에 최대 한 문항만 둔다.
@@ -503,6 +533,8 @@ export function parseEnglishSetJson(raw: string, base: EnglishQuestionSet): Engl
       if (markerA !== 1 || markerB !== 1) throw new Error(`${index + 1}번 요약문에는 [[요약빈칸:A]]와 [[요약빈칸:B]]가 각각 정확히 1개 필요합니다.`)
       if (choices.some((choice) => choice.split('|').map((cell) => cell.trim()).filter(Boolean).length !== 2)) throw new Error(`${index + 1}번 요약문 선지는 A단어|B단어 형식이어야 합니다.`)
     }
+    if (generatedSchool && expected?.schoolChoiceLanguage === 'en' && schoolQuestionUsesChoiceLanguage(expected)
+      && choices.some((choice) => /[가-힣]/.test(choice) || !/[A-Za-z]/.test(choice))) throw new Error(`${index + 1}번 문항은 영어 선지로 통일해야 합니다.`)
     return {
       id: crypto.randomUUID(), type,
       stem: item.stem.trim(), choices, answerIndex: parseAnswerIndex(item.answerIndex ?? item.answer, choiceCount),
@@ -510,6 +542,8 @@ export function parseEnglishSetJson(raw: string, base: EnglishQuestionSet): Engl
       evidenceRefs: cleanStrings(item.evidenceRefs), distractorReasons: cleanStrings(item.distractorReasons), score: typeof item.score === 'number' ? item.score : 2,
       schoolTemplateId: expectedTemplate?.id,
       schoolChoiceLayout: expected?.schoolChoiceLayout ?? expectedTemplate?.choiceLayout,
+      schoolStemLanguage: expected?.schoolStemLanguage ?? 'ko',
+      schoolChoiceLanguage: expected?.schoolChoiceLanguage ?? (expectedTemplate?.id === 'summary' ? 'en' : 'ko'),
       schoolSummaryText,
     }
   })

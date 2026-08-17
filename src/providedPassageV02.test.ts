@@ -362,6 +362,29 @@ describe('Provided Passage V0.2', () => {
     expect(questions.map((question) => question.stem).join(' ')).not.toContain('문맥상 낱말')
   })
 
+  it('uses an English required stem and English choices when both languages are selected', () => {
+    const plan = { ...createProvidedPassageV02Plan('english-content', 'content_inference'), stemLanguage: 'en' as const, choiceLanguage: 'en' as const }
+    const set = configured([plan])
+    const request = buildProvidedPassageV02Request(set)
+    const item = request.items[0]
+    expect(item.requiredStem).toBe('Which of the following can be inferred from the passage?')
+    expect(request.items[0]).not.toHaveProperty('stemLanguage')
+    expect(set.questions[0]).toMatchObject({ schoolStemLanguage: 'en', schoolChoiceLanguage: 'en', stem: item.requiredStem })
+
+    const first = request.source.sentences[0]
+    const second = request.source.sentences[1]
+    const next = adaptProvidedPassageV02Response({
+      schemaId: 'english-question-lab-provided-passage-generation-v0.2', mode: request.mode, subject: request.subject,
+      sourcePassageId: request.source.sourcePassageId, sourceFingerprint: request.source.sourceFingerprint, title: 'English item',
+      items: [{
+        ...responseIdentity(item),
+        question: { type: '내용 이해', stem: item.requiredStem, choices: ['The student helps prepare the meeting room.', 'The teacher leads every weekly discussion.', 'Members receive notebooks from the school.', 'The club meets every morning.', 'The teacher selects every local problem.'], answerIndex: 1, evidenceSpans: [{ sentenceId: first.id, start: first.start, end: first.end, text: first.text }, { sentenceId: second.id, start: second.start, end: second.end, text: second.text }], score: 2 },
+        materialOperation: null,
+      }],
+    }, set)
+    expect(next.questions[0]).toMatchObject({ schoolStemLanguage: 'en', schoolChoiceLanguage: 'en', stem: item.requiredStem })
+  })
+
   it('keeps legacy grammar stems usable while emitting the new explicit required stem', () => {
     const set = configured([createProvidedPassageV02Plan('grammar', 'grammar')])
     set.questions[0].stem = '다음 글의 밑줄 친 부분 중, 어법상 틀린 것은?'

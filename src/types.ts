@@ -94,6 +94,8 @@ export type ProvidedPassageGrammarMode = 'source_form_check' | 'controlled_error
 export interface ProvidedPassageV02ItemPlan {
   itemId: string
   questionType: ProvidedPassageV02QuestionType
+  /** 앱에서 관리하는 발문 언어. AI 요청에는 requiredStem 문자열로 전달한다. */
+  stemLanguage?: ProvidedPassageChoiceLanguage
   choiceLanguage: ProvidedPassageChoiceLanguage | null
   vocabularyLevel: ProvidedPassageVocabularyLevel
   contentMatchPolarity: ProvidedPassageContentPolarity | null
@@ -251,6 +253,10 @@ export interface EnglishQuestion {
   csatItemId?: string
   schoolTemplateId?: SchoolQuestionTemplateId
   schoolChoiceLayout?: SchoolChoiceLayout
+  /** 내신형 발문의 출력 언어. 기존 데이터는 한국어로 해석한다. */
+  schoolStemLanguage?: ProvidedPassageChoiceLanguage
+  /** 내신형 일반 선지의 출력 언어. 위치 번호형 문항에는 적용하지 않는다. */
+  schoolChoiceLanguage?: ProvidedPassageChoiceLanguage
   /** 내신형 요약문 완성에서 공통 지문과 별도로 출력하는 (A)·(B) 요약문 */
   schoolSummaryText?: string
 }

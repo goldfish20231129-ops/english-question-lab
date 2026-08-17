@@ -7,7 +7,7 @@ import { MAX_SCHOOL_SET_QUESTIONS } from './schoolCatalog'
 import { stripLeadingChoiceMarker } from './utils'
 import type {
   CsatQualityReview, EnglishQuestion, EnglishQuestionSet, ProvidedPassageEvidenceSpan, ProvidedPassageGrammarMode,
-  ProvidedPassageGrammarOperation, ProvidedPassageGrammarTarget, ProvidedPassageV02ItemPlan,
+  ProvidedPassageChoiceLanguage, ProvidedPassageGrammarOperation, ProvidedPassageGrammarTarget, ProvidedPassageV02ItemPlan,
   ProvidedPassageV02ItemResult, ProvidedPassageV02QuestionType, ProvidedPassageV02State,
 } from './types'
 
@@ -55,7 +55,20 @@ export function providedPassageV02DefaultStem(
   polarity: ProvidedPassageV02ItemPlan['contentMatchPolarity'] = 'mismatch',
   grammarTarget: ProvidedPassageV02ItemPlan['grammarTarget'] = 'relative_clause',
   grammarMode: ProvidedPassageV02ItemPlan['grammarMode'] = 'source_form_check',
+  language: ProvidedPassageChoiceLanguage = 'ko',
 ) {
+  if (language === 'en') {
+    if (type === 'sentence_insertion') return 'Where is the most appropriate place for the given sentence?'
+    if (type === 'grammar') {
+      return grammarMode === 'controlled_error_variant'
+        ? 'Which of the underlined parts is grammatically incorrect?'
+        : 'Which of the following best explains the grammatical structure of the underlined expression?'
+    }
+    if (type === 'content_inference') return 'Which of the following can be inferred from the passage?'
+    return polarity === 'match'
+      ? 'Which of the following is consistent with the passage?'
+      : 'Which of the following is NOT consistent with the passage?'
+  }
   if (type === 'sentence_insertion') return '글의 흐름으로 보아, 주어진 문장이 들어가기에 가장 적절한 곳은?'
   if (type === 'grammar') {
     const label = PROVIDED_PASSAGE_GRAMMAR_STEM_LABELS[grammarTarget ?? 'relative_clause']
@@ -72,15 +85,18 @@ function questionShape(
   polarity: ProvidedPassageV02ItemPlan['contentMatchPolarity'] = 'mismatch',
   grammarTarget: ProvidedPassageV02ItemPlan['grammarTarget'] = 'relative_clause',
   grammarMode: ProvidedPassageV02ItemPlan['grammarMode'] = 'source_form_check',
-): Pick<EnglishQuestion, 'type' | 'stem' | 'choices' | 'answerIndex'> {
-  if (type === 'sentence_insertion') return { type: '문장 삽입', stem: providedPassageV02DefaultStem(type), choices: [...CSAT_INLINE_POSITION_CHOICES], answerIndex: 1 }
-  if (type === 'grammar') return { type: '어법', stem: providedPassageV02DefaultStem(type, polarity, grammarTarget, grammarMode), choices: grammarMode === 'controlled_error_variant' ? [...CSAT_INLINE_POSITION_CHOICES] : Array.from({ length: 5 }, () => ''), answerIndex: 1 }
-  if (type === 'content_inference') return { type: '내용 이해', stem: providedPassageV02DefaultStem(type), choices: Array.from({ length: 5 }, () => ''), answerIndex: 1 }
-  return { type: '내용 일치 및 불일치', stem: providedPassageV02DefaultStem(type, polarity), choices: Array.from({ length: 5 }, () => ''), answerIndex: 1 }
+  language: ProvidedPassageChoiceLanguage = 'ko',
+): Pick<EnglishQuestion, 'type' | 'stem' | 'choices' | 'answerIndex' | 'schoolStemLanguage' | 'schoolChoiceLanguage'> {
+  const languageFields = { schoolStemLanguage: language, schoolChoiceLanguage: usesChoiceLanguage(type) ? 'ko' as const : undefined }
+  if (type === 'sentence_insertion') return { type: '문장 삽입', stem: providedPassageV02DefaultStem(type, polarity, grammarTarget, grammarMode, language), choices: [...CSAT_INLINE_POSITION_CHOICES], answerIndex: 1, ...languageFields }
+  if (type === 'grammar') return { type: '어법', stem: providedPassageV02DefaultStem(type, polarity, grammarTarget, grammarMode, language), choices: grammarMode === 'controlled_error_variant' ? [...CSAT_INLINE_POSITION_CHOICES] : Array.from({ length: 5 }, () => ''), answerIndex: 1, ...languageFields }
+  if (type === 'content_inference') return { type: '내용 이해', stem: providedPassageV02DefaultStem(type, polarity, grammarTarget, grammarMode, language), choices: Array.from({ length: 5 }, () => ''), answerIndex: 1, ...languageFields }
+  return { type: '내용 일치 및 불일치', stem: providedPassageV02DefaultStem(type, polarity, grammarTarget, grammarMode, language), choices: Array.from({ length: 5 }, () => ''), answerIndex: 1, ...languageFields }
 }
 
 function questionShapeForPlan(plan: ProvidedPassageV02ItemPlan) {
-  return questionShape(plan.questionType, plan.contentMatchPolarity, plan.grammarTarget, plan.grammarMode)
+  const shape = questionShape(plan.questionType, plan.contentMatchPolarity, plan.grammarTarget, plan.grammarMode, plan.stemLanguage ?? 'ko')
+  return { ...shape, schoolChoiceLanguage: usesChoiceLanguage(plan.questionType) ? plan.choiceLanguage ?? 'ko' : undefined }
 }
 
 function usesChoiceLanguage(type: ProvidedPassageV02QuestionType) {
@@ -89,7 +105,7 @@ function usesChoiceLanguage(type: ProvidedPassageV02QuestionType) {
 
 export function createProvidedPassageV02Plan(itemId: string = crypto.randomUUID(), questionType: ProvidedPassageV02QuestionType = 'content_match'): ProvidedPassageV02ItemPlan {
   return {
-    itemId, questionType, choiceLanguage: usesChoiceLanguage(questionType) ? 'ko' : null,
+    itemId, questionType, stemLanguage: 'ko', choiceLanguage: usesChoiceLanguage(questionType) ? 'ko' : null,
     vocabularyLevel: 'source_matched', contentMatchPolarity: questionType === 'content_match' ? 'mismatch' : null,
     grammarTarget: questionType === 'grammar' ? 'relative_clause' : null,
     grammarMode: questionType === 'grammar' ? 'source_form_check' : null,
@@ -115,7 +131,12 @@ export function transitionSchoolProvidedPassageV02(set: EnglishQuestionSet, mode
   if (blocked) throw new Error(blocked)
   const currentQuestions = set.questions.length ? set.questions : [{ id: crypto.randomUUID(), ...questionShape('content_match'), explanation: '', intention: '', evidenceRefs: [], distractorReasons: [], score: 2 }]
   const replacePristineDefault = currentQuestions.length === 1 && questionTypeFromExisting(currentQuestions[0]) === undefined && isPristineQuestion(currentQuestions[0])
-  const plans = orderedProvidedPassageV02Plans(currentQuestions.map((question) => createProvidedPassageV02Plan(question.id, replacePristineDefault ? 'content_match' : questionTypeFromExisting(question)!)))
+  const plans = orderedProvidedPassageV02Plans(currentQuestions.map((question) => {
+    const plan = createProvidedPassageV02Plan(question.id, replacePristineDefault ? 'content_match' : questionTypeFromExisting(question)!)
+    plan.stemLanguage = question.schoolStemLanguage ?? (/[A-Za-z]/.test(question.stem) && !/[가-힣]/.test(question.stem) ? 'en' : 'ko')
+    if (usesChoiceLanguage(plan.questionType)) plan.choiceLanguage = question.schoolChoiceLanguage ?? 'ko'
+    return plan
+  }))
   const questionById = new Map(currentQuestions.map((question) => [question.id, question]))
   const questions = plans.map((plan) => ({ ...questionById.get(plan.itemId)!, ...questionShapeForPlan(plan), id: plan.itemId }))
   const providedPassageV02 = createProvidedPassageV02State(set.material, plans)
@@ -394,7 +415,7 @@ export function adaptProvidedPassageV02Response(value: unknown, base: EnglishQue
         if (question.answerIndex !== testedIndex + 1) throw new Error(`${plan.itemId}: 정답 번호가 오류 변형을 적용한 밑줄 위치와 일치하지 않습니다.`)
       }
     }
-    questions.push({ id: plan.itemId, type: expectedShape.type, stem: expectedShape.stem, choices, answerIndex: question.answerIndex as number, explanation: typeof question.explanation === 'string' ? question.explanation.trim() : '', intention: typeof question.intention === 'string' ? question.intention.trim() : '', evidenceRefs: evidenceSpans.map((span) => span.text), distractorReasons: Array.isArray(question.distractorReasons) ? question.distractorReasons.map(String) : [], score: question.score as number })
+    questions.push({ id: plan.itemId, type: expectedShape.type, stem: expectedShape.stem, choices, answerIndex: question.answerIndex as number, explanation: typeof question.explanation === 'string' ? question.explanation.trim() : '', intention: typeof question.intention === 'string' ? question.intention.trim() : '', evidenceRefs: evidenceSpans.map((span) => span.text), distractorReasons: Array.isArray(question.distractorReasons) ? question.distractorReasons.map(String) : [], score: question.score as number, schoolStemLanguage: plan.stemLanguage ?? 'ko', schoolChoiceLanguage: usesChoiceLanguage(plan.questionType) ? plan.choiceLanguage ?? 'ko' : undefined })
     results.push({ itemId: plan.itemId, evidenceSpans, materialOperation: operation })
     if (record.qualityReview) reviews.push(record.qualityReview as CsatQualityReview)
   }

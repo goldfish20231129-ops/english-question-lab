@@ -56,6 +56,29 @@ describe('영어 세트 공통 흐름', () => {
     expect(defaultQuestionStem('문장 삽입')).toBe('글의 흐름으로 보아, 주어진 문장이 들어가기에 가장 적절한 곳은?')
     expect(defaultQuestionStem('어법')).toBe('다음 글의 밑줄 친 부분 중, 어법상 틀린 것은?')
     expect(defaultQuestionStem('요약문 완성')).toContain('(A)와 (B)')
+    expect(defaultQuestionStem('내용 이해', 'en')).toBe('Which of the following can be inferred from the passage?')
+    expect(defaultQuestionStem('문장 삽입', 'en')).toBe('Where is the most appropriate place for the given sentence?')
+    expect(defaultQuestionStem('요약문 완성', 'en')).toContain('blanks (A) and (B)')
+  })
+
+  it('새 자료 내신형 프롬프트와 가져오기가 문항별 영어 발문·선지 설정을 보존한다', () => {
+    const set = createEnglishSet('school')
+    const question = createQuestion('내용 이해', 5, 'school')
+    question.schoolStemLanguage = 'en'
+    question.schoolChoiceLanguage = 'en'
+    question.stem = defaultQuestionStem(question.type, 'en')
+    set.questions = [question]
+    const prompt = generateEnglishPrompt(set)
+    expect(prompt).toContain('발문 언어: 영어')
+    expect(prompt).toContain('선지 언어: 영어')
+
+    const choices = ['The student compares two accounts.', 'The teacher removes every uncertainty.', 'The class ignores conflicting evidence.', 'The learner memorizes one explanation.', 'The group avoids making judgments.']
+    const imported = parseEnglishSetJson(JSON.stringify({ title: 'English labels', materialTitle: '', material: 'Students compare accounts before reaching a conclusion.', materialSpec: null, questions: [{ type: question.type, stem: question.stem, choices, answerIndex: 1, score: 2 }] }), set)
+    expect(imported.questions[0]).toMatchObject({ schoolStemLanguage: 'en', schoolChoiceLanguage: 'en', stem: question.stem, choices })
+
+    const invalidChoices = [...choices]
+    invalidChoices[2] = '학생은 근거를 비교한다.'
+    expect(() => parseEnglishSetJson(JSON.stringify({ title: 'Mixed labels', materialTitle: '', material: 'Students compare accounts before reaching a conclusion.', materialSpec: null, questions: [{ type: question.type, stem: question.stem, choices: invalidChoices, answerIndex: 1, score: 2 }] }), set)).toThrow(/영어 선지/)
   })
 
   it('새 자료 내신형은 문장 삽입을 포함한 다문항을 한 번의 전용 경로로 요청한다', () => {
