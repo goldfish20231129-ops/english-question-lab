@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { createEnglishSet, createQuestion } from './english'
-import { cleanInsertionMarkupForOtherQuestion, deriveGeneratedSchoolInsertionSpec, generatedSchoolInsertionMarkupIssues, generatedSchoolSharedMaterialPresentation, isGeneratedSchoolSet, orderedGeneratedSchoolQuestions, schoolQuestionMaterialPresentation, usesInlineGeneratedSchoolChoices, usesQuestionScopedSchoolMaterial } from './schoolMaterial'
+import { cleanInsertionMarkupForOtherQuestion, deriveGeneratedSchoolInsertionSpec, generatedSchoolInsertionMarkupIssues, generatedSchoolSharedMaterialPresentation, isGeneratedSchoolSet, orderedGeneratedSchoolQuestions, schoolInlineChoiceLabels, schoolQuestionMaterialPresentation, usesInlineGeneratedSchoolChoices, usesQuestionScopedSchoolMaterial } from './schoolMaterial'
 
 const MARKED = 'The class reviewed the claim. [[삽입위치:①]] [[삽입문장:This evidence changed their view.]] They compared two explanations. [[삽입위치:②]] The students checked the source. [[삽입위치:③]] They revised the conclusion. [[삽입위치:④]] The teacher summarized the lesson. [[삽입위치:⑤]]'
 
@@ -84,6 +84,24 @@ describe('새 자료 내신형 문항별 지문 표시', () => {
     expect(orderedGeneratedSchoolQuestions(set).map((question) => question.type)).toEqual(['문장 삽입', '어법', '내용 이해'])
     expect(generatedSchoolSharedMaterialPresentation(set)?.spec).toMatchObject({ kind: 'insertion', givenSentence: 'This evidence changed their view.' })
     expect(schoolQuestionMaterialPresentation(set, set.questions[0])).toEqual({ text: '' })
+  })
+
+  it('같은 공통 지문의 어법과 문장 삽입에 서로 다른 기호군을 배정한다', () => {
+    const set = createEnglishSet('school')
+    const grammar = createQuestion('어법', 5, 'school')
+    const insertion = createQuestion('문장 삽입', 5, 'school')
+    set.schoolInsertionPresentation = 'shared'
+    set.questions = [grammar, insertion]
+    set.material = '① [[밑줄:They]] begin. [[삽입위치:①]] ② [[밑줄:This]] continues. [[삽입위치:②]] ③ [[밑줄:which]] matters. [[삽입위치:③]] ④ [[밑줄:Students]] respond. [[삽입위치:④]] ⑤ [[밑줄:Finally]] it ends. [[삽입위치:⑤]] [[삽입문장:The evidence changes the conclusion.]]'
+
+    expect(schoolInlineChoiceLabels(set, grammar)).toEqual(['ㄱ', 'ㄴ', 'ㄷ', 'ㄹ', 'ㅁ'])
+    expect(schoolInlineChoiceLabels(set, insertion)).toEqual(['a', 'b', 'c', 'd', 'e'])
+    const spec = generatedSchoolSharedMaterialPresentation(set)?.spec
+    expect(spec).toMatchObject({ kind: 'insertion' })
+    if (spec?.kind !== 'insertion') throw new Error('삽입형 자료가 필요합니다.')
+    expect(spec.body).toContain('ㄱ [[밑줄:They]]')
+    expect(spec.body).toContain('[[삽입위치:a]]')
+    expect(spec.body).not.toContain('[[삽입위치:①]]')
   })
 
   it('기존 지문 V0.2는 생성 지문 공유 경로와 중복 처리하지 않는다', () => {

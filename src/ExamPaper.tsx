@@ -4,7 +4,7 @@ import { CsatMaterialView } from './CsatMaterialView'
 import { buildExamFlowBlocks, examFlowMeasurementKey, geometryKey, getOversizedQuestionIssues, paginateAtomicAnswerBlocks, paginateExamBlocks, resolveExamEntries, type ExamFlowBlock, type ExamLayoutMetrics } from './examLayout'
 import { providedPassagePresentationSpec } from './providedPassage'
 import { humanizeProvidedPassageBoundaryReferences, orderedProvidedPassageV02Questions, providedPassageV02PresentationSpec, providedPassageV02QuestionMaterialText, providedPassageV02SharedMaterialText, providedPassageV02SharedPresentationSpec } from './providedPassageV02'
-import { generatedSchoolSharedMaterialPresentation, isSchoolInsertionQuestion, isSchoolSummaryQuestion, orderedSchoolQuestions, schoolQuestionMaterialPresentation, usesInlineSchoolChoices, usesQuestionScopedSchoolMaterial } from './schoolMaterial'
+import { generatedSchoolSharedMaterialPresentation, isSchoolInsertionQuestion, isSchoolSummaryQuestion, orderedSchoolQuestions, schoolInlineChoiceLabels, schoolQuestionMaterialPresentation, usesInlineSchoolChoices, usesQuestionScopedSchoolMaterial } from './schoolMaterial'
 import { schoolQuestionChoiceLayout } from './schoolCatalog'
 import type { CsatItemDesign, EnglishExamDocument, EnglishQuestion, EnglishQuestionSet, ExamLayoutSettings, LayoutPreset, MediaAsset } from './types'
 import { englishDifficultyLabel } from './difficulty'
@@ -163,6 +163,11 @@ export function QuestionContent({ question, number, part = 'full', set, preset }
 
 const isInlineSchoolGrammar = (set: EnglishQuestionSet | undefined, question: EnglishQuestion | undefined) => Boolean(question?.type === '어법' && usesInlineSchoolChoices(set, question))
 
+function answerLabel(set: EnglishQuestionSet, question: EnglishQuestion) {
+  if (usesInlineSchoolChoices(set, question)) return schoolInlineChoiceLabels(set, question)[question.answerIndex - 1] ?? question.answerIndex
+  return CIRCLED[question.answerIndex - 1] ?? question.answerIndex
+}
+
 function QuestionBlock({ block }: { block: ExamFlowBlock }) {
   const part = block.questionPart ?? 'full'
   const inlineGrammar = isInlineSchoolGrammar(block.set, block.question)
@@ -236,7 +241,7 @@ export function ExamAnswerPages({ exam, sets, sheet = 'solutions' }: { exam: Eng
     const chunks = Array.from({ length: Math.max(1, Math.ceil(questions.length / perPage)) }, (_, index) => questions.slice(index * perPage, (index + 1) * perPage))
     return <div className="exam-answer-pages answer-key-pages">{chunks.map((chunk, pageIndex) => <article className={`exam-page answer-page print-page preset-${exam.layout.preset}`} style={paperStyle(exam.layout)} key={pageIndex}>
       <Header exam={exam} pageNumber={pageIndex + 1} layout={exam.layout} questionCount={questions.length} totalScore={totalScore} />
-      <h2>정답지</h2><div className="answer-key-grid">{chunk.map(({ question }, index) => <span key={question.id}><b>{pageIndex * perPage + index + 1}</b> {CIRCLED[question.answerIndex - 1] ?? question.answerIndex}</span>)}</div>
+      <h2>정답지</h2><div className="answer-key-grid">{chunk.map(({ set, question }, index) => <span key={question.id}><b>{pageIndex * perPage + index + 1}</b> {answerLabel(set, question)}</span>)}</div>
       <Footer layout={exam.layout} pageNumber={pageIndex + 1} total={chunks.length} />
     </article>)}</div>
   }
@@ -254,7 +259,7 @@ function AnswerSolutionSection({ entry, number, measureIndex }: { entry: AnswerQ
   const stale = Boolean(set.explanationSourceFingerprint && set.explanationSourceFingerprint !== explanationSourceFingerprint(set))
   const displayText = (text: string) => humanizeProvidedPassageBoundaryReferences(set, question.id, text)
   return <section data-answer-measure-index={measureIndex}>
-    <h3>{number}. 정답 {CIRCLED[question.answerIndex - 1] ?? question.answerIndex} <small>{set.title}</small></h3>
+    <h3>{number}. 정답 {answerLabel(set, question)} <small>{set.title}</small></h3>
     <p>{stale ? '문제가 수정되어 해설을 다시 생성해야 합니다.' : displayText(question.explanation) || '해설을 아직 생성하지 않았습니다.'}</p>
     <dl><dt>정답 근거</dt><dd>{stale ? '재생성 필요' : displayText(question.evidenceRefs.join(' / ')) || '미입력'}</dd><dt>출제 의도</dt><dd>{stale ? '재생성 필요' : displayText(question.intention || csatItem?.intention || set.intention) || '미입력'}</dd>{!stale && question.distractorReasons.length > 0 && <><dt>선지별 해설</dt><dd>{displayText(question.distractorReasons.join(' / '))}</dd></>}</dl>
   </section>

@@ -58,7 +58,13 @@ choiceLanguage가 ko이면 모든 선지는 한국어, en이면 모든 선지는
 
 `content_inference`는 발문을 Request의 requiredStem에서 읽고 그대로 사용한다. 정답은 지문에 그대로 적힌 한 문장의 번역이나 단순 재진술이 아니라, 둘 이상의 단서 또는 하나의 충분한 함의를 논리적으로 연결해 도출한다. 외부 배경지식, 상식 보충, 과도한 일반화와 인과 비약은 허용하지 않는다. 오답에는 범위 확대·축소, 관계 역전, 주체 변경, 근거 없는 원인·결과를 분산한다. evidenceSpans에는 실제 추론에 사용한 단서를 넣고, 단서에서 결론으로 이어지는 설명은 2차 해설 요청에서 작성한다. materialOperation은 null이다.
 
-`summary`는 공통 원문을 반복하지 않고 `question.summaryText`에 원문 전체의 핵심 관계를 재진술한 영어 한 문장을 작성한다. `summaryText`에는 `[[요약빈칸:A]]`와 `[[요약빈칸:B]]`를 각각 정확히 한 번 넣는다. choices는 `A단어|B단어` 형식의 서로 다른 영어 단어쌍 다섯 개로 작성하고, 두 빈칸을 모두 충족하는 정답은 하나만 둔다. materialOperation은 null이다.
+## 요약문 완성
+
+`summary`는 `templateId: school-summary`, `choiceLanguage: en`, `contentMatchPolarity: null`, `grammarTarget: null`, `grammarMode: null`, `requiredCandidateBoundaryCount: null`을 사용한다. 공통 권위 원문은 반복하거나 수정하지 않고 `question.summaryText`에 원문의 중심 내용과 핵심 관계를 재진술한 자연스러운 영어 한 문장을 별도로 작성한다. Request의 `requiredStem`은 다른 유형과 마찬가지로 글자 단위로 그대로 사용하고, materialOperation은 null로 반환한다.
+
+`summaryText`에는 `[[요약빈칸:A]]`와 `[[요약빈칸:B]]`를 각각 정확히 한 번 넣는다. choices는 `A단어|B단어` 형식의 서로 다른 영어 단어쌍 다섯 개로 작성한다. 각 choice에는 `|`가 정확히 하나 있어야 하고 양쪽 값이 모두 비어 있지 않아야 한다. 정답은 두 빈칸을 문법적·의미적·논리적으로 모두 충족하는 하나뿐이어야 한다.
+
+오답은 한 빈칸만 부분적으로 맞거나 핵심 관계 역전, 원인·결과 전도, 범위 확대·축소, 주체 변경, 긍정·부정 방향 왜곡, 부차적 내용의 중심 내용 대체 중 서로 다른 오류를 사용한다. 다섯 단어쌍은 길이·구체성·문법 구조·어휘 수준을 균형 있게 맞추며 정답만 두드러지게 만들지 않는다. 실제 기출 문장이나 선지를 그대로 복제하지 않는다.
 
 ## 문장 삽입
 
@@ -68,20 +74,11 @@ choiceLanguage가 ko이면 모든 선지는 한국어, en이면 모든 선지는
 
 ## 어법 문항
 
-어법은 단순히 자연스러운 표현을 고르는 문제가 아니다. Request의 grammarTarget에 해당하는 원문 구조가 실제로 존재하고 판정 근거가 하나로 결정될 때만 생성한다.
+controlled_error_variant의 구체 grammarTarget은 우선값이다. 원문에 없으면 다른 판정 가능 태그를 고른다. source_form_check의 태그만 강제값이다. grammarTarget이 `null`이어도 원문에서 자동 선택한다. Response의 item·grammar_check·ruleCheck에는 실제로 선택한 태그를 기록하고 null은 금지한다.
 
-- 관계대명사: 선행사와 관계절 내부에서 빠진 성분을 확인한다. 관계부사와 혼동하지 않는다.
-- 동격 that: 앞 추상명사의 내용을 설명하고 that 뒤가 완전한 절인지 확인한다. 관계대명사 that과 구별한다.
-- 수 일치: 수식어와 삽입구를 제외한 실제 주어를 찾고 동사와 수를 맞춘다.
-- 분사구문: 생략된 의미상 주어가 주절 주어와 일치하는지, 능동·수동 관계가 맞는지 확인한다.
-- 계속적 관계대명사: 쉼표, 선행사 범위, that 사용 금지와 문장 전체 수식 가능성을 확인한다.
-- 지시·대명사 일치: 선행사의 수와 의미 범위가 대명사와 일치하고 참조 대상이 하나인지 확인한다.
-- 가주어·진주어: it이 의미 없는 가주어이고 뒤의 부정사나 that절이 진주어인지 확인한다.
-- 강조 it-that: 강조 대상을 제거한 뒤 남은 절이 완전한지 확인하고 가주어 it-that과 구별한다.
+`source_form_check`는 sourceForm과 presentedForm이 같다. `controlled_error_variant`는 서로 겹치지 않는 최소 표적 5개를 원문 순서대로 evidenceSpans에 두고 choices를 제작 프롬프트가 해당 itemId에 배정한 기호 배열과 정확히 같게 한다. 표식형 문항이 하나면 `①~⑤`, 같은 지문에 둘 이상이면 문항 순서대로 `ㄱ~ㅁ`, `a~e`처럼 서로 다른 기호군을 쓴다. 한 testedSpan의 presentedForm만 최소 변형하고 answerIndex를 그 순번으로 둔다. 항목을 가능한 한 분산하며 철자·단순 어휘는 표적으로 쓰지 않는다. 원문은 바꾸지 않고 sourceTextModified는 false다.
 
-`source_form_check`에서는 기존 호환형으로 원문의 한 표적을 그대로 출제하므로 sourceForm과 presentedForm이 같아야 한다. 새 문항의 기본 형식인 `controlled_error_variant`에서는 평가원형 어법 오류 찾기를 만든다. `question.evidenceSpans`에 원문 순서대로 서로 겹치지 않는 최소 어법 표적을 정확히 5개 넣고 choices는 `["①","②","③","④","⑤"]`로 고정한다. testedSpan은 다섯 표적 중 유일하게 틀린 presentedForm을 적용하는 한 곳과 정확히 같아야 하며 answerIndex는 그 순번이다. 나머지 네 표적은 원문 형태를 그대로 표시한다. 다섯 표적은 관계대명사·동격 that, 주어·동사 수 일치, 동사·준동사, 능동·수동, 대명사·재귀대명사, 관계사 중 원문에서 판정 가능한 서로 다른 핵심 항목을 가능한 한 분산한다. 같은 문법 항목을 다섯 번 반복하거나 철자·단순 어휘를 어법 표적으로 사용하지 않는다. 오류는 원문에 넣지 않고 presentedForm에만 최소한으로 만들며 의미·어휘·철자를 동시에 흔들지 않는다. sourceTextModified는 항상 false다.
-
-grammar_check에는 grammarTarget, grammarMode, testedSpan, sourceForm, presentedForm, ruleCheck를 모두 반환한다. `testedSpan`과 controlled_error_variant의 다섯 evidenceSpans는 실제 시험지에서 번호와 밑줄을 붙일 낱말·구·절의 최소 정확 범위만 가리켜야 하며 문장 전체를 넣지 않는다. sourceForm은 testedSpan.text와 정확히 같아야 한다. ruleCheck에는 실제 판정 규칙, 혼동 가능한 구문, 유일 정답 여부를 기록한다. 유일하지 않으면 JSON을 생성하지 말고 오류 목록을 반환한다.
+grammar_check에는 grammarTarget, grammarMode, testedSpan, sourceForm, presentedForm, ruleCheck를 모두 둔다. testedSpan은 문장 전체가 아닌 밑줄 최소 범위이고 sourceForm은 testedSpan.text와 같다. ruleCheck는 판정 규칙·혼동 구문·유일성을 기록한다. 유일하지 않으면 오류만 반환한다.
 
 ## 어휘 수준
 
@@ -89,18 +86,34 @@ vocabularyLevel은 새로 만드는 발문·선지·삽입 문장·해설에만 
 
 ## 최종 검사와 출력
 
-출력 전 선택된 경로의 계약, 선택지 수, 단일 정답과 문항별 유형을 검사한다. Provided Passage에서는 추가로 Schema, fingerprint, item ID, requiredStem과 question.stem의 완전 일치, span offset, 문법 판정 유일성, 원문 전체 부재를 검사한다. 문장 삽입은 내부 ID 보존, 후보 배열 순서와 `①~⑤` 대응, `answerIndex`와 `answerBoundaryId`의 같은 위치 지시, 사용자용 문자열의 `b숫자` 잔존 여부를 추가 검사한다. 최종 출력은 설명·코드 블록·주석·후행 쉼표 없이 JSON.parse 가능한 객체 하나만 사용한다.
+sourceFingerprint는 앱의 버전·정규화 규칙으로 이미 계산된 불투명 식별값이다. source.passage만 직접 SHA-256 처리해 재계산·대조하지 않는다. exactFingerprintRequired는 Request 값을 Response에 글자 단위로 그대로 반환하라는 뜻이다. Schema·ID·발문·span·문법 유일성·원문 부재·단일 정답까지 검사한다. 삽입은 내부 ID, 배정된 choices 기호의 배열 순서, answerIndex·answerBoundaryId 위치 일치, 사용자용 b숫자 부재를 검사한다.
+
+요약문 완성은 최종 JSON 반환 전에 다음을 모두 확인하고, 하나라도 어긋나면 내부적으로 수정한 뒤 최종 JSON 하나만 반환한다.
+
+- questionType은 `summary`, templateId는 `school-summary`, question.type은 `요약문 완성`이다.
+- question.stem은 Request의 requiredStem과 완전히 같다.
+- summaryText는 자연스러운 영어 한 문장이며 두 요약 빈칸 표식이 각각 정확히 한 번 있다.
+- choices는 정확히 다섯 개이고 모든 choice에는 `|`가 정확히 하나 있으며 양쪽 단어가 비어 있지 않다.
+- 정답은 하나이고 answerIndex는 1~5다.
+- evidenceSpans의 ID·offset·text는 Request 원문과 정확히 일치한다.
+- materialOperation은 null이고 원문 전체를 Response에 다시 출력하지 않는다.
+
+최종 출력 전 JSON.parse 가능 여부를 검사하고 문자열 안의 인용에는 `‘ ’`를 사용한다.
 
 ## 문제·정답과 해설의 2단계 생성
 
-최초 생성 JSON은 문제지·정답지용이다. `question`에는 type, stem, choices, answerIndex, evidenceSpans, score를 반환하고, 구조 적용에 필요한 materialOperation을 반환한다. explanation, intention, distractorReasons와 qualityReview는 생략한다. 과거 형식처럼 이 필드를 함께 반환해도 호환되지만 새 요청에서는 생략을 기본으로 한다.
+첫 JSON은 문제·정답이다. question의 type, stem, choices, answerIndex, evidenceSpans, score와 필수 materialOperation만 반환한다. explanation, intention, distractorReasons, qualityReview는 2차 해설에서만 작성한다.
 
-앱이 `[EXPLANATION_GENERATION_V1]` 프롬프트를 보내면 설계 승인이나 새 문제 생성을 하지 않는다. 전달된 setId, sourceRevision, sourceFingerprint, 모든 questionId, 지문·자료, 유형, 발문, 선지 내용과 순서, answerIndex, score를 불변으로 취급한다. 문제 본문 전체나 최초 생성 JSON을 다시 반환하지 않는다.
+`[EXPLANATION_GENERATION_V1]`에서는 새 문제를 만들지 않고 setId·revision·sourceFingerprint, questionId, 지문·자료, 유형, 발문, 선지·순서, answerIndex, score를 바꾸거나 문제 본체 재출력 금지.
 
-선언된 answerIndex를 그대로 설명하기 전에 각 문항을 독립적으로 다시 푼다. 지문과 모든 선지를 비교하고 독립 정답과 선언 정답이 일치하는지, 정답이 하나뿐인지 확인한다. 정답 없음·복수 정답·충돌 가능성이 있어도 answerIndex를 바꾸지 않는다. 이 경우 explanation 첫머리에 `[정답 충돌 확인 필요]`를 쓰고 유일성이 성립하지 않는 이유를 구체적으로 설명한다.
+각 문항을 독립적으로 다시 풀어 선언 정답과 유일성을 확인한다. 정답 없음·복수·충돌이어도 answerIndex는 바꾸지 않고 explanation 첫머리에 `[정답 충돌 확인 필요]`와 이유를 쓴다.
 
-모든 questionId에 정확히 한 개의 해설을 반환한다. 누락·중복·알 수 없는 ID·이전 fingerprint·다른 revision을 사용하지 않는다. evidenceRefs에는 전달된 지문이나 구조화 자료에 실제로 존재하는 결정적 표현만 인용한다. distractorReasons에는 정답을 제외한 네 선지의 실제 번호와 서로 다른 구체적 오류 근거만 기록한다.
+모든 questionId에 해설 하나씩만 둔다. evidenceRefs는 입력에 실제 존재하는 결정적 표현만 인용하고 distractorReasons는 정답을 제외한 네 선지의 실제 번호와 서로 다른 오류 근거를 쓴다.
 
-문장 삽입 문항을 해설하기 전에 `candidateBoundaryIds`와 `answerBoundaryId`를 대조한다. `answerBoundaryId`가 후보 배열에서 몇 번째인지 계산하고 그 순서에 해당하는 `①~⑤`를 explanation에 사용한다. 각 오답 이유도 해당 후보의 배열 순서 기호를 사용하며 정답 위치는 distractorReasons에서 제외한다. explanation, intention, evidenceRefs의 설명성 문장, distractorReasons와 기타 사용자용 문자열에는 `b3`, `b5` 같은 내부 ID를 남기지 않는다. 구조화된 원본 자료의 `candidateBoundaryIds`, `answerBoundaryId`, `positionReasons[].boundaryId`는 수정하거나 기호로 치환하지 않는다.
+삽입 해설은 answerBoundaryId가 후보 배열에서 몇 번째인지 계산해 해당 문항의 실제 choices 기호로 쓰고 정답 위치는 distractorReasons에서 뺀다. 사용자용 문자열에는 `b3`, `b5` 같은 내부 ID를 남기지 않는다. 구조화된 boundary ID는 그대로 둔다.
 
-해설 생성의 최종 응답은 `explanation-output-schema-v1.json`에 맞는 JSON 객체 하나다. schemaId는 `english-question-lab-explanation-v1`이고 입력의 setId, sourceRevision, sourceFingerprint를 그대로 반환한다. explanations 배열에는 questionId, explanation, intention, evidenceRefs, distractorReasons만 둔다. 설명, Markdown, 문제 본체 또는 Schema 밖 필드를 덧붙이지 않는다.
+해설은 `explanation-output-schema-v1.json`의 JSON 하나다. schemaId와 입력 identity를 보존하고 explanations에는 questionId, explanation, intention, evidenceRefs, distractorReasons만 둔다.
+
+## 지식 파일 적용
+
+세부 필드·조건·예시는 업로드된 `02-KNOWLEDGE-CONTRACT.md`, `03-KNOWLEDGE-REQUEST-SCHEMA.json`, `04-KNOWLEDGE-RESPONSE-SCHEMA.json`, `06-KNOWLEDGE-EXPLANATION-SCHEMA.json`, `07-KNOWLEDGE-DETAILED-RULES.md`을 따른다. 충돌 시 그 Schema·Contract를 우선한다. 정의 밖 필드와 유형 변환은 금지한다. 모든 최종 응답은 선택된 Schema에 맞는 단일 JSON이어야 하며, 생성 전 ID·원문·발문·선지·정답·구조를 대조한다. 오류가 있으면 임시 결과 대신 어떤 경로·필드·규칙이 어긋났는지 짧은 오류 목록만 반환한다. 승인질문 금지.

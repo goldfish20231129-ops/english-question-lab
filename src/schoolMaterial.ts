@@ -1,10 +1,11 @@
 import type { CsatMaterialSpec, EnglishQuestion, EnglishQuestionSet } from './types'
+import { allocateSchoolMarkerLabels, SCHOOL_NUMERIC_MARKER_LABELS } from './schoolMarkerLabels'
 
 const INSERTION_SENTENCE_MARKUP = /\[\[삽입문장(?::[^\]]*)?\]\]\s*/g
 const INSERTION_POSITION_MARKUP = /\s*\[\[삽입위치(?::[^\]]*)?\]\]/g
 const CAPTURED_INSERTION_SENTENCE_MARKUP = /\[\[삽입문장:([^\]]+)\]\]/g
 const CAPTURED_INSERTION_POSITION_MARKUP = /\[\[삽입위치:([^\]]+)\]\]/g
-const INSERTION_POSITIONS = ['①', '②', '③', '④', '⑤'] as const
+const INSERTION_POSITIONS = SCHOOL_NUMERIC_MARKER_LABELS
 
 export function isGeneratedSchoolSet(set: EnglishQuestionSet) {
   return set.mode === 'school' && set.materialMode === 'generated' && !set.providedPassageV02
@@ -34,6 +35,45 @@ export function orderedSchoolQuestions(set: EnglishQuestionSet) {
   return [...regular, ...insertion]
 }
 
+function isInlineSchoolMarkerQuestion(set: EnglishQuestionSet, question: EnglishQuestion) {
+  if (isSchoolInsertionQuestion(question) && (isGeneratedSchoolSet(set) || Boolean(set.providedPassageV02))) return true
+  if (question.schoolTemplateId === 'grammar-error') return true
+  const plan = set.providedPassageV02?.itemPlans.find((item) => item.itemId === question.id)
+  return question.type === '어법' && plan?.questionType === 'grammar' && plan.grammarMode === 'controlled_error_variant'
+}
+
+export function schoolInlineMarkerQuestionIds(set: EnglishQuestionSet) {
+  if (set.mode !== 'school') return []
+  return orderedSchoolQuestions(set).filter((question) => isInlineSchoolMarkerQuestion(set, question)).map((question) => question.id)
+}
+
+export function schoolInlineChoiceLabels(set: EnglishQuestionSet, question: EnglishQuestion) {
+  return allocateSchoolMarkerLabels(schoolInlineMarkerQuestionIds(set), question.id)
+}
+
+function relabelGeneratedSchoolInsertionBody(set: EnglishQuestionSet, body: string) {
+  const insertion = orderedSchoolQuestions(set).find(isSchoolInsertionQuestion)
+  if (!insertion) return body
+  const labels = schoolInlineChoiceLabels(set, insertion)
+  let positionIndex = 0
+  return body.replace(CAPTURED_INSERTION_POSITION_MARKUP, () => `[[삽입위치:${labels[positionIndex++] ?? labels.at(-1)}]]`)
+}
+
+function relabelGeneratedSchoolGrammarTargets(set: EnglishQuestionSet, text: string) {
+  const grammar = orderedSchoolQuestions(set).find((question) => question.schoolTemplateId === 'grammar-error')
+  if (!grammar || schoolInlineMarkerQuestionIds(set).length < 2) return text
+  const labels = schoolInlineChoiceLabels(set, grammar)
+  let targetIndex = 0
+  return text.replace(/(?:[①②③④⑤ㄱㄴㄷㄹㅁa-eA-E]\s*)?\[\[밑줄:([^\]]+)\]\]/g, (_match, target: string) => {
+    const label = labels[targetIndex++]
+    return label ? `${label} [[밑줄:${target}]]` : `[[밑줄:${target}]]`
+  })
+}
+
+export function relabelGeneratedSchoolSharedMaterial(set: EnglishQuestionSet, text: string) {
+  return relabelGeneratedSchoolGrammarTargets(set, relabelGeneratedSchoolInsertionBody(set, text))
+}
+
 export function usesQuestionScopedSchoolMaterial(set: EnglishQuestionSet) {
   if (!isGeneratedSchoolSet(set)) return false
   const hasIsolatedInsertion = set.schoolInsertionPresentation !== 'shared' && set.questions.some(isSchoolInsertionQuestion)
@@ -51,20 +91,20 @@ export function cleanInsertionMarkupForOtherQuestion(text: string) {
 export function generatedSchoolSharedMaterialPresentation(set: EnglishQuestionSet): { text: string; spec?: CsatMaterialSpec } | undefined {
   if (hasGeneratedSchoolInsertion(set) && set.schoolInsertionPresentation === 'shared') {
     const spec = deriveGeneratedSchoolInsertionSpec(set)
-    return spec ? { text: '', spec } : { text: set.material, spec: set.materialSpec }
+    return spec ? { text: '', spec } : { text: relabelGeneratedSchoolSharedMaterial(set, set.material), spec: set.materialSpec }
   }
   if (!usesQuestionScopedSchoolMaterial(set) || !set.questions.some((question) => !isSchoolInsertionQuestion(question))) return undefined
-  if (set.materialSpec?.kind === 'insertion') return { text: cleanInsertionMarkupForOtherQuestion(set.materialSpec.body) }
-  return { text: cleanInsertionMarkupForOtherQuestion(set.material) }
+  if (set.materialSpec?.kind === 'insertion') return { text: relabelGeneratedSchoolSharedMaterial(set, cleanInsertionMarkupForOtherQuestion(set.materialSpec.body)) }
+  return { text: relabelGeneratedSchoolSharedMaterial(set, cleanInsertionMarkupForOtherQuestion(set.material)) }
 }
 
 export function deriveGeneratedSchoolInsertionSpec(set: EnglishQuestionSet): Extract<CsatMaterialSpec, { kind: 'insertion' }> | undefined {
   if (!hasGeneratedSchoolInsertion(set)) return undefined
-  if (set.materialSpec?.kind === 'insertion') return set.materialSpec
+  if (set.materialSpec?.kind === 'insertion') return { ...set.materialSpec, body: relabelGeneratedSchoolSharedMaterial(set, set.materialSpec.body) }
   const sentences = [...set.material.matchAll(CAPTURED_INSERTION_SENTENCE_MARKUP)]
   if (sentences.length !== 1) return undefined
   const body = set.material.replace(CAPTURED_INSERTION_SENTENCE_MARKUP, '').replace(/[ \t]{2,}/g, ' ').trim()
-  return { kind: 'insertion', givenSentence: sentences[0][1].trim(), body }
+  return { kind: 'insertion', givenSentence: sentences[0][1].trim(), body: relabelGeneratedSchoolSharedMaterial(set, body) }
 }
 
 export function generatedSchoolInsertionMarkupIssues(set: EnglishQuestionSet) {
@@ -74,19 +114,21 @@ export function generatedSchoolInsertionMarkupIssues(set: EnglishQuestionSet) {
     : [...set.material.matchAll(CAPTURED_INSERTION_SENTENCE_MARKUP)].length
   const body = set.materialSpec?.kind === 'insertion' ? set.materialSpec.body : set.material
   const positions = [...body.matchAll(CAPTURED_INSERTION_POSITION_MARKUP)].map((match) => match[1])
+  const insertionQuestion = orderedSchoolQuestions(set).find(isSchoolInsertionQuestion)
+  const expectedPositions = insertionQuestion ? schoolInlineChoiceLabels(set, insertionQuestion) : [...INSERTION_POSITIONS]
   const issues: string[] = []
   if (sentenceCount !== 1) issues.push(`삽입 문장 표식이 ${sentenceCount}개입니다. 정확히 1개가 필요합니다.`)
-  if (positions.length !== INSERTION_POSITIONS.length || INSERTION_POSITIONS.some((position, index) => positions[index] !== position)) {
-    issues.push('삽입 위치는 [[삽입위치:①]]부터 [[삽입위치:⑤]]까지 순서대로 각각 한 번씩 필요합니다.')
+  const isExpected = positions.length === expectedPositions.length && expectedPositions.every((position, index) => positions[index] === position)
+  const isLegacy = positions.length === INSERTION_POSITIONS.length && INSERTION_POSITIONS.every((position, index) => positions[index] === position)
+  if (!isExpected && !isLegacy) {
+    issues.push(`삽입 위치는 ${expectedPositions.map((position) => `[[삽입위치:${position}]]`).join(', ')}를 순서대로 각각 한 번씩 사용해야 합니다.`)
   }
   return issues
 }
 
 export function usesInlineSchoolChoices(set: EnglishQuestionSet | undefined, question: EnglishQuestion) {
   if (!set || set.mode !== 'school') return false
-  if (isSchoolInsertionQuestion(question) && (hasGeneratedSchoolInsertion(set) || set.providedPassageV02)) return true
-  const providedResult = set.providedPassageV02?.results?.find((result) => result.itemId === question.id)
-  return Boolean(question.type === '어법' && providedResult?.materialOperation?.kind === 'grammar_check' && providedResult.materialOperation.grammarMode === 'controlled_error_variant')
+  return isInlineSchoolMarkerQuestion(set, question)
 }
 
 export function usesInlineGeneratedSchoolChoices(set: EnglishQuestionSet | undefined, question: EnglishQuestion) {

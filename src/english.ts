@@ -3,7 +3,7 @@ import { assertCsatGenerationSchema } from './generationContract'
 import { generateProvidedPassagePrompt, isProvidedPassageSet, parseProvidedPassageJson, providedPassageValidationMessages } from './providedPassage'
 import { generateProvidedPassageV02Prompt, parseProvidedPassageV02Json, providedPassageV02ValidationMessages } from './providedPassageV02'
 import { MAX_SCHOOL_SET_QUESTIONS, SCHOOL_QUESTION_TEMPLATES, inferSchoolQuestionTemplate, schoolCatalogPromptSection, schoolQuestionTypes, schoolQuestionUsesChoiceLanguage, validateSchoolTemplateMarkup } from './schoolCatalog'
-import { generatedSchoolInsertionMarkupIssues, orderedGeneratedSchoolQuestions } from './schoolMaterial'
+import { generatedSchoolInsertionMarkupIssues, orderedGeneratedSchoolQuestions, schoolInlineChoiceLabels } from './schoolMaterial'
 import type { CsatMaterialSpec, CsatQualityReview, EnglishMode, EnglishQuestion, EnglishQuestionSet, ExamLayoutSettings, LayoutPreset, ProvidedPassageChoiceLanguage, SourceKind, ValidationIssue } from './types'
 import { englishDifficultyLabel, englishDifficultyPrompt } from './difficulty'
 import { stripLeadingChoiceMarker } from './utils'
@@ -319,6 +319,10 @@ export function generateEnglishPrompt(set: EnglishQuestionSet): string {
   const insertionPresentationRule = set.schoolInsertionPresentation === 'shared'
     ? '- 문장 삽입 표식이 있는 공통 material을 다른 문항도 함께 사용하고 요청된 questions 순서를 유지한다. 삽입 표식을 제거한 새 지문을 문항별로 반복하지 않는다.'
     : '- 문장 삽입 문항은 questions 배열의 마지막 문항으로 두고, 공통 지문과 같은 내용을 사용하되 삽입 문장 상자와 위치 표시가 있는 독립 블록으로 출력할 수 있게 한다.'
+  const inlineMarkerQuestions = set.mode === 'school'
+    ? orderedQuestions.filter((question) => question.type === '문장 삽입' || question.schoolTemplateId === 'grammar-error')
+    : []
+  const inlineMarkerRules = inlineMarkerQuestions.map((question) => `- 문항 ${orderedQuestions.indexOf(question) + 1} ${question.type}: ${JSON.stringify(schoolInlineChoiceLabels(set, question))}`).join('\n')
   const schoolGeneratedContract = set.mode === 'school' && set.materialMode === 'generated' ? `[생성 경로]
 - mode는 school_english_generated_passage다. Provided Passage의 sourcePassageId, fingerprint, sentence ID, boundary ID를 요구하지 않는다.
 - 한 세트에서 생성하는 문항은 최대 ${MAX_SCHOOL_SET_QUESTIONS}개다.
@@ -329,8 +333,11 @@ export function generateEnglishPrompt(set: EnglishQuestionSet): string {
 - 내용 이해는 지문에 그대로 진술된 사실을 다시 찾는 문항이 아니다. 지문의 둘 이상의 단서 또는 하나의 충분한 함의를 근거로 가장 타당하게 추론할 수 있는 내용 하나를 고르게 한다.
 - 내용 이해의 정답은 외부 배경지식 없이 지문만으로 도출되어야 하며, 과도한 일반화·인과 비약·범위 왜곡·주체 변경을 오답 원리로 활용한다.
 - 문장 삽입은 다른 유형과 함께 만들 수 있으나 한 세트에 최대 한 문항만 둔다.
-- 문장 삽입이 있으면 material에 [[삽입문장:문장]] 1개와 [[삽입위치:①]]~[[삽입위치:⑤]]를 순서대로 각각 1개씩 표시한다. 다른 문항의 내용과 정답 근거는 같은 지문의 삽입 표식을 제외한 본문을 기준으로 한다.
-- 문장 삽입 choices는 ["①", "②", "③", "④", "⑤"]로 고정한다.
+- 같은 공통 지문에서 어법·문장 삽입 등 표식형 문항이 둘 이상이면 서로 다른 기호군을 사용한다. 이번 요청의 표시 기호는 다음과 같다.
+${inlineMarkerRules || '- 표식형 문항 없음'}
+- 표식형 question.choices는 위에 지정된 배열과 글자 단위로 같고 answerIndex는 배열의 1~5 순번이다.
+- 문장 삽입이 있으면 material에 [[삽입문장:문장]] 1개와 해당 문장 삽입 문항의 다섯 표시 기호를 사용한 [[삽입위치:기호]]를 순서대로 각각 1개씩 표시한다. 다른 문항의 내용과 정답 근거는 같은 지문의 삽입 표식을 제외한 본문을 기준으로 한다.
+- 어법 오류 찾기는 다섯 [[밑줄:표현]] 바로 앞에 해당 어법 문항의 표시 기호를 순서대로 한 번씩 붙인다.
 ${insertionPresentationRule}
 - 요약문 완성은 공통 material을 바꾸거나 반복하지 않는다. 해당 questions[] 항목의 summaryText에 원문을 재진술한 영어 한 문장을 별도로 작성한다.
 - summaryText에는 [[요약빈칸:A]]와 [[요약빈칸:B]]를 각각 정확히 한 번 넣고, choices는 ["A단어|B단어", ...] 형식의 다섯 단어쌍으로 작성한다.
@@ -375,7 +382,7 @@ ${plan}
 - 라벨 빈칸은 [[빈칸:A]] 또는 [[빈칸:ⓐ]]로 표시한다.
 - 공통 보기 단어는 [[보기:a. word|b. word|c. word|d. word|e. word]]로 표시한다.
 - 순서 배열 자료는 (A), (B), (C)를 명확히 구분한다.
-- 문장 삽입은 [[삽입문장:문장]]과 [[삽입위치:①]] 형식을 사용한다.
+- 문장 삽입은 [[삽입문장:문장]]과 위에서 배정한 [[삽입위치:기호]] 형식을 사용한다.
 - 요약문 완성은 [[요약빈칸:A]]와 [[요약빈칸:B]]를 사용한다.
 - 박스형 어휘는 [[선택:A|첫 단어|둘째 단어]] 형식을 사용한다.
 
@@ -523,15 +530,23 @@ export function parseEnglishSetJson(raw: string, base: EnglishQuestionSet): Engl
   const questions = inputQuestions.map((value, index) => {
     if (!value || typeof value !== 'object') throw new Error(`${index + 1}번 문항 형식이 올바르지 않습니다.`)
     const item = value as Record<string, unknown>
-    const choices = cleanStrings(item.choices).map(stripLeadingChoiceMarker)
+    let choices = cleanStrings(item.choices).map(stripLeadingChoiceMarker)
     if (choices.length !== choiceCount) throw new Error(`${index + 1}번 문항은 선지 ${choiceCount}개가 필요합니다.`)
     if (typeof item.stem !== 'string') throw new Error(`${index + 1}번 문항에 stem이 필요합니다.`)
     const expected = expectedQuestions[index]
     if (generatedSchool && item.type !== expected?.type) throw new Error(`${index + 1}번 문항 유형은 요청한 '${expected?.type}'이어야 합니다.`)
     if (generatedSchool && item.stem.trim() !== expected?.stem.trim()) throw new Error(`${index + 1}번 문항 발문이 요청한 발문과 다릅니다.`)
-    if (generatedSchool && item.type === '문장 삽입' && choices.join('|') !== CSAT_INLINE_POSITION_CHOICES.join('|')) throw new Error('문장 삽입 choices는 ①~⑤ 위치 번호여야 합니다.')
     const type = typeof item.type === 'string' ? item.type : base.questions[index]?.type ?? '내용 이해'
     const expectedTemplate = expected ? inferSchoolQuestionTemplate(expected) : SCHOOL_QUESTION_TEMPLATES.find((template) => template.questionType === type)
+    const expectsInlineMarkers = generatedSchool && expected && (expected.type === '문장 삽입' || expected.schoolTemplateId === 'grammar-error')
+    if (expectsInlineMarkers) {
+      const expectedLabels = schoolInlineChoiceLabels(base, expected)
+      const receivedKey = choices.join('|')
+      if (receivedKey !== expectedLabels.join('|') && receivedKey !== CSAT_INLINE_POSITION_CHOICES.join('|')) {
+        throw new Error(`${index + 1}번 ${expected.type} choices는 ${expectedLabels.join(', ')} 순서여야 합니다.`)
+      }
+      choices = expectedLabels
+    }
     const rawSummary = typeof item.summaryText === 'string' ? item.summaryText : typeof item.schoolSummaryText === 'string' ? item.schoolSummaryText : undefined
     const schoolSummaryText = expectedTemplate?.id === 'summary'
       ? rawSummary?.trim() || (materialSpec?.kind === 'summary' ? materialSpec.summary : '')
