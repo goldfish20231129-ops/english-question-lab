@@ -252,6 +252,18 @@ describe('Provided Passage V0.2', () => {
     expect(providedPassageV02GrammarPresentation(next, 'grammar-1')).toMatchObject({ sentenceId: 's1', displayForm: 'who', sourceForm: 'who' })
   })
 
+  it('normalizes AI-provided circled choice prefixes while keeping inline position choices', () => {
+    const plans = [createProvidedPassageV02Plan('content-1', 'content_match'), createProvidedPassageV02Plan('grammar-1', 'grammar')]
+    const set = configured(plans)
+    const payload = response(set)
+    payload.items[0].question.choices = payload.items[0].question.choices.map((choice, index) => `${['①', '②', '③', '④', '⑤'][index]} ${choice}`)
+
+    const next = adaptProvidedPassageV02Response(payload, set)
+
+    expect(next.questions[0].choices[0]).toBe('학생은 동아리를 이끈다.')
+    expect(next.questions[0].choices.every((choice) => !/^[①②③④⑤]/.test(choice))).toBe(true)
+  })
+
   it('accepts a first-phase response without explanations or quality review', () => {
     const plans = [createProvidedPassageV02Plan('content-1', 'content_match'), createProvidedPassageV02Plan('grammar-1', 'grammar')]
     const set = configured(plans)

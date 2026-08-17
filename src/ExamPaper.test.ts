@@ -7,6 +7,21 @@ import { contentEntriesForSet } from './examLayout'
 import { createProvidedPassageV02Plan, syncProvidedPassageV02Questions, transitionSchoolProvidedPassageV02 } from './providedPassageV02'
 
 describe('내신형 새 지문 혼합 세트 출력', () => {
+  it('AI가 선지에 붙인 번호를 제거하고 시험지 번호를 한 번만 표시한다', () => {
+    const set = createEnglishSet('school')
+    const question = createQuestion('내용 이해')
+    question.choices = ['① 첫 번째 내용', '② 두 번째 내용', '③ 세 번째 내용', '④ 네 번째 내용', '⑤ 다섯 번째 내용']
+    set.questions = [question]
+    set.material = 'A short passage supports one answer.'
+
+    const html = renderToStaticMarkup(createElement(SetLivePreview, { set }))
+
+    expect(html.match(/①/g)).toHaveLength(1)
+    expect(html.match(/②/g)).toHaveLength(1)
+    expect(html).not.toContain('① 첫 번째 내용')
+    expect(html).toContain('첫 번째 내용')
+  })
+
   it('공통 지문과 마지막 삽입형 지문을 각각 한 번만 출력하고 별도 위치 선지는 숨긴다', () => {
     const set = createEnglishSet('school')
     const insertion = createQuestion('문장 삽입')

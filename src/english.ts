@@ -6,6 +6,7 @@ import { MAX_SCHOOL_SET_QUESTIONS, SCHOOL_QUESTION_TEMPLATES, inferSchoolQuestio
 import { generatedSchoolInsertionMarkupIssues, orderedGeneratedSchoolQuestions } from './schoolMaterial'
 import type { CsatMaterialSpec, CsatQualityReview, EnglishMode, EnglishQuestion, EnglishQuestionSet, ExamLayoutSettings, LayoutPreset, SourceKind, ValidationIssue } from './types'
 import { englishDifficultyLabel, englishDifficultyPrompt } from './difficulty'
+import { stripLeadingChoiceMarker } from './utils'
 
 export const MODE_LABELS: Record<EnglishMode, string> = {
   school: '내신형',
@@ -283,6 +284,7 @@ export function generateEnglishPrompt(set: EnglishQuestionSet): string {
 - mode는 school_english_generated_passage다. Provided Passage의 sourcePassageId, fingerprint, sentence ID, boundary ID를 요구하지 않는다.
 - 한 세트에서 생성하는 문항은 최대 ${MAX_SCHOOL_SET_QUESTIONS}개다.
 - 아래 문항 구성을 한 번의 응답에 모두 생성하고 최상위 questions 배열의 순서를 그대로 지킨다.
+- 일반 내용 선지의 choices에는 ①~⑤나 1.~5. 같은 번호를 넣지 않고 선지 본문만 작성한다. 번호는 앱이 자동으로 표시한다.
 - 모든 일반 문항은 하나의 공통 material을 공유하며, 문항마다 지문을 반복 생성하지 않는다.
 - 내용 이해는 지문에 그대로 진술된 사실을 다시 찾는 문항이 아니다. 지문의 둘 이상의 단서 또는 하나의 충분한 함의를 근거로 가장 타당하게 추론할 수 있는 내용 하나를 고르게 한다.
 - 내용 이해의 정답은 외부 배경지식 없이 지문만으로 도출되어야 하며, 과도한 일반화·인과 비약·범위 왜곡·주체 변경을 오답 원리로 활용한다.
@@ -477,7 +479,7 @@ export function parseEnglishSetJson(raw: string, base: EnglishQuestionSet): Engl
   const questions = inputQuestions.map((value, index) => {
     if (!value || typeof value !== 'object') throw new Error(`${index + 1}번 문항 형식이 올바르지 않습니다.`)
     const item = value as Record<string, unknown>
-    const choices = cleanStrings(item.choices)
+    const choices = cleanStrings(item.choices).map(stripLeadingChoiceMarker)
     if (choices.length !== choiceCount) throw new Error(`${index + 1}번 문항은 선지 ${choiceCount}개가 필요합니다.`)
     if (typeof item.stem !== 'string') throw new Error(`${index + 1}번 문항에 stem이 필요합니다.`)
     const expected = expectedQuestions[index]

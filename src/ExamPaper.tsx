@@ -9,6 +9,7 @@ import { schoolQuestionChoiceLayout } from './schoolCatalog'
 import type { CsatItemDesign, EnglishExamDocument, EnglishQuestion, EnglishQuestionSet, ExamLayoutSettings, LayoutPreset, MediaAsset } from './types'
 import { englishDifficultyLabel } from './difficulty'
 import { explanationSourceFingerprint } from './explanation'
+import { stripLeadingChoiceMarker } from './utils'
 
 const MARKUP = /\[\[(밑줄|빈칸|요약빈칸|삽입문장|삽입위치|선택|보기)(?::([^\]]+))?\]\]/g
 const CIRCLED = ['①', '②', '③', '④', '⑤']
@@ -137,8 +138,9 @@ function QuestionScopedMaterial({ set, question }: { set?: EnglishQuestionSet; q
 }
 
 function ChoiceText({ choice, matrix }: { choice: string; matrix: boolean }) {
-  if (!matrix) return <EnglishText text={choice || '(선지 미입력)'} />
-  return <span className="school-choice-cells">{choice.split('|').map((cell, index) => <span key={`${index}-${cell}`}><EnglishText text={cell.trim() || '—'} /></span>)}</span>
+  const displayChoice = stripLeadingChoiceMarker(choice)
+  if (!matrix) return <EnglishText text={displayChoice || '(선지 미입력)'} />
+  return <span className="school-choice-cells">{displayChoice.split('|').map((cell, index) => <span key={`${index}-${cell}`}><EnglishText text={cell.trim() || '—'} /></span>)}</span>
 }
 
 export function QuestionContent({ question, number, part = 'full', set, preset }: { question: EnglishQuestion; number: number; part?: 'full' | 'lead' | 'choices'; set?: EnglishQuestionSet; preset?: LayoutPreset }) {

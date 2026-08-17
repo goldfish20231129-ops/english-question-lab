@@ -4,6 +4,7 @@ import responseSchema from '../docs/english-gpt/provided-passage-response-schema
 import { CSAT_INLINE_POSITION_CHOICES, normalizeEnglishPassage } from './csat'
 import { fingerprintProvidedPassage, normalizeProvidedPassageForFingerprint, segmentProvidedPassage } from './providedPassage'
 import { MAX_SCHOOL_SET_QUESTIONS } from './schoolCatalog'
+import { stripLeadingChoiceMarker } from './utils'
 import type {
   CsatQualityReview, EnglishQuestion, EnglishQuestionSet, ProvidedPassageEvidenceSpan, ProvidedPassageGrammarMode,
   ProvidedPassageGrammarOperation, ProvidedPassageGrammarTarget, ProvidedPassageV02ItemPlan,
@@ -350,7 +351,7 @@ export function adaptProvidedPassageV02Response(value: unknown, base: EnglishQue
     })
     question.evidenceSpans = evidenceSpans
     evidenceSpans.forEach((span, index) => validateSpan(span, state, `${plan.itemId}.evidenceSpans[${index}]`))
-    const choices = (question.choices as string[]).map((choice) => choice.trim())
+    const choices = (question.choices as string[]).map(stripLeadingChoiceMarker)
     if (new Set(choices.map((choice) => choice.normalize('NFC').replace(/\s+/g, ' ').toLowerCase())).size !== 5) throw new Error(`${plan.itemId}: 선택지는 서로 달라야 합니다.`)
     const operation = record.materialOperation as ProvidedPassageV02ItemResult['materialOperation']
     if (plan.questionType === 'content_match' || plan.questionType === 'content_inference') {

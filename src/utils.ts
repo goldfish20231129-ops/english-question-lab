@@ -11,3 +11,11 @@ export function toggleUniqueValue(current: string, choice: string, separator: st
 export function includesValue(current: string, choice: string, separator: string): boolean {
   return current.split(separator).map((value) => value.trim()).includes(choice)
 }
+
+export function stripLeadingChoiceMarker(value: string): string {
+  const trimmed = value.trim()
+  const withoutCircled = trimmed.replace(/^[①②③④⑤]\s*/, '').trim()
+  if (withoutCircled && withoutCircled !== trimmed) return withoutCircled
+  const withoutNumbered = trimmed.replace(/^(?:\([1-5]\)|[1-5][.)])\s+/, '').trim()
+  return withoutNumbered || trimmed
+}
