@@ -143,6 +143,14 @@ h1, h2, h3, h4, p { margin-top: 0; }
 .provided-plan-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 7px; }
 .source-analysis-help, .provided-insertion-help { margin: -5px 0 0; padding: 9px 11px; border-radius: 8px; background: #eef4ef; color: #496052; font-size: 11px; line-height: 1.55; }
 .provided-insertion-help { border: 1px solid #dccb9c; background: #fff9e9; color: #755b22; }
+.passage-transform-panel { display: grid; gap: 10px; padding: 13px; border: 1px solid #cbd9ce; border-radius: 10px; background: #f5f9f5; }
+.passage-transform-panel .card-title-row { align-items: end; }
+.passage-transform-panel .card-title-row > div { display: grid; gap: 3px; }
+.passage-transform-panel .card-title-row small, .passage-transform-panel > p { margin: 0; color: #68776e; font-size: 11px; line-height: 1.5; }
+.passage-transform-panel .card-title-row label { min-width: 210px; font-size: 11px; }
+.passage-transform-panel textarea { min-height: 110px; }
+.passage-transform-panel .passage-transform-prompt { min-height: 150px; }
+.passage-transform-panel > .primary { justify-self: stretch; }
 .grammar-plan-guidance { display: grid; gap: 4px; margin-top: 10px; padding: 10px 12px; border-left: 3px solid #527b5e; border-radius: 7px; background: #edf4ee; color: #425349; font-size: 12px; line-height: 1.5; }
 .grammar-plan-guidance strong { color: #244f38; }
 .grammar-plan-guidance small { line-height: 1.45; }
