@@ -17,7 +17,7 @@
   "$defs": {
     "item": {
       "type": "object",
-      "required": ["itemId", "templateId", "variantId", "materialTitle", "material", "materialSpec", "questions", "qualityReview"],
+      "required": ["itemId", "templateId", "variantId", "materialTitle", "material", "materialSpec", "questions"],
       "properties": {
         "itemId": { "type": "string", "minLength": 1 },
         "templateId": {
@@ -53,7 +53,7 @@
     },
     "question": {
       "type": "object",
-      "required": ["type", "stem", "choices", "answerIndex", "explanation", "intention", "evidenceRefs", "distractorReasons", "score"],
+      "required": ["type", "stem", "choices", "answerIndex", "score"],
       "properties": {
         "type": { "type": "string", "minLength": 1 },
         "stem": { "type": "string", "minLength": 1 },

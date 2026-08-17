@@ -10,6 +10,8 @@ Provided Passage V0.2는 `school_english_provided_passage`와 `English`만 지�
 
 문장 삽입은 내용 일치·불일치, 내용 이해 및 어법 문항과 한 요청에 함께 포함할 수 있다. 삽입 문장, 후보 경계와 위치 표식은 해당 `itemId`의 `materialOperation`에만 속하며 공통 원문이나 다른 문항에 전파하지 않는다.
 
+시험지 조판에서 내용 일치·불일치, 내용 이해·추론, 어법 등 일반 문항은 공통 원문 블록 하나를 공유한다. 요약문 완성과 문장 삽입은 각각 같은 원문을 다시 출력하는 독립 문항 블록이다. 이 조판 차이는 Response에 원문을 반복하라는 뜻이 아니며, Generator는 모든 유형에서 권위 원문 전체를 반환하지 않는다.
+
 ## Custom GPT 경로 선택
 
 같은 Custom GPT는 입력 첫 줄로 계약을 선택한다.
@@ -28,13 +30,15 @@ Provided Passage V0.2는 `school_english_provided_passage`와 `English`만 지�
 
 ## 문항별 계획
 
+어법 item은 선택 필드 `grammarDesignProfile`로 실제 학교 시험 구조를 반영한 표적 구성 선호를 전달할 수 있다. 이 값은 원문에 없는 문법을 강제하는 quota가 아니며, 저장된 기존 V0.2 Request와의 하위 호환을 위해 필수가 아니다. 필드가 없는 기존 Request는 `school_exam_balanced`로 해석한다.
+
 각 item은 독립된 `itemId`, `questionType`, `choiceLanguage`, `vocabularyLevel`, `contentMatchPolarity`, `grammarTarget`, `grammarMode`, `requiredStem`을 가진다. `requiredStem`은 Request Schema V0.2의 `$defs.item.required`와 `$defs.item.properties.requiredStem`에 모두 정의된 비어 있지 않은 필수 문자열이다. `additionalProperties: false`는 정의되지 않은 다른 필드를 거부할 뿐 `requiredStem`을 거부하지 않는다. Response의 items는 요청한 item과 정확히 일대일로 대응해야 하며 `question.stem`은 공백과 문장부호를 포함해 `requiredStem`과 정확히 같아야 한다. Generator는 `requiredStem`을 삭제하거나 `questionType`만으로 발문을 재구성하지 않는다.
 
 ## 문장 삽입 위치 식별자
 
 `candidateBoundaryIds`, `answerBoundaryId`, `positionReasons[].boundaryId`는 원문 위치 연결을 위한 내부 좌표이므로 Request와 Response에서 그대로 보존한다. 교사·학생용 문장은 내부 ID를 출력하지 않고 `candidateBoundaryIds[0]`부터 `[4]`까지를 해당 문항의 `question.choices[0]`부터 `[4]`로 표시한다. 표식형 문항이 하나면 `①~⑤`, 같은 지문에 둘 이상이면 문항 순서대로 `㉠~㉤`, `ⓐ~ⓔ`처럼 동그라미가 포함된 겹치지 않는 기호군을 사용한다. 발문에는 그 문항의 선택 기호 범위를 함께 표시한다. ID에 포함된 숫자를 위치 번호로 해석하지 않는다. `answerIndex`는 `candidateBoundaryIds.indexOf(answerBoundaryId) + 1`과 같아야 하며, 해설의 정답 위치 기호도 같은 계산 결과를 사용한다.
 
-발문과 내용 선지는 `stemLanguage` 하나로 통일한다. `stemLanguage`가 `ko`이면 발문과 내용 선지를 모두 한국어로, `en`이면 모두 영어로 작성한다. 위치·표식·배열 기호에는 언어를 적용하지 않는다.
+내용 일치·불일치와 내용 이해·추론의 선지는 Request의 `choiceLanguage`를 따른다. `requiredStem`은 그 언어와 무관하게 Request 문자열을 그대로 보존한다. 요약문 완성은 한국어 또는 영어 `requiredStem`을 허용하지만 `summaryText`와 다섯 단어쌍은 영어이므로 `choiceLanguage`는 항상 `en`이다. 위치·표식·배열 기호에는 언어를 적용하지 않는다.
 
 ## 어법 태그
 
@@ -49,7 +53,7 @@ Provided Passage V0.2는 `school_english_provided_passage`와 `English`만 지�
 - `dummy_it`: 가주어 it과 뒤의 진주어
 - `cleft_it_that`: 강조 대상과 잔여 절, 가주어 구문과의 구별
 
-어법 문항은 `testedSpan`, `sourceForm`, `presentedForm`, `ruleCheck`를 반환한다. `testedSpan`은 실제로 밑줄 칠 최소 어법 표현만 가리키고 문장 전체를 범위로 사용하지 않는다. 새 문항의 기본 형식인 `controlled_error_variant`는 `question.evidenceSpans`에 원문 순서의 서로 겹치지 않는 최소 표적을 정확히 5개 반환하며 시험지에서는 해당 문항에 배정된 다섯 기호와 밑줄로 표시한다. 다섯 표적은 관계사·동격 that, 수 일치, 동사·준동사, 능수동, 대명사 등 서로 다른 핵심 문법 항목을 가능한 한 분산한다. choices는 제작 프롬프트에 명시된 기호 배열과 같고 testedSpan 및 answerIndex는 유일한 오류 표적과 일치해야 한다. `ruleCheck.isUniquelyDetermined`는 반드시 true다. 근거가 모호하면 해당 문항을 생성하지 않는다.
+어법 문항은 `testedSpan`, `sourceForm`, `presentedForm`, `ruleCheck`를 반환한다. `testedSpan`은 실제로 밑줄 칠 최소 어법 표현만 가리키고 문장 전체를 범위로 사용하지 않는다. 내신형 기본 형식인 `controlled_error_variant`는 `question.evidenceSpans`에 원문 순서의 서로 겹치지 않는 최소 표적을 정확히 5개 반환하며 시험지에서는 해당 문항에 배정된 다섯 기호와 밑줄로 표시한다. 다섯 표적은 관계사·동격 that, 수 일치, 동사·준동사, 능수동, 대명사 등 서로 다른 핵심 문법 항목을 가능한 한 분산한다. 단어 하나뿐 아니라 문법 판정에 필요한 다중어 구 전체가 밑줄 범위일 수 있으며, 경계를 임의로 줄이지 않는다. choices는 제작 프롬프트에 명시된 기호 배열과 같고 testedSpan 및 answerIndex는 유일한 오류 표적과 일치해야 한다. `ruleCheck.isUniquelyDetermined`는 반드시 true다. 근거가 모호하면 해당 문항을 생성하지 않는다.
 
 ## 문법 모드
 
@@ -62,7 +66,7 @@ Generator는 `schemaId`·`mode`, 필수 최상위 필드, `items` 배열, 각 it
 
 Request가 유효하면 설계안이나 승인 질문 없이 즉시 `provided-passage-response-schema-v0.2.json`을 만족하는 문제·정답 JSON 객체 하나만 반환한다. Request Schema, 원문 identity, sentence·boundary offset, item 계약 또는 지원 조합이 유효하지 않으면 오류 목록만 반환한다. 이때 임시 JSON, 승인 문장, 지원 유형으로의 임의 변경을 함께 출력하지 않는다.
 
-1차 Response는 `evidenceSpans`와 `materialOperation`을 유지하되 `explanation`, `intention`, `distractorReasons`, `qualityReview`를 생략할 수 있다. 호환을 위해 사용자용 설명 필드를 함께 반환한다면 내부 boundary ID를 포함하지 않는다. `[EXPLANATION_GENERATION_V1]`의 2차 Response는 기존 ID, stem, choices와 `answerIndex`를 바꾸지 않고 해설 필드만 보충하며, 문장 삽입의 사용자용 문자열에는 후보 배열 순서에 대응하는 실제 `question.choices` 기호만 사용한다.
+1차 Response는 `evidenceSpans`와 `materialOperation`을 유지하되 `explanation`, `intention`, `distractorReasons`, `qualityReview`를 반드시 생략한다. `[EXPLANATION_GENERATION_V1]`의 2차 Response만 해설 필드를 보충하며 기존 ID, stem, summaryText, choices, `answerIndex`, score와 materialOperation을 바꾸지 않는다. 문장 삽입의 사용자용 문자열에는 후보 배열 순서에 대응하는 실제 `question.choices` 기호만 사용한다.
 
 앱은 `materialMode: provided`인데 V0.1/V0.2 state가 없는 구형 세트를 범용 생성 경로로 보내지 않는다. 원문과 기존 문항을 보존한 blocked 상태로 표시하고, 지원 조합을 확인한 사용자가 V0.2 연결 준비를 명시적으로 실행해야 한다.
 

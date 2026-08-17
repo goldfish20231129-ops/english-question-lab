@@ -16,9 +16,10 @@ Custom GPT 편집은 ChatGPT 웹의 GPTs 영역에서 Create를 선택해 진행
 1. `instructions/GENERATOR_CORE_INSTRUCTIONS_V0.md`
 2. `knowledge/GENERATION_CONTRACT_V0.md`
 3. `knowledge/csat-output-schema.json`
-4. `knowledge/GENERATION_RUNTIME_PROFILE_V0.4.md`
-5. `knowledge/generation-runtime-profile-v0.4.json`
-6. `knowledge/generation-runtime-profile-v0.4-schema.json`
+4. `knowledge/explanation-output-schema-v1.json`
+5. `knowledge/GENERATION_RUNTIME_PROFILE_V0.4.md`
+6. `knowledge/generation-runtime-profile-v0.4.json`
+7. `knowledge/generation-runtime-profile-v0.4-schema.json`
 
 `knowledge/CSAT_STYLE_MANUAL.md`는 supplementary reference다. 업로드할 수 있지만 필수는 아니며 다른 권위 문서와 충돌하면 적용하지 않는다.
 
@@ -29,13 +30,16 @@ Custom GPT 편집은 ChatGPT 웹의 GPTs 영역에서 Create를 선택해 진행
 - `english-question-lab에서 복사한 Request-Specific Prompt를 붙여 넣겠습니다. 먼저 설계안만 제시해 주세요.`
 - `[VERIFICATION_REPAIR] 프롬프트와 완성 원본 JSON을 보내겠습니다. 승인된 수정만 반영해 주세요.`
 
+- `[EXPLANATION_GENERATION_V1] 프롬프트를 보내겠습니다. 문제는 바꾸지 말고 해설 JSON만 반환해 주세요.`
+
 ## 수동 흐름
 
 1. 앱에서 Request-Specific Prompt를 생성해 Custom GPT 채팅에 붙여 넣는다.
 2. `[세트 제작 설계안]`만 받았는지 확인하고 필요한 내용을 수정한다.
 3. 전체 설계를 명시적으로 승인한다.
-4. JSON 객체 하나만 반환됐는지 확인해 앱의 JSON 입력 영역에 붙여 넣는다.
-5. 앱 검증이나 사람 검수 후 수정이 필요하면 앱이 만든 `[VERIFICATION_REPAIR]` 프롬프트와 원본 JSON을 새 메시지로 보낸다.
+4. 1차 문제·정답 JSON 객체 하나만 반환됐는지 확인해 앱의 JSON 입력 영역에 붙여 넣는다.
+5. 해설이 필요하면 앱에서 해설 프롬프트를 만들고 `[EXPLANATION_GENERATION_V1]` 응답을 해설 JSON 입력 영역에 붙여 넣는다.
+6. 앱 검증이나 사람 검수 후 수정이 필요하면 앱이 만든 `[VERIFICATION_REPAIR]` 프롬프트와 원본 JSON을 새 메시지로 보낸다.
 
 ## 업데이트
 
@@ -43,4 +47,4 @@ Runtime Profile은 Corpus Engine과 자동 동기화되지 않는다. 새 버전
 
 ## 테스트
 
-Preview에서 initial 설계, 승인 전 JSON 금지, 승인 후 단일 JSON, ID 보존, 41~42, 43~45, repair 전체 반환, Contract 충돌 차단을 시험한다. 실제 문제를 배포하거나 앱과 자동 연결하는 테스트가 아니라 수동 계약 검증이다.
+Preview에서 initial 설계, 승인 전 JSON 금지, 승인 후 1차 문제·정답 JSON, 기존 1단계 호환 JSON, explanation patch, stale fingerprint 차단, ID 보존, 41~42, 43~45, repair 전체 반환, Contract 충돌 차단을 시험한다. 실제 문제를 배포하거나 앱과 자동 연결하는 테스트가 아니라 수동 계약 검증이다.

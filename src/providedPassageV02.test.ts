@@ -1,18 +1,19 @@
 import Ajv2020 from 'ajv/dist/2020'
 import { describe, expect, it } from 'vitest'
-import bundledRequestSchema from '../docs/english-gpt/school-english-custom-gpt-v0.2-bundle/03-KNOWLEDGE-REQUEST-SCHEMA.json'
+import bundledRequestSchema from '../docs/english-gpt/school-english-custom-gpt-v0.2-bundle/03-KNOWLEDGE-REQUEST-SCHEMA-V0.2.10.json'
 import bundledInstructions from '../docs/english-gpt/school-english-custom-gpt-v0.2-bundle/01-INSTRUCTIONS.md?raw'
 import canonicalRequestSchema from '../docs/english-gpt/provided-passage-request-schema-v0.2.json'
 import canonicalInstructions from '../docs/english-gpt/SCHOOL_ENGLISH_PROVIDED_PASSAGE_CUSTOM_GPT_INSTRUCTIONS_V0.2.md?raw'
 import { createEnglishSet, generateEnglishPrompt, validateEnglishSet } from './english'
-import { transitionSchoolProvidedPassageMode } from './providedPassage'
+import { fingerprintProvidedPassage, sha256Hex, transitionSchoolProvidedPassageMode } from './providedPassage'
 import {
   adaptProvidedPassageV02Response, buildProvidedPassageV02Request, createProvidedPassageV02Plan,
   generateProvidedPassageV02Prompt, orderedProvidedPassageV02Plans, providedPassageV02BlockingReason, providedPassageV02DefaultStem, providedPassageV02GrammarPresentation,
+  parseProvidedPassageV02Json,
   providedPassageV02PresentationSpec, providedPassageV02QuestionMaterialText, providedPassageV02TransitionBlockingReason, PROVIDED_PASSAGE_V02_MAX_ITEMS,
   providedPassageV02SharedMaterialText, syncProvidedPassageV02Questions, transitionSchoolProvidedPassageV02,
 } from './providedPassageV02'
-import type { EnglishQuestionSet, ProvidedPassageV02ItemPlan } from './types'
+import type { EnglishQuestionSet, ProvidedPassageGrammarTarget, ProvidedPassageV02ItemPlan } from './types'
 
 const PASSAGE = 'The student who leads the club arrives early. She checks the room before every meeting. The members bring their own notebooks. They discuss one local problem each week. The group records its ideas carefully. Their teacher reads the final notes.'
 
@@ -69,15 +70,17 @@ function insertionResponse(set: EnglishQuestionSet) {
     items: [{
       ...responseIdentity(item),
       question: { type: '문장 삽입', stem: providedPassageV02DefaultStem('sentence_insertion'), choices: ['①', '②', '③', '④', '⑤'], answerIndex: 2, explanation: '앞뒤 연결이 일치한다.', intention: '문장 연결 관계 확인', evidenceSpans: [{ sentenceId: first.id, start: first.start, end: first.end, text: first.text }], distractorReasons: ['연결 불일치', '정답', '지시어 불일치', '인과 불일치', '주제 전환'], score: 2 },
-      materialOperation: { kind: 'insert_sentence', generatedSentence: 'This pattern also appears in their weekly discussion.', candidateBoundaryIds: candidates, answerBoundaryId: candidates[1], positionReasons: candidates.map((boundaryId) => ({ boundaryId, reason: `${boundaryId}의 앞뒤 결속을 확인한다.` })), beforeEvidence: { sentenceId: first.id, start: first.start, end: first.end, text: first.text }, afterEvidence: { sentenceId: second.id, start: second.start, end: second.end, text: second.text }, lexicalLevel: item.vocabularyLevel },
+      materialOperation: { kind: 'insert_sentence', generatedSentence: 'This pattern also appears in their weekly discussion.', candidateBoundaryIds: candidates, answerBoundaryId: candidates[1], positionReasons: candidates.map((boundaryId, index) => ({ boundaryId, reason: `${['①', '②', '③', '④', '⑤'][index]}의 앞뒤 결속을 확인한다.` })), beforeEvidence: { sentenceId: first.id, start: first.start, end: first.end, text: first.text }, afterEvidence: { sentenceId: second.id, start: second.start, end: second.end, text: second.text }, lexicalLevel: item.vocabularyLevel },
       qualityReview: quality(2),
     }],
   }
 }
 
-function controlledGrammarResponse(set: EnglishQuestionSet) {
+function controlledGrammarResponse(set: EnglishQuestionSet, resolvedTarget?: ProvidedPassageGrammarTarget) {
   const request = buildProvidedPassageV02Request(set)
   const item = request.items[0]
+  const resolvedGrammarTarget = resolvedTarget ?? item.grammarTarget
+  if (!resolvedGrammarTarget) throw new Error('자동 문법 선택 응답에는 구체적인 resolved grammarTarget이 필요합니다.')
   const state = set.providedPassageV02!
   const texts = ['student', 'who', 'arrives', 'checks', 'bring']
   const spans = texts.map((text) => {
@@ -89,9 +92,9 @@ function controlledGrammarResponse(set: EnglishQuestionSet) {
     schemaId: 'english-question-lab-provided-passage-generation-v0.2', mode: request.mode, subject: request.subject,
     sourcePassageId: state.sourcePassageId, sourceFingerprint: state.sourceFingerprint, title: 'Five target grammar test',
     items: [{
-      ...responseIdentity(item),
+      ...responseIdentity(item), grammarTarget: resolvedGrammarTarget,
       question: { type: '어법', stem: providedPassageV02DefaultStem('grammar', 'mismatch', item.grammarTarget, item.grammarMode), choices: ['①', '②', '③', '④', '⑤'], answerIndex: 3, evidenceSpans: spans, score: 2 },
-      materialOperation: { kind: 'grammar_check', grammarTarget: item.grammarTarget, grammarMode: item.grammarMode, testedSpan: spans[2], sourceForm: 'arrives', presentedForm: 'arrive', ruleCheck: { classification: item.grammarTarget, decisionRule: '단수 주어 student에는 arrives가 필요하다.', contrastWith: '복수 주어', isUniquelyDetermined: true }, sourceTextModified: false },
+      materialOperation: { kind: 'grammar_check', grammarTarget: resolvedGrammarTarget, grammarMode: item.grammarMode, testedSpan: spans[2], sourceForm: 'arrives', presentedForm: 'arrive', ruleCheck: { classification: resolvedGrammarTarget, decisionRule: '단수 주어 student에는 arrives가 필요하다.', contrastWith: '복수 주어', isUniquelyDetermined: true }, sourceTextModified: false },
     }],
   }
 }
@@ -147,6 +150,50 @@ describe('Provided Passage V0.2', () => {
     expect(prompt).toContain('같은 문법 항목만 다섯 번 반복')
   })
 
+  it('lets a grammar request delegate target selection and imports the concrete source-evidenced target', () => {
+    const plan = { ...createProvidedPassageV02Plan('grammar-auto', 'grammar'), grammarTarget: null, grammarMode: 'controlled_error_variant' as const }
+    const set = configured([plan])
+    const request = buildProvidedPassageV02Request(set)
+    expect(request.items[0]).toMatchObject({ questionType: 'grammar', grammarTarget: null, grammarMode: 'controlled_error_variant', grammarDesignProfile: 'school_exam_balanced' })
+    expect(request.items[0].requiredStem).toBe('다음 글의 밑줄 친 부분 중, 어법상 틀린 것은?')
+    expect(generateProvidedPassageV02Prompt(set)).toContain('grammarTarget이 null인 자동 선택 요청')
+
+    const next = adaptProvidedPassageV02Response(controlledGrammarResponse(set, 'subject_verb_agreement'), set)
+    const operation = next.providedPassageV02?.results?.[0].materialOperation
+    expect(next.providedPassageV02?.itemPlans[0].grammarTarget).toBeNull()
+    expect(operation?.kind === 'grammar_check' ? operation.grammarTarget : null).toBe('subject_verb_agreement')
+  })
+
+  it('carries a school-grammar design profile into the prompt without making it a source quota', () => {
+    const plan = { ...createProvidedPassageV02Plan('grammar-profile', 'grammar'), grammarTarget: null, grammarMode: 'controlled_error_variant' as const, grammarDesignProfile: 'verb_and_nonfinite' as const }
+    const set = configured([plan])
+    const request = buildProvidedPassageV02Request(set)
+    expect(request.items[0].grammarDesignProfile).toBe('verb_and_nonfinite')
+    expect(generateProvidedPassageV02Prompt(set)).toContain('verb_and_nonfinite(동사·준동사·분사 집중)')
+    expect(generateProvidedPassageV02Prompt(set)).toContain('원문에 없는 구조를 만드는 강제 할당량이 아니다')
+  })
+
+  it('falls back from an unavailable preferred target in the five-target grammar mode', () => {
+    const plan = { ...createProvidedPassageV02Plan('grammar-preferred-fallback', 'grammar'), grammarTarget: 'cleft_it_that' as const, grammarMode: 'controlled_error_variant' as const }
+    const set = configured([plan])
+    const prompt = generateProvidedPassageV02Prompt(set)
+    expect(prompt).toContain('이 태그는 우선 문법이며, 원문에 없으면 오류로 거부하지 말고 다른 지원 태그를 자동 선택한다')
+
+    const next = adaptProvidedPassageV02Response(controlledGrammarResponse(set, 'subject_verb_agreement'), set)
+    const operation = next.providedPassageV02?.results?.[0].materialOperation
+    expect(next.providedPassageV02?.itemPlans[0].grammarTarget).toBe('cleft_it_that')
+    expect(operation?.kind === 'grammar_check' ? operation.grammarTarget : null).toBe('subject_verb_agreement')
+  })
+
+  it('keeps a concrete target strict in the single-target source form mode', () => {
+    const plan = { ...createProvidedPassageV02Plan('grammar-strict', 'grammar'), grammarTarget: 'relative_clause' as const, grammarMode: 'source_form_check' as const }
+    const set = configured([plan])
+    const payload = response(configured([createProvidedPassageV02Plan('content-helper', 'content_match'), plan]))
+    payload.items = [payload.items[1]]
+    payload.items[0].grammarTarget = 'subject_verb_agreement'
+    expect(() => adaptProvidedPassageV02Response(payload, set)).toThrow(/문법 태그 또는 모드/)
+  })
+
   it('repairs a uniquely identifiable grammar offset but keeps the correction visible as a warning', () => {
     const plan = { ...createProvidedPassageV02Plan('grammar-five', 'grammar'), grammarTarget: 'subject_verb_agreement' as const, grammarMode: 'controlled_error_variant' as const }
     const set = configured([plan])
@@ -183,6 +230,18 @@ describe('Provided Passage V0.2', () => {
 
     expect(canonicalRequestSchema.$defs.item.required).toContain('requiredStem')
     expect(canonicalRequestSchema.$defs.item.properties.requiredStem).toMatchObject({ type: 'string', minLength: 1 })
+
+    const legacyWithoutProfile = structuredClone(valid) as unknown as { items: Array<Record<string, unknown> & { grammarDesignProfile?: string | null }> }
+    delete legacyWithoutProfile.items[0].grammarDesignProfile
+    expect(validate(legacyWithoutProfile)).toBe(true)
+
+    const invalidProfile = structuredClone(valid) as unknown as { items: Array<Record<string, unknown> & { grammarDesignProfile?: string | null }> }
+    invalidProfile.items[0].grammarDesignProfile = 'invented_profile'
+    expect(validate(invalidProfile)).toBe(false)
+
+    const profileOnContent = structuredClone(valid)
+    profileOnContent.items[0].grammarDesignProfile = 'source_best_fit'
+    expect(validate(profileOnContent)).toBe(false)
   })
 
   it('keeps the canonical and upload-bundle V0.2 Request Schemas conflict-free', () => {
@@ -320,7 +379,46 @@ describe('Provided Passage V0.2', () => {
     expect(prompt).toContain('비어 있지 않은 정식 필수 문자열')
     expect(prompt).toContain('[Request 검증 순서]')
     expect(prompt).toContain('설계안이나 승인 질문 없이 즉시')
+    expect(prompt).toContain('candidateBoundaryIds, answerBoundaryId, positionReasons[].boundaryId에는 Request의 내부 ID를 그대로 유지')
+    expect(prompt).toContain('후보 배열의 순서대로 ①~⑤')
+    expect(prompt).toContain('boundary ID의 숫자를 위치 번호로 직접 변환하지 않는다')
+    expect(prompt).toContain('explanation, intention, distractorReasons와 item의 qualityReview는 절대 출력하지 않는다')
+    expect(prompt).toContain('[EXPLANATION_GENERATION_V1] 요청을 받은 2차 해설 단계에서만 출력한다')
+    expect(prompt).toContain('출력 직전에 전체 결과가 JSON.parse 가능한지 검사한다')
     expect(prompt).not.toContain('[내신 영어 기존 지문 다문항 설계안]')
+  })
+
+  it('explains unsafe quotation marks when first-phase JSON is malformed', () => {
+    const set = configured([createProvidedPassageV02Plan('content-1', 'content_match')])
+    expect(() => parseProvidedPassageV02Json('{"schemaId":"english-question-lab-provided-passage-generation-v0.2","reason":"The subject "these neurons" is plural."}', set)).toThrow(/인용.*큰따옴표.*이스케이프/)
+  })
+
+  it('treats sourceFingerprint as an app-computed opaque token instead of a raw passage hash', () => {
+    const set = configured([createProvidedPassageV02Plan('content-1', 'content_match')])
+    const request = buildProvidedPassageV02Request(set)
+    const prompt = generateProvidedPassageV02Prompt(set)
+    expect(request.source.sourceFingerprint).toBe(fingerprintProvidedPassage(request.source.passage))
+    expect(request.source.sourceFingerprint).not.toBe(`sha256:${sha256Hex(request.source.passage)}`)
+    expect(prompt).toContain('source.passage만 직접 SHA-256 처리하여 재계산·대조하거나 오류로 거부하지 않는다')
+    expect(prompt).toContain('Request의 sourceFingerprint를 Response에 글자 단위로 그대로 반환')
+    expect(JSON.stringify(canonicalRequestSchema)).toContain('do not recompute from source.passage alone')
+    expect(JSON.stringify(bundledRequestSchema)).toContain('do not recompute from source.passage alone')
+  })
+
+  it('rejects internal boundary IDs in insertion user-facing reasons', () => {
+    const plan = createProvidedPassageV02Plan('insertion-boundary-text', 'sentence_insertion')
+    const set = configured([plan])
+    const invalid = insertionResponse(set)
+    invalid.items[0].materialOperation.positionReasons[0].reason = `${invalid.items[0].materialOperation.candidateBoundaryIds[0]}은 너무 이르다.`
+    expect(() => adaptProvidedPassageV02Response(invalid, set)).toThrow(/사용자용 문장.*boundary ID/)
+  })
+
+  it('requires insertion answerIndex to match the answer boundary array position', () => {
+    const plan = createProvidedPassageV02Plan('insertion-answer-position', 'sentence_insertion')
+    const set = configured([plan])
+    const invalid = insertionResponse(set)
+    invalid.items[0].question.answerIndex = 5
+    expect(() => adaptProvidedPassageV02Response(invalid, set)).toThrow(/answerIndex와 answerBoundaryId/)
   })
 
   it('requires the response stem to match requiredStem without trimming', () => {
@@ -464,6 +562,7 @@ describe('Provided Passage V0.2', () => {
     const set = configured([createProvidedPassageV02Plan('insert-1', 'sentence_insertion')])
     const invalid = insertionResponse(set)
     invalid.items[0].materialOperation.answerBoundaryId = invalid.items[0].materialOperation.candidateBoundaryIds[2]
+    invalid.items[0].question.answerIndex = 3
     expect(() => adaptProvidedPassageV02Response(invalid, set)).toThrow(/바로 앞·뒤/)
   })
 

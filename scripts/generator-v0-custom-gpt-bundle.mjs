@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url'
 import Ajv2020 from 'ajv/dist/2020.js'
 
 export const BUNDLE_ID = 'english-question-lab-generator-v0'
-export const BUNDLE_VERSION = '0.1.0-rc.1'
+export const BUNDLE_VERSION = '0.2.0-rc.1'
 export const EXPECTED_RUNTIME_FINGERPRINT = '64a5b6d8dc9d5d61cef3e8c62d24fa4fbe819d2f5698a24ec56cc7ef2f8f688c'
 export const EXPECTED_DETAILED_FINGERPRINT = '5758a177ca3ca064b244897999e7dc2d6211ea2edf53c10a987ce3dfe71d9fa4'
 
@@ -28,6 +28,7 @@ const SOURCE_SPECS = [
   { role: 'generator_core', project: 'english-question-lab', canonicalSource: 'docs/english-gpt/GENERATOR_CORE_INSTRUCTIONS_V0.md', bundledPath: 'instructions/GENERATOR_CORE_INSTRUCTIONS_V0.md', requiredAtRuntime: true, precedence: 5, identity: 'English Question Generator v0 — Core Instructions' },
   { role: 'generation_contract', project: 'english-question-lab', canonicalSource: 'docs/english-gpt/GENERATION_CONTRACT_V0.md', bundledPath: 'knowledge/GENERATION_CONTRACT_V0.md', requiredAtRuntime: true, precedence: 1, identity: 'English Question Generation Contract v0' },
   { role: 'output_json_schema', project: 'english-question-lab', canonicalSource: 'docs/english-gpt/csat-output-schema.json', bundledPath: 'knowledge/csat-output-schema.json', requiredAtRuntime: true, precedence: 1, identity: 'English Question Lab CSAT Batch Result' },
+  { role: 'explanation_output_schema', project: 'english-question-lab', canonicalSource: 'docs/english-gpt/explanation-output-schema-v1.json', bundledPath: 'knowledge/explanation-output-schema-v1.json', requiredAtRuntime: true, precedence: 1, identity: 'English Question Lab Explanation Patch V1' },
   { role: 'style_manual', project: 'english-question-lab', canonicalSource: 'docs/english-gpt/CSAT_STYLE_MANUAL.md', bundledPath: 'knowledge/CSAT_STYLE_MANUAL.md', requiredAtRuntime: false, precedence: 'supplementary_non_authoritative', identity: '평가원형 수능 영어 읽기 제작 매뉴얼' },
   { role: 'runtime_profile_markdown', project: 'corpus-engine', canonicalSource: 'profiles/GENERATION_RUNTIME_PROFILE_V0.4.md', bundledPath: 'knowledge/GENERATION_RUNTIME_PROFILE_V0.4.md', requiredAtRuntime: true, precedence: 6, identity: 'csat-generator-runtime-evidence-v0.4' },
   { role: 'runtime_profile_json', project: 'corpus-engine', canonicalSource: 'profiles/generation-runtime-profile-v0.4.json', bundledPath: 'knowledge/generation-runtime-profile-v0.4.json', requiredAtRuntime: true, precedence: 6, identity: 'csat-generator-runtime-evidence-v0.4' },
@@ -41,7 +42,7 @@ const REQUIRED_PATHS = [
   'knowledge/GENERATION_RUNTIME_PROFILE_V0.4.md',
   'knowledge/generation-runtime-profile-v0.4.json',
   'knowledge/generation-runtime-profile-v0.4-schema.json',
-  'knowledge/GENERATION_CONTRACT_V0.md', 'knowledge/csat-output-schema.json',
+  'knowledge/GENERATION_CONTRACT_V0.md', 'knowledge/csat-output-schema.json', 'knowledge/explanation-output-schema-v1.json',
   'knowledge/CSAT_STYLE_MANUAL.md',
   'validation/generator-v0-custom-gpt-validation.json',
   'validation/generator-v0-custom-gpt-validation.md',
@@ -120,6 +121,7 @@ export function customInstructionsText() {
     '',
     '- GENERATION_CONTRACT_V0.md: 입출력·import 계약. 구조 판단의 최상위 문서다.',
     '- csat-output-schema.json: 필드, 타입, 필수값, 허용값과 추가 필드 금지의 최상위 구조 규칙이다.',
+    '- explanation-output-schema-v1.json: 2차 해설 patch의 식별자와 필수 필드 구조를 결정한다.',
     '- GENERATOR_CORE_INSTRUCTIONS_V0.md: 이 Instructions의 행동 세부 규칙 전체를 보존한 권위 원문이다. 아래 압축 규칙에 세부가 없으면 반드시 원문을 따른다.',
     '- GENERATION_RUNTIME_PROFILE_V0.4.md 및 JSON: 출처가 확인된 분석 참고값이다. 평균·분포·후보 개수를 생성 할당량이나 자동 실패 기준으로 바꾸지 않는다.',
     '- generation-runtime-profile-v0.4-schema.json: Runtime Profile 자체의 구조 확인용이다.',
@@ -129,9 +131,9 @@ export function customInstructionsText() {
     '',
     '## Mode selection',
     '',
-    '- 입력이 [VERIFICATION_REPAIR]로 시작하지 않으면 initial mode다.',
+    '- 입력이 [EXPLANATION_GENERATION_V1]로 시작하면 explanation mode다.',
     '- 입력이 [VERIFICATION_REPAIR]로 시작하면 repair mode다.',
-    '- 두 모드를 혼합하지 않는다.',
+    '- 그 밖에는 initial mode다. 세 모드를 혼합하지 않는다.',
     '',
     '## Initial mode',
     '',
@@ -139,17 +141,39 @@ export function customInstructionsText() {
     '',
     '설계를 막는 필수 정보가 빠졌으면 질문만 하고 그 응답을 끝낸다. Request가 Generator에게 선택하도록 맡긴 항목은 숨은 추측값이 아니라 `AI 결정`으로 설계안에 표시한다. 사용자가 설계를 수정하면 변경된 전체 설계안을 다시 제시한다.',
     '',
-    '사용자가 전체 설계를 `승인`, `이대로 진행`, `JSON 생성`처럼 명시적으로 승인한 뒤에만 생성한다. 일부 카드 승인, 단순 긍정, 새 조건 추가는 전체 승인으로 간주하지 않는다. 승인 전에는 JSON을 출력하지 않는다.',
+    '사용자가 전체 설계를 `승인`, `이대로 진행`, `JSON 생성`처럼 명시적으로 승인한 뒤에만 1차 문제·정답 JSON을 생성한다. 일부 카드 승인, 단순 긍정, 새 조건 추가는 전체 승인으로 간주하지 않는다. 승인 전에는 JSON을 출력하지 않는다.',
+    '',
+    '## First-phase question and answer output',
+    '',
+    '1차 JSON의 목적은 문제지와 정답지를 완성하는 것이다. 최상위 `{title, items}`와 요청받은 모든 카드를 반환한다. 각 item에는 itemId, templateId, variantId, materialTitle, material, materialSpec, questions를 포함한다. 각 question에는 type, stem, choices 다섯 개, answerIndex 1~5 정수, score를 포함한다. 유형별 marker와 구조화 자료는 Request blueprint대로 보존한다.',
+    '',
+    '기본 1차 JSON에서는 explanation, intention, evidenceRefs, distractorReasons, qualityReview를 생략한다. 길이를 줄이기 위해 생략하는 것이지 품질 검사를 생략하는 것이 아니다. 출력 전에 선언된 정답을 보지 않고 독립 풀이하고, 정답이 하나인지, 네 오답에 서로 다른 오류 근거가 있는지, 제시 자료만으로 판정 가능한지, 유형과 고정 발문이 일치하는지, 실제 정답과 answerIndex가 일치하는지 내부적으로 확인한다. 내부 검토를 장황하게 출력하지 않는다.',
+    '',
+    '기존 방식처럼 선택 해설 필드와 qualityReview를 함께 반환해도 유효하다. 포함한다면 Schema 구조와 실제 문제에 정확히 일치해야 한다. 빈 placeholder, 형식만 채운 근거, 정답 선지를 오답 이유에 포함한 결과는 허용하지 않는다.',
     '',
     '## Repair mode',
     '',
-    '[VERIFICATION_REPAIR] 입력에는 완성 원본 `{title, items}` JSON과 사용자가 승인한 수정이 있어야 한다. 재승인을 요구하지 않는다. 승인된 수정만 반영하고 제외·보류 의견은 무시하며, 지정되지 않은 카드·지문·문항과 모든 ID·blueprint를 보존한다. 모든 카드를 포함한 완전한 최종 JSON 객체 하나를 반환한다. partial patch나 변경분만 반환하지 않는다. 완성 원본 JSON이 없으면 추측하지 말고 원본을 요청한다.',
+    '[VERIFICATION_REPAIR] 입력에는 완성 원본 `{title, items}` JSON과 사용자가 승인한 수정이 있어야 한다. 재승인을 요구하지 않는다. 승인된 수정만 반영하고 제외·보류 의견은 무시하며, 지정되지 않은 카드·지문·문항과 모든 ID·blueprint를 보존한다. 모든 카드를 포함한 완전한 최종 JSON 객체 하나를 반환한다. partial patch나 변경분만 반환하지 않는다. 기존 해설 필드가 있으면 승인된 수정과 관련된 필드만 일관되게 갱신한다. 완성 원본 JSON이 없으면 추측하지 말고 원본을 요청한다.',
+    '',
+    '## Explanation mode',
+    '',
+    '[EXPLANATION_GENERATION_V1] 입력에서는 새로운 지문·문항·선지를 생성하거나 기존 문제를 수정하지 않는다. 프롬프트의 setId, sourceRevision, sourceFingerprint, questionId, 지문과 구조화 자료, 유형, 발문, 선지 내용과 순서, answerIndex, score를 불변으로 취급한다. 문제 본문 전체나 `{title, items}`를 다시 반환하지 않는다.',
+    '',
+    '선언된 answerIndex를 그대로 설명하기 전에 각 문항을 독립적으로 다시 푼다. 지문과 모든 선지를 비교하고 독립 정답과 선언 정답이 일치하는지, 정답이 하나뿐인지 확인한다. 정답 없음·복수 정답·정답 충돌 가능성이 있어도 answerIndex를 임의로 바꾸지 않는다. 이 경우 explanation 첫머리에 `[정답 충돌 확인 필요]`를 쓰고 유일성이 성립하지 않는 이유를 구체적으로 설명한다.',
+    '',
+    '모든 questionId에 해설을 정확히 한 번씩 반환한다. 누락·중복·알 수 없는 ID·이전 fingerprint·다른 revision을 사용하지 않는다. explanation은 정답 도출 과정과 결정적 근거, intention은 평가 능력, evidenceRefs는 지문에 실제로 존재하는 직접 인용만 담는다. distractorReasons는 정답을 제외한 네 선지의 번호와 구체적 오류를 담으며 주체 변경, 범위 확대·축소, 인과 역전, 긍정·부정 반전, 사실 왜곡, 없는 조건 추가, 시점·대상 혼동, 중심·부차 내용 혼동, 필요·충분조건 혼동을 구별한다.',
+    '',
+    '해설 기준은 유형별로 적용한다. 내용 일치·불일치는 달라진 사실·주체·수치·조건, 내용 이해·추론은 단서에서 결론으로 이어지는 과정, 주제·요지·제목은 글 전체 포괄 범위, 함축·빈칸은 문맥 논리와 재진술 관계, 어법은 검사 구조·오류·올바른 형태, 어휘는 대조·인과·역접 관계, 무관문·순서·삽입은 선행·후행 연결, 요약은 원문의 핵심 관계, 공유 장문은 하위 문항별 독립 근거를 설명한다.',
+    '',
+    '2차 출력은 explanation-output-schema-v1.json을 따르는 JSON 객체 하나다. schemaId는 english-question-lab-explanation-v1이며 입력의 setId, sourceRevision, sourceFingerprint를 그대로 반환하고 explanations 배열에 각 questionId의 explanation, intention, evidenceRefs, distractorReasons만 둔다.',
+    '',
+    '해설 JSON의 distractorReasons 배열은 정답 선지를 제외한 네 오답만 실제 번호와 함께 기록한다. 예를 들어 정답이 ②이면 ①·③·④·⑤의 이유만 둔다. “지문과 다르다”처럼 근거 없는 문장을 반복하지 않고 무엇이 어떻게 달라졌는지 밝힌다. 여러 단서가 필요한 문항은 필요한 근거를 모두 제시하되 지문에 없는 문장을 인용 형식으로 만들지 않는다.',
     '',
     '## ID and blueprint integrity',
     '',
     '입력과 출력의 itemId 집합은 정확히 같아야 하며 누락·추가·중복이 없어야 한다. 각 itemId의 templateId·variantId 연결과 blueprint의 질문 type·고정 문항 수를 유지한다. 공유 지문은 하나의 item 안에 둔다. 41~42는 questions 2개, 43~45는 3개다. 실제 하위 문항 총수는 최대 4개다. 모든 문항은 정확히 5개 선택지를 가지며 answerIndex는 1~5 정수다. 내부 id나 design 구조를 출력하지 않는다.',
     '',
-    'evidenceRefs에는 해당 카드 material에 실제로 연속해서 존재하는 직접 인용만 넣는다. distractorReasons는 정답을 제외한 네 오답에 대응한다. qualityReview는 Schema에 맞는 자기평가 metadata이며 Validator·Verifier·사람 검수를 대체하지 않는다.',
+    '1차 선택 필드로 evidenceRefs를 출력한다면 해당 카드 material에 실제로 연속해서 존재하는 직접 인용만 넣는다. distractorReasons는 정답을 제외한 네 오답에 대응한다. qualityReview는 선택적 자기평가 metadata이며 Validator·Verifier·사람 검수를 대체하지 않는다.',
     '',
     '## Copyright, quality, and answer policy',
     '',
@@ -159,7 +183,11 @@ export function customInstructionsText() {
     '',
     '## Type integrity',
     '',
-    '목적·심경·주장·요지·주제·제목은 각 유형의 범위와 추상도를 구별한다. 함축 의미는 밑줄 표현의 문맥상 의미를 묻는다. 도표는 시각 자료와 영어 진술 경계를 유지한다. 내용 일치·불일치와 실용문은 실제 구조화 자료에서 검증 가능해야 한다. 어법은 하나의 명백한 오류, 어휘는 문맥상 하나의 부적절어를 갖는다. 빈칸은 핵심 논리로 추론한다. 무관문은 한 문장만 흐름에서 벗어난다. 순서는 A·B·C, 삽입은 주어진 문장과 위치 표식을 보존한다. 요약문은 원문 논리를 압축한다. 41~42와 43~45는 각각 하나의 공유 지문과 고정 하위 문항 구조를 유지한다. 정확한 marker, materialSpec, 선택지 언어와 variant 세부는 Request blueprint와 Schema를 따른다.',
+    '목적·심경·주장·요지·주제·제목은 각 유형의 범위와 추상도를 구별한다. 목적은 의사소통 목적, 주장은 요구하는 입장, 요지·주제·제목은 글 전체의 초점과 범위를 묻는다. 함축 의미는 밑줄 표현의 문맥상 의미를 핵심 논리와 연결한다. 도표는 시각 자료, 단위·수치와 영어 진술 경계를 유지한다. 내용 일치·불일치와 실용문은 실제 구조화 자료에서 검증 가능해야 한다.',
+    '',
+    '어법은 문맥에서 하나의 명백한 오류만 두고, 어휘는 철자 오류가 아니라 문맥상 하나의 부적절어를 둔다. 빈칸은 글의 핵심 논리를 복원하게 한다. 무관문은 정확히 한 문장만 중심 흐름에서 벗어난다. 순서는 도입문과 A·B·C의 지시·정보 관계로 유일해야 한다. 삽입은 주어진 문장과 다섯 위치 표식을 보존하고 앞뒤 단서가 한 위치만 지지해야 한다. 요약문은 원문 핵심 관계를 압축하고 두 빈칸 조합은 하나만 정답이어야 한다.',
+    '',
+    '41~42와 43~45는 각각 하나의 공유 지문과 고정 하위 문항 구조를 유지한다. 41~42 하위 문항은 서로 다른 근거로 풀리고 문항별 표식이 다른 문항에 전파되지 않게 한다. 43~45는 A·B·C·D 사건 전개, 지칭 관계와 각 하위 문항의 독립 근거가 충돌하지 않게 한다. 정확한 marker, materialSpec, 선택지 언어와 variant 세부는 Request blueprint와 Schema를 따른다.',
     '',
     '사용자 제공 자료를 쓰라는 Request가 있으면 사실을 추가하거나 임의 재작성하지 않는다. Contract가 요구하는 비파괴적 구조화 범위가 불명확하면 승인 전에 질문한다.',
     '',
@@ -169,9 +197,11 @@ export function customInstructionsText() {
     '',
     '## Pre-output review and strict output',
     '',
-    '출력 전에 ID 집합·template/variant·문항 수·선지 5개·answerIndex·단일 정답·근거·오답·표식·materialSpec·자연스러움·저작권·qualityReview·Schema·JSON 문법을 순서대로 검사한다. 오류가 있으면 관련 내용과 metadata를 함께 고친 뒤 전체 검사를 다시 수행한다.',
+    '1차 출력 전에 ID 집합·template/variant·문항 수·선지 5개·answerIndex·단일 정답·근거·네 오답·표식·materialSpec·자연스러움·저작권·Schema·JSON 문법을 순서대로 검사한다. 선택 해설 metadata를 포함했다면 함께 검사한다. 오류가 있으면 관련 내용을 일관되게 고친 뒤 전체 검사를 다시 수행한다.',
     '',
-    '승인 후 및 repair mode의 최종 응답은 설명, 머리말, 사과, 주석, Markdown code fence 없이 유효한 JSON 객체 하나만 출력한다. 최상위는 `{title, items}`이고 요청받은 모든 카드를 포함한다. Schema에 없는 필드를 추가하지 않는다. 빈 문자열은 JSON 문자열 값으로 표현하고 undefined, NaN, Infinity, trailing comma를 쓰지 않는다.',
+    '승인 후 1차, repair mode와 explanation mode의 최종 응답은 설명, 머리말, 사과, 주석, Markdown code fence 없이 유효한 JSON 객체 하나만 출력한다. 1차와 repair는 `{title, items}`, explanation mode는 `english-question-lab-explanation-v1` 객체다. Schema에 없는 필드를 추가하지 않는다. 문자열의 큰따옴표를 escape하고 배열과 객체를 끝까지 닫는다. 생략 표시, undefined, NaN, Infinity, trailing comma를 쓰지 않는다.',
+    '',
+    '응답 길이가 부족하면 동일한 설명의 반복과 장황한 자기평가를 먼저 줄인다. 필수 카드·문항·ID·선지·구조를 생략하거나 JSON 문자열 중간에서 끝내지 않는다. 반환 직전에 모든 따옴표와 대괄호·중괄호가 닫혔는지, 요청된 배열 항목이 전부 존재하는지, JSON.parse 가능한지 마지막으로 확인한다.',
   ])
 }
 
@@ -188,24 +218,27 @@ function setupText() {
     '1. `instructions/GENERATOR_CORE_INSTRUCTIONS_V0.md`',
     '2. `knowledge/GENERATION_CONTRACT_V0.md`',
     '3. `knowledge/csat-output-schema.json`',
-    '4. `knowledge/GENERATION_RUNTIME_PROFILE_V0.4.md`',
-    '5. `knowledge/generation-runtime-profile-v0.4.json`',
-    '6. `knowledge/generation-runtime-profile-v0.4-schema.json`', '',
+    '4. `knowledge/explanation-output-schema-v1.json`',
+    '5. `knowledge/GENERATION_RUNTIME_PROFILE_V0.4.md`',
+    '6. `knowledge/generation-runtime-profile-v0.4.json`',
+    '7. `knowledge/generation-runtime-profile-v0.4-schema.json`', '',
     '`knowledge/CSAT_STYLE_MANUAL.md`는 supplementary reference다. 업로드할 수 있지만 필수는 아니며 다른 권위 문서와 충돌하면 적용하지 않는다.', '',
     '이 v0에는 Web Search, Image Generation, Canvas, Code Interpreter, Apps, Actions가 필요하지 않다. 특히 API Action을 만들지 않는다. 기능 표시와 명칭은 계정·워크스페이스에 따라 달라질 수 있으므로 불필요한 기능을 켜지 않는다는 원칙만 적용한다.', '',
     '## Conversation starters', '',
     '- `english-question-lab에서 복사한 Request-Specific Prompt를 붙여 넣겠습니다. 먼저 설계안만 제시해 주세요.`',
     '- `[VERIFICATION_REPAIR] 프롬프트와 완성 원본 JSON을 보내겠습니다. 승인된 수정만 반영해 주세요.`', '',
+    '- `[EXPLANATION_GENERATION_V1] 프롬프트를 보내겠습니다. 문제는 바꾸지 말고 해설 JSON만 반환해 주세요.`', '',
     '## 수동 흐름', '',
     '1. 앱에서 Request-Specific Prompt를 생성해 Custom GPT 채팅에 붙여 넣는다.',
     '2. `[세트 제작 설계안]`만 받았는지 확인하고 필요한 내용을 수정한다.',
     '3. 전체 설계를 명시적으로 승인한다.',
-    '4. JSON 객체 하나만 반환됐는지 확인해 앱의 JSON 입력 영역에 붙여 넣는다.',
-    '5. 앱 검증이나 사람 검수 후 수정이 필요하면 앱이 만든 `[VERIFICATION_REPAIR]` 프롬프트와 원본 JSON을 새 메시지로 보낸다.', '',
+    '4. 1차 문제·정답 JSON 객체 하나만 반환됐는지 확인해 앱의 JSON 입력 영역에 붙여 넣는다.',
+    '5. 해설이 필요하면 앱에서 해설 프롬프트를 만들고 `[EXPLANATION_GENERATION_V1]` 응답을 해설 JSON 입력 영역에 붙여 넣는다.',
+    '6. 앱 검증이나 사람 검수 후 수정이 필요하면 앱이 만든 `[VERIFICATION_REPAIR]` 프롬프트와 원본 JSON을 새 메시지로 보낸다.', '',
     '## 업데이트', '',
     'Runtime Profile은 Corpus Engine과 자동 동기화되지 않는다. 새 버전으로 바꿀 때 canonical 파일을 Bundle builder로 다시 snapshot하고 manifest의 SHA-256과 runtime fingerprint를 검증한 뒤 Knowledge 파일을 수동 교체한다. API 자동 연결은 별도 통합 작업이다.', '',
     '## 테스트', '',
-    'Preview에서 initial 설계, 승인 전 JSON 금지, 승인 후 단일 JSON, ID 보존, 41~42, 43~45, repair 전체 반환, Contract 충돌 차단을 시험한다. 실제 문제를 배포하거나 앱과 자동 연결하는 테스트가 아니라 수동 계약 검증이다.',
+    'Preview에서 initial 설계, 승인 전 JSON 금지, 승인 후 1차 문제·정답 JSON, 기존 1단계 호환 JSON, explanation patch, stale fingerprint 차단, ID 보존, 41~42, 43~45, repair 전체 반환, Contract 충돌 차단을 시험한다. 실제 문제를 배포하거나 앱과 자동 연결하는 테스트가 아니라 수동 계약 검증이다.',
   ])
 }
 
@@ -214,13 +247,14 @@ function readmeText() {
     '# Generator V0 Custom GPT Release Bundle', '',
     `- Bundle: \`${BUNDLE_ID}\``, `- Version: \`${BUNDLE_VERSION}\``,
     '- Status: release candidate', '- Target: Custom GPT, manual copy/paste integration only', '',
-    '이 Bundle은 검증된 Core, Contract, JSON Schema와 Corpus Runtime Profile 0.4를 Custom GPT 설정에 연결하는 release snapshot이다. 앱 실행 코드, Prompt Builder, API, Corpus 자료를 변경하지 않는다.', '',
+    '이 Bundle은 검증된 Core, 1차 Generation Contract, 2차 Explanation Schema와 Corpus Runtime Profile 0.4를 Custom GPT 설정에 연결하는 release snapshot이다. API와 Corpus 자료를 변경하지 않는다.', '',
     '## 사용', '',
     '1. `custom-gpt-setup.md`에 따라 Custom GPT를 구성한다.',
     '2. `instructions/GENERATOR_V0_CUSTOM_GPT_INSTRUCTIONS.md`를 Instructions에 넣는다.',
     '3. setup 문서가 지정한 Knowledge 파일을 업로드한다.',
     '4. 앱의 Request-Specific Prompt를 채팅에 붙여 넣고 설계안을 승인한다.',
-    '5. 반환 JSON을 앱에 수동으로 가져온다.', '',
+    '5. 반환된 1차 문제·정답 JSON을 앱에 수동으로 가져온다.',
+    '6. 필요할 때 앱의 해설 프롬프트로 2차 explanation JSON을 받아 별도로 가져온다.', '',
     '자동 API 호출, 자동 Corpus 동기화, 실제 문제 생성, Gold/Semantic 변경은 포함하지 않는다. 모든 snapshot의 출처와 SHA-256은 `bundle-manifest.json` 및 validation 보고서에 기록되어 있다.',
   ])
 }
@@ -245,6 +279,7 @@ function coreCoverage(coreText) {
   const mapping = {
     'Contract boundary': 'Binding', 'Priority': 'Binding', 'Mode selection': 'Mode selection',
     'Initial mode': 'Initial mode', 'Missing information': 'Initial mode', 'Repair mode': 'Repair mode',
+    'Explanation mode': 'Explanation mode',
     'ID and blueprint integrity': 'ID and blueprint integrity', 'Copyright and originality': 'Copyright, quality, and answer policy',
     'Common question quality': 'Copyright, quality, and answer policy', 'Answer position policy': 'Copyright, quality, and answer policy',
     'Type registry': 'Type integrity', 'User-provided material': 'Type integrity', 'Optional Corpus Profile': 'Runtime Profile use',
@@ -252,7 +287,7 @@ function coreCoverage(coreText) {
     'Strict JSON output': 'Pre-output review and strict output',
   }
   return headings.map((heading) => {
-    const name = heading.replace(/^## \d+\.\s*/, '')
+    const name = heading.replace(/^## (?:\d+(?:\.\d+)?\.?\s+)?/, '')
     const target = mapping[name]
     return { coreHeading: heading, customInstructionsSection: target ?? null, directInstruction: Boolean(target && custom.includes(`## ${target}`)), fullDetailFallback: 'instructions/GENERATOR_CORE_INSTRUCTIONS_V0.md' }
   })
@@ -266,10 +301,10 @@ function generatedTestSource() {
     "test('repository bundle validates', () => { const result = validateBundle(); assert.equal(result.valid, true); assert.equal(result.errorCount, 0) })", '',
     "test('runtime, output, and manifest schemas validate their instances', () => { const root=path.resolve(import.meta.dirname,'..'); const ajv=new Ajv2020({strict:false}); const pairs=[['knowledge/generation-runtime-profile-v0.4-schema.json','knowledge/generation-runtime-profile-v0.4.json'],['tests/bundle-manifest-schema.json','bundle-manifest.json']]; for(const [schemaRel,dataRel] of pairs){ const validate=ajv.compile(JSON.parse(fs.readFileSync(path.join(root,schemaRel),'utf8'))); assert.equal(validate(JSON.parse(fs.readFileSync(path.join(root,dataRel),'utf8'))),true,JSON.stringify(validate.errors)) } assert.doesNotThrow(()=>ajv.compile(JSON.parse(fs.readFileSync(path.join(root,'knowledge/csat-output-schema.json'),'utf8')))) })", '',
     "test('manifest snapshots equal canonical sources', () => { const root=path.resolve(import.meta.dirname,'..'); const manifest=JSON.parse(fs.readFileSync(path.join(root,'bundle-manifest.json'),'utf8')); for(const c of manifest.components.filter(x=>x.canonicalSource)){ assert.equal(c.canonicalSha256,c.bundledSha256); assert.equal(c.canonicalByteSize,c.bundledByteSize) } })", '',
-    "test('custom instructions preserve approved priority and flows', () => { const root=path.resolve(import.meta.dirname,'..'); const value=fs.readFileSync(path.join(root,'instructions/GENERATOR_V0_CUSTOM_GPT_INSTRUCTIONS.md'),'utf8'); assert.ok(value.indexOf('Generation Contract V0와 csat-output-schema.json') < value.indexOf('itemId·templateId·variantId')); assert.match(value,/승인 전에는 JSON을 출력하지 않는다/); assert.match(value,/\[VERIFICATION_REPAIR\]/); assert.match(value,/완전한 최종 JSON 객체 하나/) })", '',
+    "test('custom instructions preserve approved priority and flows', () => { const root=path.resolve(import.meta.dirname,'..'); const value=fs.readFileSync(path.join(root,'instructions/GENERATOR_V0_CUSTOM_GPT_INSTRUCTIONS.md'),'utf8'); assert.ok(value.indexOf('Generation Contract V0와 csat-output-schema.json') < value.indexOf('itemId·templateId·variantId')); assert.match(value,/승인 전에는 JSON을 출력하지 않는다/); assert.match(value,/\[VERIFICATION_REPAIR\]/); assert.match(value,/\[EXPLANATION_GENERATION_V1\]/); assert.match(value,/1차 문제·정답 JSON/); assert.match(value,/완전한 최종 JSON 객체 하나/) })", '',
     "test('all Core top-level sections have direct coverage', () => { const root=path.resolve(import.meta.dirname,'..'); const coverage=JSON.parse(fs.readFileSync(path.join(root,'validation/core-rule-coverage.json'),'utf8')); assert.ok(coverage.length>=16); assert.ok(coverage.every(x=>x.directInstruction)) })", '',
     "test('request values are dynamic and production IDs are absent', () => { const root=path.resolve(import.meta.dirname,'..'); const value=fs.readFileSync(path.join(root,'instructions/GENERATOR_V0_CUSTOM_GPT_INSTRUCTIONS.md'),'utf8'); assert.doesNotMatch(value,/[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}/i); assert.doesNotMatch(value,/itemId\s*:\s*[A-Za-z0-9_-]+/) })", '',
-    "test('output schema enforces core contract shapes', () => { const root=path.resolve(import.meta.dirname,'..'); const s=JSON.parse(fs.readFileSync(path.join(root,'knowledge/csat-output-schema.json'),'utf8')); assert.deepEqual(s.required,['title','items']); assert.ok(s.$defs.item.required.includes('itemId')); assert.ok(s.$defs.item.required.includes('qualityReview')); assert.equal(s.$defs.question.properties.choices.minItems,5); assert.equal(s.$defs.question.properties.choices.maxItems,5); assert.equal(s.$defs.question.properties.answerIndex.minimum,1); assert.equal(s.$defs.question.properties.answerIndex.maximum,5) })", '',
+    "test('output schemas enforce two-phase contract shapes', () => { const root=path.resolve(import.meta.dirname,'..'); const s=JSON.parse(fs.readFileSync(path.join(root,'knowledge/csat-output-schema.json'),'utf8')); const e=JSON.parse(fs.readFileSync(path.join(root,'knowledge/explanation-output-schema-v1.json'),'utf8')); assert.deepEqual(s.required,['title','items']); assert.ok(s.$defs.item.required.includes('itemId')); assert.ok(!s.$defs.item.required.includes('qualityReview')); assert.ok(!s.$defs.question.required.includes('explanation')); assert.equal(s.$defs.question.properties.choices.minItems,5); assert.equal(s.$defs.question.properties.answerIndex.maximum,5); assert.equal(e.properties.schemaId.const,'english-question-lab-explanation-v1') })", '',
     "test('deterministic rebuild is byte-identical', () => { const a=fs.mkdtempSync(path.join(os.tmpdir(),'generator-v0-a-')); const b=fs.mkdtempSync(path.join(os.tmpdir(),'generator-v0-b-')); buildBundle({appRoot:defaultAppRoot,corpusRoot:defaultCorpusRoot,bundleRoot:a}); buildBundle({appRoot:defaultAppRoot,corpusRoot:defaultCorpusRoot,bundleRoot:b}); const walk=(r,d='')=>fs.readdirSync(path.join(r,d),{withFileTypes:true}).flatMap(e=>e.isDirectory()?walk(r,path.join(d,e.name)):[path.join(d,e.name)]).sort(); assert.deepEqual(walk(a),walk(b)); for(const rel of walk(a)) assert.deepEqual(fs.readFileSync(path.join(a,rel)),fs.readFileSync(path.join(b,rel))) })",
   ])
 }

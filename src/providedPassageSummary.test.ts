@@ -1,4 +1,9 @@
+import Ajv2020 from 'ajv/dist/2020'
 import { describe, expect, it } from 'vitest'
+import bundledRequestSchema from '../docs/english-gpt/school-english-custom-gpt-v0.2-bundle/03-KNOWLEDGE-REQUEST-SCHEMA-V0.2.10.json'
+import bundledResponseSchema from '../docs/english-gpt/school-english-custom-gpt-v0.2-bundle/04-KNOWLEDGE-RESPONSE-SCHEMA.json'
+import canonicalRequestSchema from '../docs/english-gpt/provided-passage-request-schema-v0.2.json'
+import canonicalResponseSchema from '../docs/english-gpt/provided-passage-response-schema-v0.2.json'
 import { createEnglishSet } from './english'
 import {
   adaptProvidedPassageV02Response,
@@ -61,12 +66,14 @@ function summaryResponse() {
 }
 
 describe('Provided Passage V0.2 summary completion', () => {
-  it('builds the summary contract with stem and word-pair choices in the same language', () => {
+  it('keeps the requested stem language while fixing summary word-pair choices to English', () => {
     const set = configuredSummarySet()
     const item = buildProvidedPassageV02Request(set).items[0]
-    expect(item).toMatchObject({ questionType: 'summary', templateId: 'school-summary', choiceLanguage: 'ko' })
+    expect(item).toMatchObject({ questionType: 'summary', templateId: 'school-summary', choiceLanguage: 'en' })
     expect(item.requiredStem).toContain('(A)와 (B)')
+    expect(set.questions[0]).toMatchObject({ schoolStemLanguage: 'ko', schoolChoiceLanguage: 'en' })
     expect(generateProvidedPassageV02Prompt(set)).toContain('question.summaryText')
+    expect(generateProvidedPassageV02Prompt(set)).toContain('summary의 choiceLanguage는 en')
   })
 
   it('imports and presents a separate A-B summary box while preserving the shared passage', () => {
@@ -82,6 +89,42 @@ describe('Provided Passage V0.2 summary completion', () => {
     const { set, value } = summaryResponse()
     value.items[0].question.summaryText = 'Comparing explanations helps students revise conclusions.'
     value.items[0].question.choices[0] = 'encourages'
-    expect(() => adaptProvidedPassageV02Response(value, set)).toThrow(/요약문에는/)
+    expect(() => adaptProvidedPassageV02Response(value, set)).toThrow(/요약문에는|Response Schema/)
+  })
+
+  it('keeps canonical and bundled summary schemas byte-for-structure synchronized', () => {
+    expect(bundledRequestSchema).toEqual(canonicalRequestSchema)
+    expect(bundledResponseSchema).toEqual(canonicalResponseSchema)
+    expect(canonicalRequestSchema.properties.items.maxItems).toBe(5)
+    expect(canonicalResponseSchema.properties.items.maxItems).toBe(5)
+  })
+
+  it('validates the summary request and rejects more than five items', () => {
+    const request = buildProvidedPassageV02Request(configuredSummarySet())
+    const validate = new Ajv2020({ strict: false }).compile(canonicalRequestSchema)
+    expect(validate(request)).toBe(true)
+    const wrongLanguage = structuredClone(request)
+    wrongLanguage.items[0].choiceLanguage = 'ko'
+    expect(validate(wrongLanguage)).toBe(false)
+    request.items = Array.from({ length: 6 }, (_, index) => ({ ...request.items[0], itemId: `summary-${index + 1}` }))
+    expect(validate(request)).toBe(false)
+  })
+
+  it('requires summaryText markers and five complete word pairs in the response schema', () => {
+    const { value } = summaryResponse()
+    const validate = new Ajv2020({ strict: false }).compile(canonicalResponseSchema)
+    expect(validate(value)).toBe(true)
+
+    const missingSummary = structuredClone(value)
+    delete (missingSummary.items[0].question as Partial<typeof missingSummary.items[0]['question']>).summaryText
+    expect(validate(missingSummary)).toBe(false)
+
+    const malformedPair = structuredClone(value)
+    malformedPair.items[0].question.choices[0] = 'encourages|revise|carefully'
+    expect(validate(malformedPair)).toBe(false)
+
+    const duplicateMarker = structuredClone(value)
+    duplicateMarker.items[0].question.summaryText += ' [[요약빈칸:A]]'
+    expect(validate(duplicateMarker)).toBe(false)
   })
 })

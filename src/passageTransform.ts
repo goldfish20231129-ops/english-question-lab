@@ -3,6 +3,8 @@ import { fingerprintProvidedPassage } from './providedPassage'
 
 export type PassageTransformMode = 'original' | 'lexical' | 'restructure'
 
+export const MIN_LEXICAL_TRANSFORM_CHANGES = 10
+
 export const PASSAGE_TRANSFORM_LABELS: Record<PassageTransformMode, string> = {
   original: '원문 그대로 사용',
   lexical: '표현만 바꾸기',
@@ -11,7 +13,7 @@ export const PASSAGE_TRANSFORM_LABELS: Record<PassageTransformMode, string> = {
 
 export const PASSAGE_TRANSFORM_HELP: Record<PassageTransformMode, string> = {
   original: '입력한 지문을 수정하지 않고 그대로 문항 제작에 사용합니다.',
-  lexical: '문장 순서와 사실·논리는 유지하고 문맥상 자연스러운 단어·구만 동의 표현으로 바꿉니다.',
+  lexical: '문장 순서와 사실·논리는 유지하고 문맥상 자연스러운 단어·구를 서로 다른 10곳 이상에서 동의 표현으로 바꿉니다.',
   restructure: '모든 사실·논리·예시·태도를 보존하면서 문장을 결합·분리하거나 전개 표현을 새롭게 구성합니다.',
 }
 
@@ -42,6 +44,7 @@ export function generatePassageTransformationPrompt(source: string, mode: Passag
   const modeRules = mode === 'lexical'
     ? `- 문장 수, 문장 순서, 문장 경계, 사실, 논리 관계, 예시, 수치, 고유명사, 부정·조건·범위를 바꾸지 않는다.
 - 자연스러운 동의 단어·구만 최소 범위로 교체한다. 예: accurate는 문맥에 따라 precise 또는 exact가 가능하지만 뜻과 문법이 맞을 때만 사용한다.
+- 서로 다른 위치의 표현을 최소 ${MIN_LEXICAL_TRANSFORM_CHANGES}개 바꾸고 changes에도 각각 기록한다. 안전한 교체 후보가 ${MIN_LEXICAL_TRANSFORM_CHANGES}개보다 적으면 억지로 바꾸지 말고 errors JSON을 반환한다.
 - 희귀어로 난도를 위장하거나 모든 단어를 기계적으로 치환하지 않는다.
 - changes의 before는 현재 작업 지문에서 정확히 한 번만 나오는 최소 표현으로 적고, 그 위치의 치환만으로 transformedPassage가 완성되어야 한다.`
     : `- 원문의 모든 핵심 주장, 세부 사실, 인과·대조·조건·부정, 범위, 예시, 수치, 고유명사와 필자의 태도를 빠짐없이 보존한다.
@@ -103,6 +106,7 @@ export function parsePassageTransformationJson(raw: string, source: string, expe
     return { before: row.before, after: row.after, reason: row.reason }
   })
   if (expectedMode === 'lexical') {
+    if (changes.length < MIN_LEXICAL_TRANSFORM_CHANGES) throw new Error(`표현만 바꾸기 결과에는 서로 다른 위치의 의미 동등 표현 변경이 최소 ${MIN_LEXICAL_TRANSFORM_CHANGES}개 필요합니다.`)
     let rebuilt = normalizedSource
     changes.forEach((change, index) => {
       if (occurrences(rebuilt, change.before) !== 1) throw new Error(`표현 변경 ${index + 1}의 before가 현재 지문에서 정확히 한 번 확인되지 않습니다.`)

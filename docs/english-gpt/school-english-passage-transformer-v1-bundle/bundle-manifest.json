@@ -1,0 +1,48 @@
+{
+  "bundleId": "school-english-passage-transformer-v1",
+  "bundleVersion": "1.0.1",
+  "generatedFromCanonicalFiles": true,
+  "components": [
+    {
+      "role": "instructions",
+      "canonicalSource": "docs/english-gpt/SCHOOL_ENGLISH_PASSAGE_TRANSFORMER_INSTRUCTIONS_V1.md",
+      "bundledPath": "01-INSTRUCTIONS.md",
+      "canonicalSha256": "ae8f6b681ca39bcc4e1bfe59d58e798a3aa9f968754102f33dc643d433c1a64a",
+      "bundledSha256": "ae8f6b681ca39bcc4e1bfe59d58e798a3aa9f968754102f33dc643d433c1a64a",
+      "byteSize": 4877
+    },
+    {
+      "role": "contract",
+      "canonicalSource": "docs/english-gpt/SCHOOL_ENGLISH_PASSAGE_TRANSFORMATION_CONTRACT_V1.md",
+      "bundledPath": "02-KNOWLEDGE-CONTRACT.md",
+      "canonicalSha256": "6ac10dd3cef63be0f921d985336ce167d4edadcbc1fff506b93788ab230b481e",
+      "bundledSha256": "6ac10dd3cef63be0f921d985336ce167d4edadcbc1fff506b93788ab230b481e",
+      "byteSize": 2397
+    },
+    {
+      "role": "output_schema",
+      "canonicalSource": "docs/english-gpt/passage-transformation-output-schema-v1.json",
+      "bundledPath": "03-KNOWLEDGE-OUTPUT-SCHEMA.json",
+      "canonicalSha256": "9df38a4c261f0bd177ffd7054b45b641eb41aa23df8d9465d74f4633db3d21af",
+      "bundledSha256": "9df38a4c261f0bd177ffd7054b45b641eb41aa23df8d9465d74f4633db3d21af",
+      "byteSize": 1857
+    },
+    {
+      "role": "evidence_guide",
+      "canonicalSource": "docs/english-gpt/SCHOOL_ENGLISH_PASSAGE_TRANSFORMATION_EVIDENCE_GUIDE_V1.md",
+      "bundledPath": "04-KNOWLEDGE-EVIDENCE-GUIDE.md",
+      "canonicalSha256": "cebf124916fe245cbb64808b1b6a2aabcd6e13d534c89af162cc1378a6d3a7b2",
+      "bundledSha256": "cebf124916fe245cbb64808b1b6a2aabcd6e13d534c89af162cc1378a6d3a7b2",
+      "byteSize": 3866
+    },
+    {
+      "role": "setup_guide",
+      "canonicalSource": "docs/english-gpt/SCHOOL_ENGLISH_PASSAGE_TRANSFORMER_SETUP_V1.md",
+      "bundledPath": "05-SETUP-GUIDE.md",
+      "canonicalSha256": "0e15c0a4006b907bc4f484f1d587fa8dd050c2334ca88d9b0ee6c759c33b5cdb",
+      "bundledSha256": "0e15c0a4006b907bc4f484f1d587fa8dd050c2334ca88d9b0ee6c759c33b5cdb",
+      "byteSize": 1313
+    }
+  ],
+  "manifestFingerprint": "8e7a8d0e6363b237358bb3d78910e874aebf76ed0ee2e84058cdec36e281d9d1"
+}

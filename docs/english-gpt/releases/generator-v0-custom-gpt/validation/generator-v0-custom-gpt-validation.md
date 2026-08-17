@@ -16,6 +16,7 @@
 - PASS `required:knowledge/generation-runtime-profile-v0.4-schema.json`: knowledge/generation-runtime-profile-v0.4-schema.json
 - PASS `required:knowledge/GENERATION_CONTRACT_V0.md`: knowledge/GENERATION_CONTRACT_V0.md
 - PASS `required:knowledge/csat-output-schema.json`: knowledge/csat-output-schema.json
+- PASS `required:knowledge/explanation-output-schema-v1.json`: knowledge/explanation-output-schema-v1.json
 - PASS `required:knowledge/CSAT_STYLE_MANUAL.md`: knowledge/CSAT_STYLE_MANUAL.md
 - PASS `required:validation/generator-v0-custom-gpt-validation.json`: validation/generator-v0-custom-gpt-validation.json
 - PASS `required:validation/generator-v0-custom-gpt-validation.md`: validation/generator-v0-custom-gpt-validation.md
@@ -26,8 +27,8 @@
 - PASS `required:tests/bundle-manifest-schema.json`: tests/bundle-manifest-schema.json
 - PASS `required:tests/generator-v0-custom-gpt-bundle.node-test.mjs`: tests/generator-v0-custom-gpt-bundle.node-test.mjs
 - PASS `manifest_json_parse`: parsed
-- PASS `manifest_identity`: english-question-lab-generator-v0/0.1.0-rc.1
-- PASS `manifest_fingerprint`: e741041c9b122e6e89d472e35bade83740167e2c8e1569076010e505f3ee2ecf
+- PASS `manifest_identity`: english-question-lab-generator-v0/0.2.0-rc.1
+- PASS `manifest_fingerprint`: e7e032eb0bd1eef3d5148024cd0a9b2ea952b6118fb75dbb7f27aa26cb14509b
 - PASS `approved_priority`: Core/Cleanup approved order
 - PASS `manifest_schema_validation`: passed
 - PASS `bundle_hash:generator_core`: instructions/GENERATOR_CORE_INSTRUCTIONS_V0.md
@@ -36,6 +37,8 @@
 - PASS `snapshot_byte_equality:generation_contract`: docs/english-gpt/GENERATION_CONTRACT_V0.md
 - PASS `bundle_hash:output_json_schema`: knowledge/csat-output-schema.json
 - PASS `snapshot_byte_equality:output_json_schema`: docs/english-gpt/csat-output-schema.json
+- PASS `bundle_hash:explanation_output_schema`: knowledge/explanation-output-schema-v1.json
+- PASS `snapshot_byte_equality:explanation_output_schema`: docs/english-gpt/explanation-output-schema-v1.json
 - PASS `bundle_hash:style_manual`: knowledge/CSAT_STYLE_MANUAL.md
 - PASS `snapshot_byte_equality:style_manual`: docs/english-gpt/CSAT_STYLE_MANUAL.md
 - PASS `bundle_hash:runtime_profile_markdown`: knowledge/GENERATION_RUNTIME_PROFILE_V0.4.md
@@ -59,9 +62,9 @@
 - PASS `repair_flow`: repair returns complete JSON
 - PASS `dynamic_request_separation`: no production request value
 - PASS `forbidden_source_content_absence`: no source passage/choice/EBS list fields in runtime
-- PASS `core_rule_coverage`: 16/16
-- PASS `no_duplicate_paths`: 19 files
-- PASS `knowledge_no_duplicate_bytes`: 7 knowledge/reference files
+- PASS `core_rule_coverage`: 17/17
+- PASS `no_duplicate_paths`: 20 files
+- PASS `knowledge_no_duplicate_bytes`: 8 knowledge/reference files
 - PASS `no_project_bundle`: Custom GPT target only
 
 ## Limitations

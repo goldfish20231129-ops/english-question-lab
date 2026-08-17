@@ -1,6 +1,6 @@
 {
   "bundleId": "english-question-lab-generator-v0",
-  "bundleVersion": "0.1.0-rc.1",
+  "bundleVersion": "0.2.0-rc.1",
   "valid": true,
   "errorCount": 0,
   "verdict": "READY_TO_CREATE_AND_TEST_CUSTOM_GPT_V0",
@@ -56,6 +56,11 @@
       "detail": "knowledge/csat-output-schema.json"
     },
     {
+      "name": "required:knowledge/explanation-output-schema-v1.json",
+      "passed": true,
+      "detail": "knowledge/explanation-output-schema-v1.json"
+    },
+    {
       "name": "required:knowledge/CSAT_STYLE_MANUAL.md",
       "passed": true,
       "detail": "knowledge/CSAT_STYLE_MANUAL.md"
@@ -108,12 +113,12 @@
     {
       "name": "manifest_identity",
       "passed": true,
-      "detail": "english-question-lab-generator-v0/0.1.0-rc.1"
+      "detail": "english-question-lab-generator-v0/0.2.0-rc.1"
     },
     {
       "name": "manifest_fingerprint",
       "passed": true,
-      "detail": "e741041c9b122e6e89d472e35bade83740167e2c8e1569076010e505f3ee2ecf"
+      "detail": "e7e032eb0bd1eef3d5148024cd0a9b2ea952b6118fb75dbb7f27aa26cb14509b"
     },
     {
       "name": "approved_priority",
@@ -154,6 +159,16 @@
       "name": "snapshot_byte_equality:output_json_schema",
       "passed": true,
       "detail": "docs/english-gpt/csat-output-schema.json"
+    },
+    {
+      "name": "bundle_hash:explanation_output_schema",
+      "passed": true,
+      "detail": "knowledge/explanation-output-schema-v1.json"
+    },
+    {
+      "name": "snapshot_byte_equality:explanation_output_schema",
+      "passed": true,
+      "detail": "docs/english-gpt/explanation-output-schema-v1.json"
     },
     {
       "name": "bundle_hash:style_manual",
@@ -273,17 +288,17 @@
     {
       "name": "core_rule_coverage",
       "passed": true,
-      "detail": "16/16"
+      "detail": "17/17"
     },
     {
       "name": "no_duplicate_paths",
       "passed": true,
-      "detail": "19 files"
+      "detail": "20 files"
     },
     {
       "name": "knowledge_no_duplicate_bytes",
       "passed": true,
-      "detail": "7 knowledge/reference files"
+      "detail": "8 knowledge/reference files"
     },
     {
       "name": "no_project_bundle",

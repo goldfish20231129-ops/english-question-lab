@@ -22,7 +22,7 @@
       "const": "english-question-lab-generator-v0"
     },
     "bundleVersion": {
-      "const": "0.1.0-rc.1"
+      "const": "0.2.0-rc.1"
     },
     "bundleStatus": {
       "const": "release_candidate"

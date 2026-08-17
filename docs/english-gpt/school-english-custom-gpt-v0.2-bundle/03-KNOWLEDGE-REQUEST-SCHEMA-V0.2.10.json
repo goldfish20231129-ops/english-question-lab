@@ -14,19 +14,19 @@
       "required": ["sourcePassageId", "sourceFingerprint", "title", "passage", "sentences", "boundaries"],
       "properties": {
         "sourcePassageId": { "type": "string", "minLength": 1 },
-        "sourceFingerprint": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+        "sourceFingerprint": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$", "description": "Opaque versioned fingerprint computed by the app. Preserve exactly; do not recompute from source.passage alone." },
         "title": { "type": "string" }, "passage": { "type": "string", "minLength": 1 },
         "sentences": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/sentence" } },
         "boundaries": { "type": "array", "minItems": 2, "items": { "$ref": "#/$defs/boundary" } }
       }
     },
-    "items": { "type": "array", "minItems": 1, "maxItems": 8, "items": { "$ref": "#/$defs/item" } },
+    "items": { "type": "array", "minItems": 1, "maxItems": 5, "items": { "$ref": "#/$defs/item" } },
     "sourcePreservation": {
       "type": "object", "additionalProperties": false,
       "required": ["authority", "responsePassage", "exactFingerprintRequired", "grammarVariantStorage"],
       "properties": {
         "authority": { "const": "app_stored_source" }, "responsePassage": { "const": "forbidden" },
-        "exactFingerprintRequired": { "const": true }, "grammarVariantStorage": { "const": "separate_material_operation" }
+        "exactFingerprintRequired": { "const": true, "description": "Return the Request sourceFingerprint unchanged. This does not instruct the generator to recompute it." }, "grammarVariantStorage": { "const": "separate_material_operation" }
       }
     },
     "approval": {
@@ -60,12 +60,44 @@
         "choiceLanguage": { "enum": ["ko", "en", null] },
         "vocabularyLevel": { "enum": ["source_matched", "grade_1", "grade_2", "grade_3_csat"] },
         "contentMatchPolarity": { "enum": ["match", "mismatch", null] },
-        "grammarTarget": { "enum": ["relative_clause", "appositive_that", "subject_verb_agreement", "participle_clause", "nonrestrictive_relative", "pronoun_agreement", "dummy_it", "cleft_it_that", null] },
+        "grammarTarget": { "description": "For grammar items, null delegates selection. In controlled_error_variant a concrete value is preferred and may fall back to another source-evidenced target; in source_form_check it is strict. Other item types use null.", "enum": ["relative_clause", "appositive_that", "subject_verb_agreement", "participle_clause", "nonrestrictive_relative", "pronoun_agreement", "dummy_it", "cleft_it_that", null] },
         "grammarMode": { "enum": ["source_form_check", "controlled_error_variant", null] },
+        "grammarDesignProfile": { "description": "Optional source-grounded preference for selecting and balancing grammar targets. It never authorizes fabricating a structure absent from the passage.", "enum": ["school_exam_balanced", "clause_relations", "verb_and_nonfinite", "agreement_voice_reference", "source_best_fit", null] },
         "requiredStem": { "type": "string", "minLength": 1 },
         "targetLevel": { "type": "string", "minLength": 1 }, "score": { "type": "number", "minimum": 1, "maximum": 10 },
         "requiredCandidateBoundaryCount": { "enum": [5, null] }
-      }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "questionType": { "const": "grammar" } }, "required": ["questionType"] },
+          "then": {
+            "properties": {
+              "templateId": { "const": "school-grammar" },
+              "choiceLanguage": { "type": "null" },
+              "contentMatchPolarity": { "type": "null" },
+              "grammarTarget": { "enum": ["relative_clause", "appositive_that", "subject_verb_agreement", "participle_clause", "nonrestrictive_relative", "pronoun_agreement", "dummy_it", "cleft_it_that", null] },
+              "grammarMode": { "enum": ["source_form_check", "controlled_error_variant"] },
+              "grammarDesignProfile": { "enum": ["school_exam_balanced", "clause_relations", "verb_and_nonfinite", "agreement_voice_reference", "source_best_fit"] },
+              "requiredCandidateBoundaryCount": { "type": "null" }
+            }
+          },
+          "else": { "properties": { "grammarDesignProfile": { "type": "null" } } }
+        },
+        {
+          "if": { "properties": { "questionType": { "const": "summary" } }, "required": ["questionType"] },
+          "then": {
+            "properties": {
+              "templateId": { "const": "school-summary" },
+              "choiceLanguage": { "const": "en" },
+              "contentMatchPolarity": { "type": "null" },
+              "grammarTarget": { "type": "null" },
+              "grammarMode": { "type": "null" },
+              "grammarDesignProfile": { "type": "null" },
+              "requiredCandidateBoundaryCount": { "type": "null" }
+            }
+          }
+        }
+      ]
     }
   }
 }

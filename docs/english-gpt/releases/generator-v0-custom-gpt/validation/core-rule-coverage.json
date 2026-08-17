@@ -36,6 +36,12 @@
     "fullDetailFallback": "instructions/GENERATOR_CORE_INSTRUCTIONS_V0.md"
   },
   {
+    "coreHeading": "## 6.1 Explanation mode",
+    "customInstructionsSection": "Explanation mode",
+    "directInstruction": true,
+    "fullDetailFallback": "instructions/GENERATOR_CORE_INSTRUCTIONS_V0.md"
+  },
+  {
     "coreHeading": "## 7. ID and blueprint integrity",
     "customInstructionsSection": "ID and blueprint integrity",
     "directInstruction": true,

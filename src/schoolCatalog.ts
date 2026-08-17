@@ -53,6 +53,12 @@ export function schoolQuestionUsesChoiceLanguage(question: Pick<EnglishQuestion,
   return LANGUAGE_AWARE_CHOICE_TEMPLATES.has(inferSchoolQuestionTemplate(question).id)
 }
 
+export function schoolQuestionChoiceLanguage(question: Pick<EnglishQuestion, 'type' | 'schoolTemplateId' | 'schoolStemLanguage' | 'schoolChoiceLanguage'>) {
+  return inferSchoolQuestionTemplate(question).id === 'summary'
+    ? 'en'
+    : question.schoolChoiceLanguage ?? question.schoolStemLanguage ?? 'ko'
+}
+
 export function schoolQuestionChoiceLayout(question: EnglishQuestion): Exclude<SchoolChoiceLayout, 'auto'> {
   const requested = question.schoolChoiceLayout ?? inferSchoolQuestionTemplate(question).choiceLayout
   if (requested !== 'auto') return requested
@@ -64,12 +70,15 @@ export function schoolCatalogPromptSection(set: EnglishQuestionSet, questions: E
   return questions.map((question, index) => {
     const template = inferSchoolQuestionTemplate(question)
     const stemLanguage = question.schoolStemLanguage ?? 'ko'
-    const choiceLanguage = stemLanguage
+    const choiceLanguage = schoolQuestionChoiceLanguage(question)
     const choiceLanguageRule = schoolQuestionUsesChoiceLanguage(question)
       ? `${choiceLanguage === 'en' ? '영어' : '한국어'} (다섯 선지 본문을 이 언어로 통일)`
       : '위치·표식·배열형 (언어 설정 없음)'
     const languageLabel = stemLanguage === 'en' ? '영어' : '한국어'
-    return `- 문항 ${index + 1}: ${template.label} (${template.id})\n  문항 언어: ${languageLabel} (발문과 내용 선지를 반드시 같은 언어로 작성)\n  발문 언어: ${languageLabel}\n  발문: ${schoolQuestionDisplayStem(set, question)}\n  선지 언어: ${choiceLanguageRule}\n  선지 조판: ${question.schoolChoiceLayout ?? template.choiceLayout}\n  고유 규칙: ${template.promptRule}`
+    const languageRule = template.id === 'summary'
+      ? '발문은 지정 언어를 따르고 요약문과 (A)·(B) 단어쌍은 영어로 작성'
+      : '발문과 내용 선지를 지정 언어로 작성'
+    return `- 문항 ${index + 1}: ${template.label} (${template.id})\n  언어 규칙: ${languageRule}\n  발문 언어: ${languageLabel}\n  발문: ${schoolQuestionDisplayStem(set, question)}\n  선지 언어: ${choiceLanguageRule}\n  선지 조판: ${question.schoolChoiceLayout ?? template.choiceLayout}\n  고유 규칙: ${template.promptRule}`
   }).join('\n')
 }
 
@@ -81,10 +90,10 @@ export function validateSchoolTemplateMarkup(set: EnglishQuestionSet) {
   set.questions.forEach((question, index) => {
     const template = inferSchoolQuestionTemplate(question)
     const prefix = `${index + 1}번 ${template.label}`
-    if (schoolQuestionUsesChoiceLanguage(question) && question.schoolChoiceLanguage && question.schoolChoiceLanguage !== (question.schoolStemLanguage ?? 'ko')) issues.push(`${prefix}: 발문과 선지 언어가 다릅니다. 문항 언어를 하나로 통일해야 합니다.`)
+    if (template.id !== 'summary' && schoolQuestionUsesChoiceLanguage(question) && question.schoolChoiceLanguage && question.schoolChoiceLanguage !== (question.schoolStemLanguage ?? 'ko')) issues.push(`${prefix}: 발문과 선지 언어가 다릅니다. 문항 언어를 하나로 통일해야 합니다.`)
     if (question.schoolStemLanguage === 'en' && (/[가-힣]/.test(question.stem) || !/[A-Za-z]/.test(question.stem))) issues.push(`${prefix}: 발문 언어가 영어로 설정되었지만 발문에 한국어가 있거나 영어가 없습니다.`)
-    if (question.schoolChoiceLanguage === 'en' && schoolQuestionUsesChoiceLanguage(question) && question.choices.some((choice) => choice.trim() && (/[가-힣]/.test(choice) || !/[A-Za-z]/.test(choice)))) issues.push(`${prefix}: 선지 언어가 영어로 설정되었지만 영어가 아닌 선지가 있습니다.`)
-    if ((question.schoolChoiceLanguage ?? question.schoolStemLanguage ?? 'ko') === 'ko' && schoolQuestionUsesChoiceLanguage(question) && question.choices.some((choice) => choice.trim() && !/[가-힣]/.test(choice))) issues.push(`${prefix}: 선지 언어가 한국어로 설정되었지만 한국어가 아닌 선지가 있습니다.`)
+    if (schoolQuestionChoiceLanguage(question) === 'en' && schoolQuestionUsesChoiceLanguage(question) && question.choices.some((choice) => choice.trim() && (/[가-힣]/.test(choice) || !/[A-Za-z]/.test(choice)))) issues.push(`${prefix}: 선지 언어가 영어로 설정되었지만 영어가 아닌 선지가 있습니다.`)
+    if (schoolQuestionChoiceLanguage(question) === 'ko' && schoolQuestionUsesChoiceLanguage(question) && question.choices.some((choice) => choice.trim() && !/[가-힣]/.test(choice))) issues.push(`${prefix}: 선지 언어가 한국어로 설정되었지만 한국어가 아닌 선지가 있습니다.`)
     const underlines = occurrences(set.material, /\[\[밑줄:[^\]]+\]\]/g)
     if ((template.id === 'grammar-error' || template.id === 'vocabulary-context') && underlines !== 5) issues.push(`${prefix}: 밑줄 표식이 ${underlines}개입니다. 정확히 5개가 필요합니다.`)
     if (template.id === 'grammar-combination' && underlines < 5) issues.push(`${prefix}: 어법 조합형은 밑줄 표식이 5개 이상 필요합니다.`)

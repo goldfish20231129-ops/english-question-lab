@@ -90,6 +90,12 @@ export type ProvidedPassageGrammarTarget =
   | 'relative_clause' | 'appositive_that' | 'subject_verb_agreement' | 'participle_clause'
   | 'nonrestrictive_relative' | 'pronoun_agreement' | 'dummy_it' | 'cleft_it_that'
 export type ProvidedPassageGrammarMode = 'source_form_check' | 'controlled_error_variant'
+export type ProvidedPassageGrammarDesignProfile =
+  | 'school_exam_balanced'
+  | 'clause_relations'
+  | 'verb_and_nonfinite'
+  | 'agreement_voice_reference'
+  | 'source_best_fit'
 
 export interface ProvidedPassageV02ItemPlan {
   itemId: string
@@ -101,6 +107,8 @@ export interface ProvidedPassageV02ItemPlan {
   contentMatchPolarity: ProvidedPassageContentPolarity | null
   grammarTarget: ProvidedPassageGrammarTarget | null
   grammarMode: ProvidedPassageGrammarMode | null
+  /** 어법 표적 구성의 선호값. 저장된 기존 V0.2 데이터와의 호환을 위해 선택 필드다. */
+  grammarDesignProfile?: ProvidedPassageGrammarDesignProfile | null
 }
 
 export interface ProvidedPassageGrammarOperation {

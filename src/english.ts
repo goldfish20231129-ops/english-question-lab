@@ -151,7 +151,7 @@ export function createQuestion(type: string, choiceCount = 5, mode?: EnglishMode
     question.schoolTemplateId = template?.id
     question.schoolChoiceLayout = template?.choiceLayout
     question.schoolStemLanguage = 'ko'
-    question.schoolChoiceLanguage = 'ko'
+    question.schoolChoiceLanguage = template?.id === 'summary' ? 'en' : 'ko'
   }
   return question
 }
@@ -327,7 +327,7 @@ export function generateEnglishPrompt(set: EnglishQuestionSet): string {
 - 아래 문항 구성을 한 번의 응답에 모두 생성하고 최상위 questions 배열의 순서를 그대로 지킨다.
 - 일반 내용 선지의 choices에는 ①~⑤나 1.~5. 같은 번호를 넣지 않고 선지 본문만 작성한다. 번호는 앱이 자동으로 표시한다.
 - 일반 문항은 하나의 공통 material을 공유한다. 요약문 완성과 문장 삽입도 동일한 material 내용을 사용하며, 앱이 각 특수 문항 앞에 같은 지문을 독립적으로 다시 출력한다. AI는 JSON에 material을 한 번만 반환한다.
-- 각 문항은 발문과 내용 선지를 하나의 문항 언어로 통일한다. 문항 언어가 영어이면 발문과 선지를 모두 자연스러운 영어로, 한국어이면 모두 자연스러운 한국어로 작성한다. 위치 번호·표식은 언어 조건에서 제외한다.
+- 일반 내용 문항은 지정된 발문·선지 언어를 따른다. 요약문 완성의 발문은 지정 언어를 따르되 summaryText와 다섯 (A)·(B) 단어쌍은 영어로 작성한다. 위치 번호·표식은 언어 조건에서 제외한다.
 - 내용 이해는 지문에 그대로 진술된 사실을 다시 찾는 문항이 아니다. 지문의 둘 이상의 단서 또는 하나의 충분한 함의를 근거로 가장 타당하게 추론할 수 있는 내용 하나를 고르게 한다.
 - 내용 이해의 정답은 외부 배경지식 없이 지문만으로 도출되어야 하며, 과도한 일반화·인과 비약·범위 왜곡·주체 변경을 오답 원리로 활용한다.
 - 문장 삽입은 다른 유형과 함께 만들 수 있으나 한 세트에 최대 한 문항만 둔다.
@@ -338,7 +338,7 @@ ${inlineMarkerRules || '- 표식형 문항 없음'}
 - 어법 오류 찾기는 다섯 [[밑줄:표현]] 바로 앞에 해당 어법 문항의 표시 기호를 순서대로 한 번씩 붙인다.
 ${insertionPresentationRule}
 - 요약문 완성은 공통 material을 바꾸거나 반복하지 않는다. 해당 questions[] 항목의 summaryText에 원문을 재진술한 한 문장을 별도로 작성한다.
-- summaryText에는 [[요약빈칸:A]]와 [[요약빈칸:B]]를 각각 정확히 한 번 넣고, choices는 문항 언어와 같은 언어의 ["A단어|B단어", ...] 형식 다섯 단어쌍으로 작성한다.
+- summaryText에는 [[요약빈칸:A]]와 [[요약빈칸:B]]를 각각 정확히 한 번 넣고, choices는 발문 언어와 무관하게 영어 ["A단어|B단어", ...] 형식 다섯 단어쌍으로 작성한다. 번호나 (A)·(B) 열 제목은 choices에 넣지 않는다.
 - 공통 보기형은 [[보기:a. word|b. word|c. word|d. word|e. word]]와 라벨 빈칸 [[빈칸:ⓐ]] 형식을 사용한다.
 - 복수 빈칸 조합형의 각 choice는 (A), (B), (C) 값을 세로줄 문자 | 로 구분한다.
 - 설계안이나 승인 질문을 먼저 출력하지 말고, 이 프롬프트의 출력 JSON 형식에 맞는 객체 하나를 바로 반환한다.
@@ -566,7 +566,7 @@ export function parseEnglishSetJson(raw: string, base: EnglishQuestionSet): Engl
       schoolTemplateId: expectedTemplate?.id,
       schoolChoiceLayout: expected?.schoolChoiceLayout ?? expectedTemplate?.choiceLayout,
       schoolStemLanguage: expected?.schoolStemLanguage ?? 'ko',
-      schoolChoiceLanguage: schoolQuestionUsesChoiceLanguage(expected ?? { type, schoolTemplateId: expectedTemplate?.id }) ? expected?.schoolStemLanguage ?? 'ko' : undefined,
+      schoolChoiceLanguage: schoolQuestionUsesChoiceLanguage(expected ?? { type, schoolTemplateId: expectedTemplate?.id }) ? expectedTemplate?.id === 'summary' ? 'en' : expected?.schoolChoiceLanguage ?? expected?.schoolStemLanguage ?? 'ko' : undefined,
       schoolSummaryText,
     }
   })

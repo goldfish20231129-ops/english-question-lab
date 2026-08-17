@@ -102,9 +102,9 @@ export function csatQualityRulesForTemplate(templateId: CsatNumberTemplateId) {
   return rules
 }
 
-export const CSAT_QUALITY_REVIEW_INSTRUCTIONS = `qualityReview는 다음 구조로 반환한다.
-- passage: naturalness, logicStructure, vocabularyLevel, templateFidelity를 각각 0~10점으로 기록한다.
-- questions: 각 고정 문항마다 slot, answerInference, distractorPlausibility, choiceBalance(각 0~10), directAnswerOverlap(boolean), strongestDistractorIndex(1~5), decisiveReason, expectedDifficulty(1~5)를 기록한다.
+export const CSAT_QUALITY_REVIEW_INSTRUCTIONS = `다음 qualityReview 기준을 내부적으로 적용하되 기본 1차 JSON에는 출력하지 않는다. 기존 호환 방식으로 qualityReview를 출력할 때만 아래 구조를 사용한다.
+- passage: naturalness, logicStructure, vocabularyLevel, templateFidelity를 각각 0~10점으로 확인한다.
+- questions: 각 고정 문항마다 slot, answerInference, distractorPlausibility, choiceBalance(각 0~10), directAnswerOverlap(boolean), strongestDistractorIndex(1~5), decisiveReason, expectedDifficulty(1~5)를 확인한다.
 - 어느 점수든 8점 미만이면 전체 결과를 한 차례 수정한 뒤 다시 평가한다.
 - answerInference, distractorPlausibility, templateFidelity는 9점 이상을 목표로 한다.
 - strongestDistractorIndex는 정답 번호와 달라야 하며 decisiveReason에는 그 오답과 정답을 가르는 결정적 지문 근거를 적는다.`

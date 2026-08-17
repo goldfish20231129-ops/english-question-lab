@@ -123,6 +123,11 @@ describe('수능형 Generation Contract v0 strict import', () => {
     expect(parseEnglishSetJson(JSON.stringify(payload), base).csatItems?.[0].qualityReview).toBeUndefined()
   })
 
+  it('missing intention is accepted for the question-and-answer phase', () => {
+    const base = configuredSet('33'); const payload = validPayload(base); delete firstQuestion(payload).intention
+    expect(parseEnglishSetJson(JSON.stringify(payload), base).csatItems?.[0].questions[0].intention).toBe('')
+  })
+
   it('unsupported additional field rejected', () => {
     const base = configuredSet('33'); const payload = validPayload(base); (payload as Record<string, unknown>).unexpected = true
     expect(() => parseEnglishSetJson(JSON.stringify(payload), base)).toThrow(/지원되지 않는 필드.*unexpected/)
@@ -221,9 +226,9 @@ describe('수능형 Generation Contract v0 strict import', () => {
     expect(base.lastImportedJson).toBe('{"preserved":true}')
   })
 
-  it('missing intention and score are rejected instead of defaulted', () => {
-    const base = configuredSet('33'); const payload = validPayload(base); delete firstQuestion(payload).intention; delete firstQuestion(payload).score
-    expect(() => parseEnglishSetJson(JSON.stringify(payload), base)).toThrow(/intention|score|필수 필드 누락/)
+  it('missing score is rejected instead of defaulted', () => {
+    const base = configuredSet('33'); const payload = validPayload(base); delete firstQuestion(payload).score
+    expect(() => parseEnglishSetJson(JSON.stringify(payload), base)).toThrow(/score|필수 필드 누락/)
   })
 
   it('missing materialTitle and materialSpec are rejected', () => {

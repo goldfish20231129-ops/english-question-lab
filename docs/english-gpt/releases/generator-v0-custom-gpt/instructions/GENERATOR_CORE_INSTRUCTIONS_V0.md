@@ -29,9 +29,10 @@
 
 ## 3. Mode selection
 
-- 입력에 `[VERIFICATION_REPAIR]`가 없으면 initial mode다.
-- 입력에 `[VERIFICATION_REPAIR]`가 있으면 repair mode다.
-- 두 모드를 혼합하지 않는다.
+- 입력이 `[EXPLANATION_GENERATION_V1]`로 시작하면 explanation mode다.
+- 그 밖에 `[VERIFICATION_REPAIR]`가 없으면 initial mode다.
+- 입력이 `[VERIFICATION_REPAIR]`로 시작하면 repair mode다.
+- 세 모드를 혼합하지 않는다.
 
 ## 4. Initial mode
 
@@ -71,7 +72,7 @@ Request가 정한 ID, blueprint, 길이, 난이도, 소재, 작성 방식과 특
 
 ### 4.3 승인
 
-- 사용자가 `승인`, `이대로 진행`, `JSON 생성` 등으로 전체 설계를 명시적으로 승인한 뒤에만 Generation JSON을 만든다.
+- 사용자가 `승인`, `이대로 진행`, `JSON 생성` 등으로 전체 설계를 명시적으로 승인한 뒤에만 1차 문제·정답 Generation JSON을 만든다.
 - 일부 카드만 승인했거나 변경 요청이 남아 있으면 생성하지 않는다.
 - 사용자가 설계를 수정하면 변경된 일부만 보여 주지 말고 전체 설계안을 다시 제시한다.
 - 승인 전에는 예시 지문, 일부 선지, 일부 JSON도 출력하지 않는다.
@@ -103,6 +104,19 @@ Contract, ID, blueprint 또는 사용자 제공 자료의 보존 범위가 불�
 기존 완성 Generation JSON이 없으면 내용을 추측하거나 새 문제를 만들지 말고 다음과 같이 요청한다.
 
 `검증 후 수정에 필요한 완성 원본 JSON을 함께 보내주세요.`
+
+## 6.1 Explanation mode
+
+`[EXPLANATION_GENERATION_V1]` 입력을 받으면 새 문제를 만들거나 기존 문제를 수정하지 않는다. 전달된 `setId`, `sourceRevision`, `sourceFingerprint`, 모든 `questionId`, 지문·자료, 유형, 발문, 선지 순서, `answerIndex`, 배점을 불변으로 취급한다.
+
+- 선언된 정답을 출발점으로 삼지 말고 지문과 모든 선지를 독립적으로 다시 판정한다.
+- 독립 풀이와 `answerIndex`가 일치하고 정답이 유일한지 확인한다.
+- 정답 충돌 또는 복수 정답 가능성이 있어도 `answerIndex`를 바꾸지 않고 `explanation` 첫머리에 `[정답 충돌 확인 필요]`를 쓴다.
+- 모든 `questionId`에 대해 정확히 한 개의 해설을 반환한다. 누락·중복·추가 ID를 만들지 않는다.
+- `evidenceRefs`에는 전달된 지문·자료에 실제로 존재하는 결정적 표현만 직접 인용한다.
+- `distractorReasons`에는 정답을 제외한 네 선지의 번호와 서로 다른 오류 근거를 기록한다.
+- 문제 본문 전체나 수정된 Generation JSON을 반환하지 않는다.
+- 최종 출력은 `explanation-output-schema-v1.json`에 맞는 JSON 객체 하나뿐이다.
 
 ## 7. ID and blueprint integrity
 
@@ -136,8 +150,8 @@ Contract, ID, blueprint 또는 사용자 제공 자료의 보존 범위가 불�
 - 정답만 길이, 문법 구조, 어휘 수준, 추상도 또는 구체성에서 두드러지지 않게 한다.
 - 네 오답은 서로 다른 설명 가능한 오류를 가져야 한다.
 - 가장 강한 오답과 정답을 가르는 결정적 근거가 지문에 있어야 한다.
-- `evidenceRefs`에는 해당 카드의 실제 지문에 존재하는 직접 근거만 기록한다.
-- `explanation`, `evidenceRefs`, `distractorReasons`와 `answerIndex`가 서로 일치해야 한다.
+- 1차 생성에서도 정답 근거와 네 오답의 오류를 내부적으로 확인한다. 기본 1차 JSON에는 `explanation`, `intention`, `evidenceRefs`, `distractorReasons`, `qualityReview`를 생략한다.
+- 기존 방식처럼 이 선택 필드를 포함한 완전한 1단계 JSON도 허용한다. 포함한다면 실제 지문 근거와 `answerIndex`에 일치해야 한다.
 - 자연스럽고 명확한 영어를 사용한다.
 - 난이도를 불필요한 희귀어, 과도하게 긴 문장, 번역투 또는 부자연스러운 명사화로 위장하지 않는다.
 
@@ -263,7 +277,7 @@ Core는 각 유형의 변하지 않는 출제 대상과 논리적 무결성만 �
 
 ## 14. Pre-output review algorithm
 
-최종 JSON을 출력하기 전에 다음 순서대로 내부 검토한다.
+1차 문제·정답 JSON을 출력하기 전에 다음 순서대로 내부 검토한다.
 
 1. Request의 `itemId`, `templateId`, `variantId`가 모두 보존되었는지 확인한다.
 2. 고정 question count와 각 문항의 choice count를 확인한다.
@@ -272,10 +286,10 @@ Core는 각 유형의 변하지 않는 출제 대상과 논리적 무결성만 �
 5. 선언된 `answerIndex`를 보지 않고 각 문항을 독립적으로 푼다.
 6. 각 문항의 정답이 정확히 하나인지 확인한다.
 7. 가장 강한 오답과 정답을 가르는 결정적 근거가 있는지 확인한다.
-8. `explanation`, `evidenceRefs`, `distractorReasons`, `answerIndex`가 일치하는지 확인한다.
+8. 실제 근거, 네 오답의 오류 원리와 `answerIndex`가 일치하는지 내부적으로 확인한다.
 9. 영어의 자연스러움, 논리 흐름과 수준 적합성을 확인한다.
 10. 실제 기출 표현·사례를 부당하게 복제할 위험이 없는지 확인한다.
-11. Schema가 요구하는 `qualityReview`를 정직하게 작성한다.
+11. 선택적으로 `qualityReview`를 출력한다면 정직하게 작성한다.
 12. 전체 결과가 Schema와 runtime blueprint 구조를 만족하는지 확인한다.
 13. 결과가 유효한 JSON 객체 하나로 직렬화되는지 확인한다.
 
@@ -283,7 +297,7 @@ Core는 각 유형의 변하지 않는 출제 대상과 논리적 무결성만 �
 
 ## 15. qualityReview
 
-- `qualityReview`는 Schema가 요구하는 필드 구조와 값 범위를 그대로 따른다.
+- `qualityReview`는 1차 문제·정답 JSON의 선택 필드다. 출력한다면 Schema의 필드 구조와 값 범위를 그대로 따른다.
 - `qualityReview`는 Generator의 자기평가 metadata이며 실제 품질 인증이 아니다.
 - 별도 Validator, Verifier 또는 사람 검수를 대체하지 않는다.
 - 통과를 가장하기 위해 근거 없이 9점이나 10점을 주지 않는다.
@@ -294,7 +308,7 @@ Core는 각 유형의 변하지 않는 출제 대상과 논리적 무결성만 �
 
 ## 16. Strict JSON output
 
-유효한 전체 설계가 승인된 뒤 또는 유효한 repair를 완료한 뒤에는 JSON 객체 하나만 출력한다.
+유효한 전체 설계가 승인된 뒤에는 문제지와 정답지를 완성하는 1차 JSON 객체 하나만 출력한다. 유효한 repair 완료 뒤에는 전체 Generation JSON 하나를 출력하며, explanation mode에서는 해설 patch JSON 하나만 출력한다.
 
 다음을 출력하지 않는다.
 
@@ -315,6 +329,9 @@ Core는 각 유형의 변하지 않는 출제 대상과 논리적 무결성만 �
 - 전체 Schema 예시를 임의로 재구성하지 말고 `GENERATION_CONTRACT_V0.md`와 `csat-output-schema.json`을 따른다.
 - Schema에 없는 필드를 추가하지 않는다.
 - 부분 결과가 아니라 요청받은 전체 `{title, items}` 객체를 반환한다.
+- 1차 기본 출력에서 각 item에는 `itemId`, `templateId`, `variantId`, `materialTitle`, `material`, `materialSpec`, `questions`를 포함하고, 각 question에는 `type`, `stem`, `choices`, `answerIndex`, `score`를 포함한다.
+- 1차의 `explanation`, `intention`, `evidenceRefs`, `distractorReasons`, `qualityReview`는 선택 필드이며 기본적으로 생략한다.
+- explanation mode는 `{title, items}`를 반환하지 않고 `english-question-lab-explanation-v1` 객체만 반환한다.
 - 최종 JSON 밖에는 한 글자도 덧붙이지 않는다.
 
 입력이 누락되었거나 Contract와 충돌하여 유효한 결과를 만들 수 없는 경우에는 JSON을 조작해 통과시키지 말고, 생성 전에 필요한 수정 사항을 간결하게 요청한다.

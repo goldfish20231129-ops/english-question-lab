@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "english-question-lab-passage-transformation-output-v1",
+  "title": "English Question Lab Passage Transformation Output V1",
+  "oneOf": [
+    { "$ref": "#/$defs/success" },
+    { "$ref": "#/$defs/failure" }
+  ],
+  "$defs": {
+    "change": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["before", "after", "reason"],
+      "properties": {
+        "before": { "type": "string", "minLength": 1 },
+        "after": { "type": "string", "minLength": 1 },
+        "reason": { "type": "string", "minLength": 1 }
+      }
+    },
+    "success": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schemaId", "mode", "sourceFingerprint", "transformedPassage", "changes", "meaningPreserved", "singleParagraph"],
+      "properties": {
+        "schemaId": { "const": "english-question-lab-passage-transformation-v1" },
+        "mode": { "enum": ["lexical", "restructure"] },
+        "sourceFingerprint": { "type": "string", "minLength": 1 },
+        "transformedPassage": { "type": "string", "minLength": 1, "pattern": "^[^\\r\\n]+$" },
+        "changes": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/change" } },
+        "meaningPreserved": { "const": true },
+        "singleParagraph": { "const": true }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "mode": { "const": "lexical" } }, "required": ["mode"] },
+          "then": { "properties": { "changes": { "minItems": 10 } } }
+        }
+      ]
+    },
+    "failure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["errors"],
+      "properties": {
+        "errors": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 }
+        }
+      }
+    }
+  }
+}

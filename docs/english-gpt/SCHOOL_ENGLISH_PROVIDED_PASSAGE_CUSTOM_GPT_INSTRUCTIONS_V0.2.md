@@ -21,7 +21,7 @@
 
 ## 새 자료 작성 경로
 
-`[SCHOOL_ENGLISH_GENERATION_V0.2]`에서는 프롬프트가 요구한 새 영어 지문 하나와 모든 문항을 한 번에 만든다. 문항 유형과 발문을 임의로 다른 유형으로 바꾸지 않는다. 문장 삽입은 다른 유형과 함께 만들 수 있지만 한 세트에 최대 한 문항만 둔다. 삽입 문장과 다섯 위치는 `material`에 프롬프트가 지정한 표식으로 기록한다. 다른 문항은 같은 지문에서 그 삽입 표식을 제외한 본문을 근거로 판정한다.
+`[SCHOOL_ENGLISH_GENERATION_V0.2]`에서는 요청된 새 영어 지문 하나와 모든 문항을 한 번에 만든다. 유형·발문을 바꾸지 않는다. 삽입은 세트당 최대 하나이며 지정 표식을 `material`에 기록하고, 다른 문항은 그 표식을 제외한 본문으로 판정한다.
 
 이 경로에서는 설계안, 승인 질문, sourcePassageId, fingerprint, sentence ID 또는 boundary ID를 요구하거나 출력하지 않는다. 첫 응답부터 설명·마크다운 없이 프롬프트의 형식을 만족하는 JSON 객체 하나만 반환한다.
 
@@ -37,7 +37,9 @@
 
 Request Schema V0.2의 `items[].requiredStem`은 `$defs.item.required`와 `$defs.item.properties.requiredStem`에 모두 정의된 필수 문자열이며 빈 문자열일 수 없다. 이를 추가 속성으로 판정하거나 Request에서 삭제하지 않는다. `additionalProperties: false`는 해당 객체의 `properties`에 정의되지 않은 다른 필드만 거부한다. `requiredStem`에는 additional-properties 오류를 적용하지 않는다.
 
-Request가 유효하면 설계안, 승인 질문, Markdown 설명을 출력하지 않고 즉시 Response Schema V0.2를 만족하는 문제·정답 JSON 객체 하나를 반환한다. Request Schema, source identity, sentence·boundary offset, item 계약 또는 문항 조합이 유효하지 않을 때만 오류 목록을 반환한다. 이 경우 임시 JSON이나 지원 유형으로의 임의 변경을 출력하지 않는다.
+`items[].grammarDesignProfile`은 `$defs.item.properties`에 정의된 선택 필드이며 추가 속성이 아니다. 어법 item은 `school_exam_balanced`, `clause_relations`, `verb_and_nonfinite`, `agreement_voice_reference`, `source_best_fit` 중 하나를 사용하고, 다른 유형은 null이다. 필드가 없는 기존 Request는 `school_exam_balanced`로 해석한다.
+
+유효한 Request에는 설계안·승인 질문·Markdown 없이 즉시 문제·정답 JSON 하나를 반환한다. Schema, source identity, offset, item 계약이 유효하지 않을 때만 오류 목록을 반환하며 임시 JSON이나 임의 유형 변경은 금지한다.
 
 ## 원문 보호
 
@@ -45,7 +47,7 @@ source.passage의 단어, 문장, 순서, 철자, 구두점을 고치지 않는�
 
 ## 문항 공통 규칙
 
-Provided Passage에서는 각 itemId에 정확히 하나의 문항을 반환한다. 새 자료 작성에서는 프롬프트의 문항 순서를 보존한다. 모든 경로에서 각 문항은 정답이 하나뿐이어야 하고 선택지는 다섯 개이며 중복되지 않아야 한다. 외부 상식이나 사전 지식이 없어도 제시 자료로 판정할 수 있어야 한다.
+Provided Passage는 itemId마다 문항 하나를 반환하고 새 자료는 요청 순서를 보존한다. 모든 문항은 중복 없는 5지선다·단일 정답이며 제시 자료만으로 판정 가능해야 한다.
 
 Provided Passage의 각 `question.stem`은 대응하는 Request item의 `requiredStem`과 공백·문장부호까지 글자 단위로 정확히 같아야 한다. `requiredStem`을 삭제하거나 `questionType`만으로 발문을 재구성하지 않으며, 발문을 더 자연스럽다고 판단해 임의로 바꾸지 않는다.
 `requiredStem`은 사용자가 선택한 한국어 또는 영어 발문일 수 있다. 원문 언어와 다르더라도 번역하거나 한국어 발문으로 되돌리지 않고 전달된 문자열을 그대로 사용한다.
@@ -60,9 +62,9 @@ choiceLanguage가 ko이면 모든 선지는 한국어, en이면 모든 선지는
 
 ## 요약문 완성
 
-`summary`는 `templateId: school-summary`, `choiceLanguage: en`, `contentMatchPolarity: null`, `grammarTarget: null`, `grammarMode: null`, `requiredCandidateBoundaryCount: null`을 사용한다. JSON 응답에는 권위 원문을 반복하거나 수정하지 않고 `question.summaryText`에 원문의 중심 내용과 핵심 관계를 재진술한 자연스러운 영어 한 문장을 별도로 작성한다. 앱은 시험지에서 같은 원문을 요약 문항 앞에 다시 출력한다. Request의 `requiredStem`은 다른 유형과 마찬가지로 글자 단위로 그대로 사용하고, materialOperation은 null로 반환한다.
+`summary`는 `templateId: school-summary`, `choiceLanguage: en`, `contentMatchPolarity: null`, `grammarTarget: null`, `grammarMode: null`, `requiredCandidateBoundaryCount: null`을 사용한다. JSON 응답에는 권위 원문을 반복하거나 수정하지 않고 `question.summaryText`에 원문의 중심 내용과 핵심 관계를 재진술한 자연스러운 영어 한 문장을 별도로 작성한다. Request의 `requiredStem`은 다른 유형과 마찬가지로 글자 단위로 그대로 사용하고, materialOperation은 null로 반환한다.
 
-`summaryText`에는 `[[요약빈칸:A]]`와 `[[요약빈칸:B]]`를 각각 정확히 한 번 넣는다. choices는 `A값|B값` 형식의 서로 다른 단어쌍 다섯 개로 작성하되 발문과 같은 언어를 사용한다. 각 choice에는 `|`가 정확히 하나 있어야 하고 양쪽 값이 모두 비어 있지 않아야 한다. 정답은 두 빈칸을 문법적·의미적·논리적으로 모두 충족하는 하나뿐이어야 한다.
+`summaryText`에는 `[[요약빈칸:A]]`와 `[[요약빈칸:B]]`를 각각 한 번 넣는다. choices는 발문 언어와 무관하게 `A값|B값` 형식의 서로 다른 영어 단어쌍 다섯 개다. `|`는 하나이고 양쪽 값은 비어 있지 않으며 정답 하나만 두 빈칸을 문법·의미·논리상 충족한다.
 
 오답은 한 빈칸만 부분적으로 맞거나 핵심 관계 역전, 원인·결과 전도, 범위 확대·축소, 주체 변경, 긍정·부정 방향 왜곡, 부차적 내용의 중심 내용 대체 중 서로 다른 오류를 사용한다. 다섯 단어쌍은 길이·구체성·문법 구조·어휘 수준을 균형 있게 맞추며 정답만 두드러지게 만들지 않는다. 실제 기출 문장이나 선지를 그대로 복제하지 않는다.
 
@@ -70,7 +72,7 @@ choiceLanguage가 ko이면 모든 선지는 한국어, en이면 모든 선지는
 
 문장 삽입은 다른 지원 유형과 같은 Request에 포함할 수 있다. Request의 후보 경계 다섯 개만 사용한다. 새 삽입 문장 하나, 정답 경계 하나, 다섯 위치별 이유, 정답 경계 바로 앞·뒤 evidence를 해당 `itemId`의 `materialOperation`에만 반환한다. 삽입 문장이나 위치 표식을 다른 item에 복제하지 않으며, 원문이나 표식이 들어간 원문 전체를 반환하지 않는다.
 
-`b0`, `b1`, `b3` 같은 boundary ID는 원문 위치 검증을 위한 내부 식별자다. `candidateBoundaryIds`, `answerBoundaryId`, `positionReasons[].boundaryId`에는 Request의 내부 ID를 그대로 보존한다. 반면 `positionReasons[].reason`, 호환형 1차 해설 필드, `qualityReview`의 설명, 검토 보고서와 수정 권고 등 사용자용 문장에는 내부 ID를 절대 노출하지 않는다. 사용자용 위치는 `candidateBoundaryIds` 배열의 순서에 따라 첫 번째부터 `①`, `②`, `③`, `④`, `⑤`로 표현한다. boundary ID의 숫자를 위치 번호로 직접 변환하지 않는다. 예를 들어 후보가 `["b3","b4","b5","b6","b7"]`이고 정답이 `b5`이면 사용자용 정답 위치는 `③`이다.
+`b숫자` boundary ID는 내부 식별자다. `candidateBoundaryIds`, `answerBoundaryId`, `positionReasons[].boundaryId`에는 Request ID를 보존한다. 사용자용 문장에는 내부 ID를 노출하지 않고 후보 배열 순서의 `①~⑤`를 쓴다. ID 숫자를 위치 번호로 바꾸지 않는다. 예를 들어 후보가 `[b3,b4,b5,b6,b7]`이면 `b5`는 `③`이다.
 
 ## 어법 문항
 
@@ -78,9 +80,9 @@ controlled_error_variant의 구체 grammarTarget은 우선값이다. 원문에 �
 
 `source_form_check`는 sourceForm과 presentedForm이 같다. `controlled_error_variant`는 서로 겹치지 않는 최소 표적 5개를 원문 순서대로 evidenceSpans에 두고 choices를 제작 프롬프트가 해당 itemId에 배정한 기호 배열과 정확히 같게 한다. 표식형 문항이 하나면 `①~⑤`, 같은 지문에 둘 이상이면 문항 순서대로 `㉠~㉤`, `ⓐ~ⓔ`처럼 동그라미가 포함된 서로 다른 기호군을 쓴다. 발문에는 해당 선택 기호 범위를 함께 제시한다. 한 testedSpan의 presentedForm만 최소 변형하고 answerIndex를 그 순번으로 둔다. 항목을 가능한 한 분산하며 철자·단순 어휘는 표적으로 쓰지 않는다. 원문은 바꾸지 않고 sourceTextModified는 false다.
 
-발문과 내용 선지는 `stemLanguage` 하나로 통일한다. `ko`이면 둘 다 한국어, `en`이면 둘 다 영어로 작성한다. 위치·표식·배열 기호는 언어 조건에서 제외한다.
+내용 문항 선지는 `choiceLanguage`를 따른다. requiredStem은 원문 그대로이며 summary의 단어쌍은 항상 영어다. 위치·표식 기호는 언어 조건에서 제외한다.
 
-grammar_check에는 grammarTarget, grammarMode, testedSpan, sourceForm, presentedForm, ruleCheck를 모두 둔다. testedSpan은 문장 전체가 아닌 밑줄 최소 범위이고 sourceForm은 testedSpan.text와 같다. ruleCheck는 판정 규칙·혼동 구문·유일성을 기록한다. 유일하지 않으면 오류만 반환한다.
+grammar_check에는 grammarTarget, grammarMode, testedSpan, sourceForm, presentedForm, ruleCheck를 모두 둔다. testedSpan은 문장 전체가 아닌 밑줄 최소 범위이고 sourceForm은 testedSpan.text와 같다. ruleCheck는 판정 규칙·혼동 구문·유일성을 기록한다. 유일하지 않으면 오류만 반환한다. 어법 표적은 시험지 밑줄의 시작·끝 범위와 완전히 일치해야 한다.
 
 ## 어휘 수준
 
@@ -104,7 +106,7 @@ sourceFingerprint는 앱의 버전·정규화 규칙으로 이미 계산된 불�
 
 ## 문제·정답과 해설의 2단계 생성
 
-첫 JSON은 문제·정답이다. question의 type, stem, choices, answerIndex, evidenceSpans, score와 필수 materialOperation만 반환한다. explanation, intention, distractorReasons, qualityReview는 2차 해설에서만 작성한다.
+첫 JSON은 문제·정답이다. type, stem, choices, answerIndex, evidenceSpans, score와 필수 materialOperation만 반환한다. explanation, intention, distractorReasons, qualityReview는 2차에만 쓴다.
 
 `[EXPLANATION_GENERATION_V1]`에서는 새 문제를 만들지 않고 setId·revision·sourceFingerprint, questionId, 지문·자료, 유형, 발문, 선지·순서, answerIndex, score를 바꾸거나 문제 본체 재출력 금지.
 
@@ -118,4 +120,4 @@ sourceFingerprint는 앱의 버전·정규화 규칙으로 이미 계산된 불�
 
 ## 지식 파일 적용
 
-세부 필드·조건·예시는 업로드된 `02-KNOWLEDGE-CONTRACT.md`, `03-KNOWLEDGE-REQUEST-SCHEMA.json`, `04-KNOWLEDGE-RESPONSE-SCHEMA.json`, `06-KNOWLEDGE-EXPLANATION-SCHEMA.json`, `07-KNOWLEDGE-DETAILED-RULES.md`을 따른다. 충돌 시 그 Schema·Contract를 우선한다. 정의 밖 필드와 유형 변환은 금지한다. 모든 최종 응답은 선택된 Schema에 맞는 단일 JSON이어야 하며, 생성 전 ID·원문·발문·선지·정답·구조를 대조한다. 오류가 있으면 임시 결과 대신 어떤 경로·필드·규칙이 어긋났는지 짧은 오류 목록만 반환한다. 승인질문 금지.
+세부 필드·예시는 `02-KNOWLEDGE-CONTRACT.md`, `03-KNOWLEDGE-REQUEST-SCHEMA-V0.2.10.json`, `04-KNOWLEDGE-RESPONSE-SCHEMA.json`, `06-KNOWLEDGE-EXPLANATION-SCHEMA.json`, `07-KNOWLEDGE-DETAILED-RULES.md`, `08-KNOWLEDGE-SCHOOL-GRAMMAR-EVIDENCE.md`, `09-KNOWLEDGE-GRAMMAR-DESIGN-PROFILES.md`를 따른다. 충돌 시 Schema·Contract가 우선이다. 정의 밖 필드·유형 변환은 금지한다.

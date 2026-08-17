@@ -8,7 +8,7 @@ import { allocateSchoolMarkerLabels, SCHOOL_NUMERIC_MARKER_LABELS } from './scho
 import { stripLeadingChoiceMarker } from './utils'
 import type {
   CsatQualityReview, EnglishQuestion, EnglishQuestionSet, ProvidedPassageEvidenceSpan, ProvidedPassageGrammarMode,
-  ProvidedPassageChoiceLanguage, ProvidedPassageGrammarOperation, ProvidedPassageGrammarTarget, ProvidedPassageV02ItemPlan,
+  ProvidedPassageChoiceLanguage, ProvidedPassageGrammarDesignProfile, ProvidedPassageGrammarOperation, ProvidedPassageGrammarTarget, ProvidedPassageV02ItemPlan,
   ProvidedPassageV02ItemResult, ProvidedPassageV02QuestionType, ProvidedPassageV02State,
 } from './types'
 
@@ -26,13 +26,29 @@ export const PROVIDED_PASSAGE_GRAMMAR_LABELS: Record<ProvidedPassageGrammarTarge
 }
 export const PROVIDED_PASSAGE_GRAMMAR_AUTO_LABEL = '원문에서 자동 선택 (권장)'
 export const PROVIDED_PASSAGE_GRAMMAR_AUTO_RULE = 'AI가 원문에 실제로 존재하고 판정이 유일한 문법 구조를 지원 목록에서 하나 선택한다. 응답에는 선택한 구체적 grammarTarget을 기록한다.'
-export const PROVIDED_PASSAGE_GRAMMAR_PREFERENCE_RULE = '평가원형 5개 표식 어법 오류 찾기에서는 선택한 핵심 문법을 우선하되, 원문에 그 구조가 없으면 원문에서 판정 가능한 다른 지원 문법을 자동 선택한다.'
+export const PROVIDED_PASSAGE_GRAMMAR_PREFERENCE_RULE = '내신형 5개 밑줄 어법 오류 찾기에서는 선택한 핵심 문법을 우선하되, 원문에 그 구조가 없으면 원문에서 판정 가능한 다른 지원 문법을 자동 선택한다.'
 export const PROVIDED_PASSAGE_GRAMMAR_MODE_LABELS: Record<ProvidedPassageGrammarMode, string> = {
-  source_form_check: '한 표적 구조 설명형 (구형 JSON 호환)', controlled_error_variant: '평가원형 5개 표식 어법 오류 찾기 (권장)',
+  source_form_check: '한 표적 구조 설명형 (구형 JSON 호환)', controlled_error_variant: '내신형 5개 밑줄 어법 오류 찾기 (권장)',
 }
 export const PROVIDED_PASSAGE_GRAMMAR_MODE_HELP: Record<ProvidedPassageGrammarMode, string> = {
   source_form_check: '원문의 한 표현에 밑줄을 긋고 문법적 구조를 설명하는 기존 JSON과 호환됩니다.',
   controlled_error_variant: '원문 속 다섯 표현에 서로 구분되는 기호와 밑줄을 표시하고, 그중 하나만 별도 오류형으로 제시합니다.',
+}
+
+export const PROVIDED_PASSAGE_GRAMMAR_DESIGN_PROFILE_LABELS: Record<ProvidedPassageGrammarDesignProfile, string> = {
+  school_exam_balanced: '학교 기출 균형형 (권장)',
+  clause_relations: '관계사·that·절 집중',
+  verb_and_nonfinite: '동사·준동사·분사 집중',
+  agreement_voice_reference: '수 일치·태·대명사 집중',
+  source_best_fit: '원문 최적형',
+}
+
+export const PROVIDED_PASSAGE_GRAMMAR_DESIGN_PROFILE_RULES: Record<ProvidedPassageGrammarDesignProfile, string> = {
+  school_exam_balanced: '실제 학교 시험에서 반복 관찰된 관계사·절, 수 일치, 동사·준동사, 능수동, 대명사 범주를 원문 근거 안에서 분산한다.',
+  clause_relations: '관계대명사·관계부사, 동격 that, 절의 완전성과 연결 관계를 우선하되 판정 가능한 정확한 범위만 사용한다.',
+  verb_and_nonfinite: '본동사 유무, to부정사·동명사·분사, 목적격 보어와 병렬 구조를 우선하되 단순 어휘 함정을 만들지 않는다.',
+  agreement_voice_reference: '실제 주어와 동사의 수, 능동·수동, 대명사·재귀대명사의 선행사 관계를 우선한다.',
+  source_best_fit: '범주별 할당량 없이 원문에서 가장 명확하고 유일하게 판정되는 다섯 표적을 선택한다.',
 }
 
 export const PROVIDED_PASSAGE_GRAMMAR_RULES: Record<ProvidedPassageGrammarTarget, string> = {
@@ -96,7 +112,7 @@ function questionShape(
   language: ProvidedPassageChoiceLanguage = 'ko',
   markerLabels: string[] = [...SCHOOL_NUMERIC_MARKER_LABELS],
 ): Pick<EnglishQuestion, 'type' | 'stem' | 'choices' | 'answerIndex' | 'schoolStemLanguage' | 'schoolChoiceLanguage'> {
-  const languageFields = { schoolStemLanguage: language, schoolChoiceLanguage: usesChoiceLanguage(type) ? language : undefined }
+  const languageFields = { schoolStemLanguage: language, schoolChoiceLanguage: usesChoiceLanguage(type) ? defaultChoiceLanguage(type, language) ?? undefined : undefined }
   if (type === 'sentence_insertion') return { type: '문장 삽입', stem: providedPassageV02DefaultStem(type, polarity, grammarTarget, grammarMode, language, markerLabels), choices: [...markerLabels], answerIndex: 1, ...languageFields }
   if (type === 'grammar') return { type: '어법', stem: providedPassageV02DefaultStem(type, polarity, grammarTarget, grammarMode, language, markerLabels), choices: grammarMode === 'controlled_error_variant' ? [...markerLabels] : Array.from({ length: 5 }, () => ''), answerIndex: 1, ...languageFields }
   if (type === 'summary') return { type: '요약문 완성', stem: providedPassageV02DefaultStem(type, polarity, grammarTarget, grammarMode, language, markerLabels), choices: Array.from({ length: 5 }, () => ''), answerIndex: 1, ...languageFields }
@@ -107,7 +123,7 @@ function questionShape(
 function questionShapeForPlan(plan: ProvidedPassageV02ItemPlan, markerLabels?: string[]) {
   const language = plan.stemLanguage ?? 'ko'
   const shape = questionShape(plan.questionType, plan.contentMatchPolarity, plan.grammarTarget, plan.grammarMode, language, markerLabels)
-  return { ...shape, schoolChoiceLanguage: usesChoiceLanguage(plan.questionType) ? language : undefined }
+  return { ...shape, schoolChoiceLanguage: effectiveChoiceLanguage(plan) ?? undefined }
 }
 
 function usesChoiceLanguage(type: ProvidedPassageV02QuestionType) {
@@ -116,8 +132,14 @@ function usesChoiceLanguage(type: ProvidedPassageV02QuestionType) {
 
 export const usesProvidedPassageV02ChoiceLanguage = usesChoiceLanguage
 
-function defaultChoiceLanguage(type: ProvidedPassageV02QuestionType): ProvidedPassageChoiceLanguage | null {
-  return usesChoiceLanguage(type) ? 'ko' : null
+function defaultChoiceLanguage(type: ProvidedPassageV02QuestionType, stemLanguage: ProvidedPassageChoiceLanguage = 'ko'): ProvidedPassageChoiceLanguage | null {
+  if (type === 'summary') return 'en'
+  return usesChoiceLanguage(type) ? stemLanguage : null
+}
+
+function effectiveChoiceLanguage(plan: ProvidedPassageV02ItemPlan): ProvidedPassageChoiceLanguage | null {
+  if (plan.questionType === 'summary') return 'en'
+  return usesChoiceLanguage(plan.questionType) ? plan.choiceLanguage ?? plan.stemLanguage ?? 'ko' : null
 }
 
 export function createProvidedPassageV02Plan(itemId: string = crypto.randomUUID(), questionType: ProvidedPassageV02QuestionType = 'content_match'): ProvidedPassageV02ItemPlan {
@@ -126,6 +148,7 @@ export function createProvidedPassageV02Plan(itemId: string = crypto.randomUUID(
     vocabularyLevel: 'source_matched', contentMatchPolarity: questionType === 'content_match' ? 'mismatch' : null,
     grammarTarget: questionType === 'grammar' ? 'relative_clause' : null,
     grammarMode: questionType === 'grammar' ? 'source_form_check' : null,
+    grammarDesignProfile: questionType === 'grammar' ? 'school_exam_balanced' : null,
   }
 }
 
@@ -161,7 +184,7 @@ export function transitionSchoolProvidedPassageV02(set: EnglishQuestionSet, mode
   const plans = orderedProvidedPassageV02Plans(currentQuestions.map((question) => {
     const plan = createProvidedPassageV02Plan(question.id, replacePristineDefault ? 'content_match' : questionTypeFromExisting(question)!)
     plan.stemLanguage = question.schoolStemLanguage ?? (/[A-Za-z]/.test(question.stem) && !/[가-힣]/.test(question.stem) ? 'en' : 'ko')
-    if (usesChoiceLanguage(plan.questionType)) plan.choiceLanguage = plan.stemLanguage
+    if (usesChoiceLanguage(plan.questionType)) plan.choiceLanguage = defaultChoiceLanguage(plan.questionType, plan.stemLanguage)
     return plan
   }))
   const providedPassageV02 = createProvidedPassageV02State(set.material, plans)
@@ -287,9 +310,10 @@ function rawProvidedPassageV02Request(set: EnglishQuestionSet, state: ProvidedPa
     source: { sourcePassageId: state.sourcePassageId, sourceFingerprint: state.sourceFingerprint, title: set.materialTitle, passage: state.originalText, sentences: state.sentences, boundaries: state.boundaries },
     items: orderedPlans.map((plan) => ({
       itemId: plan.itemId, templateId: templateId(plan.questionType), variantId: 'standard', questionType: plan.questionType,
-      choiceLanguage: usesChoiceLanguage(plan.questionType) ? plan.stemLanguage ?? 'ko' : null, vocabularyLevel: plan.vocabularyLevel,
+      choiceLanguage: effectiveChoiceLanguage(plan), vocabularyLevel: plan.vocabularyLevel,
       contentMatchPolarity: plan.questionType === 'content_match' ? plan.contentMatchPolarity : null,
       grammarTarget: plan.questionType === 'grammar' ? plan.grammarTarget : null, grammarMode: plan.questionType === 'grammar' ? plan.grammarMode : null,
+      grammarDesignProfile: plan.questionType === 'grammar' ? plan.grammarDesignProfile ?? 'school_exam_balanced' : null,
       requiredStem: questionShapeForPlan(plan, isProvidedPassageInlineMarkerPlan(plan) ? providedPassageV02MarkerLabels(state, plan.itemId) : undefined).stem,
       targetLevel: set.targetLevel, score: questionById.get(plan.itemId)?.score ?? 2,
       requiredCandidateBoundaryCount: plan.questionType === 'sentence_insertion' ? 5 : null,
@@ -350,7 +374,8 @@ function generateProvidedPassageV02PromptRaw(set: EnglishQuestionSet) {
   const markerRules = request.items.filter((item) => item.questionType === 'sentence_insertion' || (item.questionType === 'grammar' && item.grammarMode === 'controlled_error_variant')).map((item) => `- ${item.itemId} (${item.questionType}): ${JSON.stringify(providedPassageV02MarkerLabels(state, item.itemId))}`).join('\n')
   const grammarDetails = request.items.filter((item) => item.questionType === 'grammar').map((item) => {
     const labels = providedPassageV02MarkerLabels(state, item.itemId)
-    return `- ${item.itemId}: ${item.grammarTarget ? `${PROVIDED_PASSAGE_GRAMMAR_RULES[item.grammarTarget]} ${item.grammarMode === 'controlled_error_variant' ? `이 태그는 우선 문법이며, 원문에 없으면 오류로 거부하지 말고 다른 지원 태그를 자동 선택한다. ${PROVIDED_PASSAGE_GRAMMAR_PREFERENCE_RULE}` : '한 표적 구조 설명형에서는 이 태그가 원문에 실제로 있어야 하는 강제 조건이다.'}` : `grammarTarget이 null인 자동 선택 요청이다. ${PROVIDED_PASSAGE_GRAMMAR_AUTO_RULE}`} 모드는 ${item.grammarMode}. question.stem은 requiredStem과 글자 단위로 같아야 한다. testedSpan은 실제로 밑줄 칠 최소 어법 표현만 가리키며 문장 전체를 범위로 삼지 않는다. sourceForm은 testedSpan.text와 같고 오류 변형은 presentedForm에만 둔다.${item.grammarMode === 'controlled_error_variant' ? ` question.evidenceSpans에는 원문 순서대로 서로 겹치지 않는 최소 어법 표적을 정확히 5개 넣는다. choices는 ${JSON.stringify(labels)}로 고정하고, testedSpan은 이 다섯 표적 중 유일하게 틀린 presentedForm을 적용할 한 곳이다. answerIndex는 해당 표적의 순번과 같아야 한다. 나머지 네 표적은 원문 형태를 그대로 제시한다. 다섯 표적은 관계대명사·동격 that, 주어·동사 수 일치, 동사·준동사, 능동·수동, 대명사·재귀대명사, 관계사 중 원문에서 판정 가능한 서로 다른 핵심 항목을 가능한 한 분산한다. 같은 문법 항목만 다섯 번 반복하거나 철자·단순 어휘를 어법 표적으로 사용하지 않는다.` : ''}`
+    const profile = item.grammarDesignProfile ?? 'school_exam_balanced'
+    return `- ${item.itemId}: 어법 설계 프로필은 ${profile}(${PROVIDED_PASSAGE_GRAMMAR_DESIGN_PROFILE_LABELS[profile]})이며 ${PROVIDED_PASSAGE_GRAMMAR_DESIGN_PROFILE_RULES[profile]} 이 프로필은 선호값이지 원문에 없는 구조를 만드는 강제 할당량이 아니다. ${item.grammarTarget ? `${PROVIDED_PASSAGE_GRAMMAR_RULES[item.grammarTarget]} ${item.grammarMode === 'controlled_error_variant' ? `이 태그는 우선 문법이며, 원문에 없으면 오류로 거부하지 말고 다른 지원 태그를 자동 선택한다. ${PROVIDED_PASSAGE_GRAMMAR_PREFERENCE_RULE}` : '한 표적 구조 설명형에서는 이 태그가 원문에 실제로 있어야 하는 강제 조건이다.'}` : `grammarTarget이 null인 자동 선택 요청이다. ${PROVIDED_PASSAGE_GRAMMAR_AUTO_RULE}`} 모드는 ${item.grammarMode}. question.stem은 requiredStem과 글자 단위로 같아야 한다. testedSpan은 실제로 밑줄 칠 최소 어법 표현만 가리키며 문장 전체를 범위로 삼지 않는다. sourceForm은 testedSpan.text와 같고 오류 변형은 presentedForm에만 둔다.${item.grammarMode === 'controlled_error_variant' ? ` question.evidenceSpans에는 원문 순서대로 서로 겹치지 않는 최소 어법 표적을 정확히 5개 넣는다. choices는 ${JSON.stringify(labels)}로 고정하고, testedSpan은 이 다섯 표적 중 유일하게 틀린 presentedForm을 적용할 한 곳이다. answerIndex는 해당 표적의 순번과 같아야 한다. 나머지 네 표적은 원문 형태를 그대로 제시한다. 다섯 표적은 관계대명사·동격 that, 주어·동사 수 일치, 동사·준동사, 능동·수동, 대명사·재귀대명사, 관계사 중 원문에서 판정 가능한 서로 다른 핵심 항목을 가능한 한 분산한다. 같은 문법 항목만 다섯 번 반복하거나 철자·단순 어휘를 어법 표적으로 사용하지 않는다.` : ''}`
   }).join('\n')
   const grammar = `- 한 세트는 요청된 문항을 최대 ${PROVIDED_PASSAGE_V02_MAX_ITEMS}개까지만 생성한다.\n${grammarDetails || '- 어법 문항 없음'}\n- 같은 공통 지문에 표식형 문항이 둘 이상이면 서로 다른 기호군을 사용한다. 이 요청의 학생 표시용 기호는 다음과 같다.\n${markerRules || '- 표식형 문항 없음'}\n- 각 표식형 question.choices는 위에 지정된 배열과 글자 단위로 같아야 한다. answerIndex는 기호의 글자가 아니라 배열의 1~5 순번이다. 표식형 문항이 하나뿐인 기존 방식에서는 후보 배열의 순서대로 ①~⑤를 사용한다.\n- Request Schema V0.2의 items[].requiredStem은 additional property가 아니라 item.required와 item.properties에 모두 정의된 비어 있지 않은 정식 필수 문자열이다. 이를 오류로 판정하거나 Request에서 삭제하지 않는다.\n- question.stem은 대응하는 requiredStem과 공백·문장부호까지 글자 단위로 정확히 같아야 하며 questionType만으로 재구성하지 않는다.\n- sourceFingerprint는 앱이 버전 접두어와 정규화 규칙을 적용해 이미 계산한 불투명 식별값이다. source.passage만 직접 SHA-256 처리하여 재계산·대조하거나 오류로 거부하지 않는다. exactFingerprintRequired는 Request의 sourceFingerprint를 Response에 글자 단위로 그대로 반환하라는 뜻이다.\n- 문장 삽입의 candidateBoundaryIds, answerBoundaryId, positionReasons[].boundaryId에는 Request의 내부 ID를 그대로 유지한다. positionReasons[].reason이나 호환형 해설·검토 등 사용자용 문장에서는 내부 ID를 금지하고 해당 itemId에 배정된 choices 기호를 후보 배열 순서대로 사용한다. boundary ID의 숫자를 위치 번호로 직접 변환하지 않는다.\n- 1차 JSON은 문제지와 정답지 완성이 목적이다. question의 explanation, intention, distractorReasons와 item의 qualityReview는 절대 출력하지 않는다. evidenceSpans와 materialOperation은 구조 검증과 시험지 표시를 위한 필수 정보만 간결하게 반환한다.\n- explanation, intention, distractorReasons, qualityReview는 [EXPLANATION_GENERATION_V1] 요청을 받은 2차 해설 단계에서만 출력한다.\n- JSON 문자열 안에서 표현을 인용할 때는 ‘ ’를 사용한다. 이스케이프하지 않은 ASCII 큰따옴표를 문자열 안에 넣지 않으며, 출력 직전에 전체 결과가 JSON.parse 가능한지 검사한다.`
   return `[PROVIDED_PASSAGE_GENERATION_V0.2]\n당신은 사용자가 제공한 영어 원문을 수정하지 않고 여러 내신형 문항을 설계·생성하는 영어 출제자다.\n\n[절대 원칙]\n- source.passage는 유일한 권위 원문이며 응답에 전체를 반환하지 않는다.\n- 모든 items는 동일한 source.passage를 근거로 한다. JSON 응답에서는 원문을 문항별로 반복 반환하지 않지만, 앱의 시험지 조판에서는 일반 문항용 공통 지문과 별개로 summary·sentence_insertion 문항 앞에 같은 원문을 각각 다시 출력한다.\n- 내용 일치·불일치 문항이 여러 개면 같은 원문에서 서로 다른 근거와 오답 원리로 각각 독립된 문항을 만든다.\n- content_inference 내용 이해 문항은 단순 사실 재진술이 아니라 지문의 둘 이상의 단서 또는 하나의 충분한 함의로 도출되는 추론을 묻는다. 정답은 외부 배경지식 없이 원문만으로 유일하게 도출하고, 과도한 일반화·인과 비약·범위 왜곡·주체 변경을 오답으로 사용한다.\n- 내용 이해의 evidenceSpans에는 실제 추론에 사용한 원문 단서를 넣고, 추론 설명은 2차 해설 단계에서 작성한다.\n- summary 요약문 완성은 question.summaryText에 원문 전체의 핵심 관계를 재진술한 영어 한 문장을 작성한다. 앱은 원문을 다시 출력한 뒤 summaryText 상자를 배치한다. summaryText에는 [[요약빈칸:A]]와 [[요약빈칸:B]]를 각각 정확히 한 번 넣고 choices는 ["A단어|B단어", ...] 형식의 서로 다른 다섯 영어 단어쌍으로 만든다.\n- 문장 삽입 item은 최대 하나이며 항상 items 배열의 마지막에 둔다. 앱은 이 문항에 같은 원문을 삽입 문장·위치 표식과 함께 다시 출력한다.\n- sourcePassageId, sourceFingerprint와 모든 itemId를 그대로 반환한다.\n- sentence ID·offset과 boundary ID·offset은 Request에 있는 값만 사용하며 새로 만들거나 바꾸지 않는다.\n- 각 item의 question.stem은 해당 item의 requiredStem과 공백·문장부호까지 정확히 같아야 한다.\n- items마다 요청된 유형·언어·어휘 수준·문법 태그를 독립적으로 지킨다.\n- 문장 삽입의 generatedSentence, 후보 경계와 표식은 해당 itemId의 materialOperation에만 둔다. 다른 문항이나 공통 원문에 전파하지 않는다.\n- 정답은 문항마다 정확히 하나이며 외부 사실로 판정하지 않는다.\n- 어법 문항은 원문 근거가 하나로 결정될 때만 만든다. source_form_check는 sourceForm과 presentedForm이 같고, controlled_error_variant는 원문을 고치지 않은 채 presentedForm에만 최소 변형을 둔다.\n- 어법 testedSpan은 실제로 밑줄 칠 낱말·구·절의 최소 정확 범위여야 한다. 근거 문장 전체는 evidenceSpans에 둘 수 있지만 testedSpan이나 sourceForm에 문장 전체를 넣지 않는다.\n- 관계대명사는 선행사와 관계절 성분, 동격 that은 완전한 절과 명사 내용 관계, 수 일치는 실제 주어, 분사구문은 의미상 주어와 태, 계속적 관계대명사는 쉼표·that 금지, 대명사 일치는 선행사, 가주어는 진주어, 강조 it-that은 강조 대상과 잔여 절을 반드시 확인한다.\n${grammar || '- 어법 문항 없음'}\n\n[Request 검증 순서]\n1. schemaId와 mode를 확인한다.\n2. 필수 최상위 필드를 확인한다.\n3. items 배열을 확인한다.\n4. 각 item의 필수 필드를 확인한다.\n5. additionalProperties를 검사한다. requiredStem을 포함해 properties에 정의된 필드는 추가 속성이 아니다.\n\n[출력]\nRequest가 유효하면 설계안이나 승인 질문 없이 즉시 ${PROVIDED_PASSAGE_V02_RESPONSE_SCHEMA_ID} 문제·정답 JSON 객체 하나만 출력한다. 유효하지 않으면 오류 목록만 출력하고 임시 JSON, Markdown 설명, 승인 문장, 지원 유형으로의 임의 변경을 출력하지 않는다.\n\n[Request JSON]\n${JSON.stringify(request, null, 2)}`
@@ -364,11 +389,11 @@ export function generateProvidedPassageV02Prompt(set: EnglishQuestionSet) {
     )
     .replace(
       'choices는 ["A단어|B단어", ...] 형식의 서로 다른 다섯 영어 단어쌍으로 만든다.',
-      'choices는 ["A값|B값", ...] 형식의 서로 다른 다섯 단어쌍으로 만들되 question의 발문과 같은 언어를 사용한다.',
+      'choices는 ["A값|B값", ...] 형식의 서로 다른 다섯 영어 단어쌍으로 만든다. requiredStem의 언어와 관계없이 summary의 choiceLanguage는 en이다.',
     )
     .replace(
       '- 문장 삽입 item은 최대 하나이며 항상 items 배열의 마지막에 둔다.',
-      '- 발문과 내용 선지는 각 item의 stemLanguage로 반드시 통일한다. 위치·표식·배열 기호는 언어 판정에서 제외한다.\n- 문장 삽입 item은 최대 하나이며 항상 items 배열의 마지막에 둔다.',
+      '- 일반 내용 문항의 선지는 choiceLanguage를 따른다. requiredStem은 지정 문자열을 그대로 보존하며, summary의 영어 단어쌍과 위치·표식 기호는 발문 언어와 별도로 계약을 따른다.\n- 문장 삽입 item은 최대 하나이며 항상 items 배열의 마지막에 둔다.',
     )
 }
 
@@ -424,7 +449,7 @@ export function adaptProvidedPassageV02Response(value: unknown, base: EnglishQue
     const record = recordById.get(plan.itemId)
     if (!record) throw new Error(`요청한 itemId가 응답에 없습니다: ${plan.itemId}`)
     if (record.templateId !== templateId(plan.questionType) || record.questionType !== plan.questionType || record.vocabularyLevel !== plan.vocabularyLevel) throw new Error(`${plan.itemId}: 문항 계약이 요청과 일치하지 않습니다.`)
-    if (record.choiceLanguage !== (usesChoiceLanguage(plan.questionType) ? plan.stemLanguage ?? 'ko' : null) || record.contentMatchPolarity !== (plan.questionType === 'content_match' ? plan.contentMatchPolarity : null)) throw new Error(`${plan.itemId}: 문항 언어 또는 발문 극성이 다릅니다.`)
+    if (record.choiceLanguage !== effectiveChoiceLanguage(plan) || record.contentMatchPolarity !== (plan.questionType === 'content_match' ? plan.contentMatchPolarity : null)) throw new Error(`${plan.itemId}: 문항 언어 또는 발문 극성이 다릅니다.`)
     const responseGrammarTarget = record.grammarTarget as ProvidedPassageGrammarTarget | null
     if (plan.questionType === 'grammar') {
       const requiresExactGrammarTarget = plan.grammarMode === 'source_form_check' && plan.grammarTarget !== null
@@ -507,7 +532,7 @@ export function adaptProvidedPassageV02Response(value: unknown, base: EnglishQue
         if (question.answerIndex !== testedIndex + 1) throw new Error(`${plan.itemId}: 정답 번호가 오류 변형을 적용한 밑줄 위치와 일치하지 않습니다.`)
       }
     }
-    questions.push({ id: plan.itemId, type: expectedShape.type, stem: expectedShape.stem, choices, answerIndex: question.answerIndex as number, explanation: typeof question.explanation === 'string' ? question.explanation.trim() : '', intention: typeof question.intention === 'string' ? question.intention.trim() : '', evidenceRefs: evidenceSpans.map((span) => span.text), distractorReasons: Array.isArray(question.distractorReasons) ? question.distractorReasons.map(String) : [], score: question.score as number, schoolStemLanguage: plan.stemLanguage ?? 'ko', schoolChoiceLanguage: usesChoiceLanguage(plan.questionType) ? plan.stemLanguage ?? 'ko' : undefined, schoolTemplateId: plan.questionType === 'summary' ? 'summary' : undefined, schoolChoiceLayout: plan.questionType === 'summary' ? 'matrix' : undefined, schoolSummaryText: plan.questionType === 'summary' ? String(question.summaryText).trim() : undefined })
+    questions.push({ id: plan.itemId, type: expectedShape.type, stem: expectedShape.stem, choices, answerIndex: question.answerIndex as number, explanation: typeof question.explanation === 'string' ? question.explanation.trim() : '', intention: typeof question.intention === 'string' ? question.intention.trim() : '', evidenceRefs: evidenceSpans.map((span) => span.text), distractorReasons: Array.isArray(question.distractorReasons) ? question.distractorReasons.map(String) : [], score: question.score as number, schoolStemLanguage: plan.stemLanguage ?? 'ko', schoolChoiceLanguage: effectiveChoiceLanguage(plan) ?? undefined, schoolTemplateId: plan.questionType === 'summary' ? 'summary' : undefined, schoolChoiceLayout: plan.questionType === 'summary' ? 'matrix' : undefined, schoolSummaryText: plan.questionType === 'summary' ? String(question.summaryText).trim() : undefined })
     results.push({ itemId: plan.itemId, evidenceSpans, materialOperation: operation })
     if (record.qualityReview) reviews.push(record.qualityReview as CsatQualityReview)
   }
