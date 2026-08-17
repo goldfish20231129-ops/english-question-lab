@@ -100,6 +100,16 @@ const DEFAULT_STEMS: Record<string, string> = {
   '공통 보기 빈칸': '윗글의 빈칸에 들어갈 말로 가장 적절한 것을 <보기>에서 고른 것은?',
 }
 
+export const ENGLISH_TARGET_LEVELS = ['고1', '고2', '고3'] as const
+
+export function normalizeEnglishTargetLevel(value: unknown, mode: EnglishMode = 'school') {
+  const text = typeof value === 'string' ? value.trim() : ''
+  if (/고\s*1|1\s*학년/.test(text)) return '고1'
+  if (/고\s*2|2\s*학년/.test(text)) return '고2'
+  if (/고\s*3|3\s*학년|수능/.test(text)) return '고3'
+  return mode === 'csat' ? '고3' : '고1'
+}
+
 const ENGLISH_DEFAULT_STEMS: Record<string, string> = {
   목적: 'What is the main purpose of the passage?',
   '심경 및 분위기': "Which of the following best describes the writer's change in emotion?",
@@ -161,7 +171,7 @@ export function createEnglishSet(mode: EnglishMode = 'csat'): EnglishQuestionSet
     firstQuestion.schoolChoiceLayout = template.choiceLayout
   }
   return {
-    id: crypto.randomUUID(), title: `새 ${MODE_LABELS[mode]} 영어 세트`, mode, targetLevel: mode === 'csat' ? '고3·수능 대비' : '고등학교',
+    id: crypto.randomUUID(), title: `새 ${MODE_LABELS[mode]} 영어 세트`, mode, targetLevel: mode === 'csat' ? '고3' : '고1',
     sourceKind, materialMode: mode === 'custom' ? 'provided' : 'generated', materialTitle: '', material: '', topic: '', difficulty: mode === 'custom' ? 3 : 4,
     difficultyScaleVersion: mode === 'custom' ? undefined : 2,
     intention: '', choiceCount: 5, customPreset: mode === 'custom' ? CUSTOM_PRESETS[0] : undefined,

@@ -1,4 +1,5 @@
 import { normalizeCsatSet } from './csat'
+import { normalizeEnglishTargetLevel } from './english'
 import { normalizeExamDocument } from './examLayout'
 import { inferSchoolQuestionTemplate } from './schoolCatalog'
 import type { EnglishExamDocument, EnglishQuestionSet, MediaAsset, StudioBundle } from './types'
@@ -95,7 +96,12 @@ export function normalizeStudioBundle(bundle: StudioBundle): StudioBundle {
 }
 
 export function normalizeQuestionSet(value: EnglishQuestionSet): EnglishQuestionSet {
-  const normalized = normalizeCsatSet(value)
+  const csatNormalized = normalizeCsatSet(value)
+  const normalized = {
+    ...csatNormalized,
+    targetLevel: normalizeEnglishTargetLevel(csatNormalized.targetLevel, csatNormalized.mode),
+    csatItems: csatNormalized.csatItems?.map((item) => ({ ...item, targetLevel: item.targetLevel ? normalizeEnglishTargetLevel(item.targetLevel, 'csat') : undefined })),
+  }
   if (normalized.mode !== 'school') return normalized
   return {
     ...normalized,

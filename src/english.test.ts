@@ -1,9 +1,15 @@
 import { describe, expect, it } from 'vitest'
 import { applyCsatItemTemplate, createCsatItem, createCsatQuestions } from './csat'
-import { ENGLISH_TOPIC_PRESETS, applyCustomPreset, assignAutomaticCsatTopics, createEnglishSet, createExamLayout, createQuestion, defaultQuestionStem, generateEnglishPrompt, generateReviewPrompt, layoutForFirstSelectedSet, parseEnglishSetJson, preferredExamPresetForSets } from './english'
+import { ENGLISH_TOPIC_PRESETS, applyCustomPreset, assignAutomaticCsatTopics, createEnglishSet, createExamLayout, createQuestion, defaultQuestionStem, generateEnglishPrompt, generateReviewPrompt, layoutForFirstSelectedSet, normalizeEnglishTargetLevel, parseEnglishSetJson, preferredExamPresetForSets } from './english'
 import { createBackup, normalizeUiSettings, parseBackup } from './storage'
 
 describe('영어 세트 공통 흐름', () => {
+  it('대상 수준을 고1·고2·고3으로 정규화한다', () => {
+    expect(createEnglishSet('school').targetLevel).toBe('고1')
+    expect(createEnglishSet('csat').targetLevel).toBe('고3')
+    expect(normalizeEnglishTargetLevel('고2 중상위권', 'school')).toBe('고2')
+    expect(normalizeEnglishTargetLevel('고등학교', 'school')).toBe('고1')
+  })
   it('인쇄 미리보기에서 종료했어도 다음 실행은 안전한 세트 제작 화면에서 시작한다', () => {
     expect(normalizeUiSettings({ screen: 'preview', activeMode: 'csat' })).toEqual({ screen: 'sets', activeMode: 'csat' })
     expect(normalizeUiSettings({ screen: 'assembly', activeMode: 'school' })).toEqual({ screen: 'assembly', activeMode: 'school' })
