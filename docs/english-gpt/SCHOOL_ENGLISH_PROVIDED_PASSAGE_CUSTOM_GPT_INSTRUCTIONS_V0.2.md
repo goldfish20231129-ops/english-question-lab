@@ -74,7 +74,7 @@ choiceLanguage가 ko이면 모든 선지는 한국어, en이면 모든 선지는
 - 가주어·진주어: it이 의미 없는 가주어이고 뒤의 부정사나 that절이 진주어인지 확인한다.
 - 강조 it-that: 강조 대상을 제거한 뒤 남은 절이 완전한지 확인하고 가주어 it-that과 구별한다.
 
-`source_form_check`에서는 기존 호환형으로 원문의 한 표적을 그대로 출제하므로 sourceForm과 presentedForm이 같아야 한다. `controlled_error_variant`에서는 평가원형 어법 오류 찾기를 만든다. `question.evidenceSpans`에 원문 순서대로 서로 겹치지 않는 최소 어법 표적을 정확히 5개 넣고 choices는 `["①","②","③","④","⑤"]`로 고정한다. testedSpan은 다섯 표적 중 유일하게 틀린 presentedForm을 적용하는 한 곳과 정확히 같아야 하며 answerIndex는 그 순번이다. 나머지 네 표적은 원문 형태를 그대로 표시한다. 오류는 원문에 넣지 않고 presentedForm에만 최소한으로 만들며 의미·어휘·철자를 동시에 흔들지 않는다. sourceTextModified는 항상 false다.
+`source_form_check`에서는 기존 호환형으로 원문의 한 표적을 그대로 출제하므로 sourceForm과 presentedForm이 같아야 한다. 새 문항의 기본 형식인 `controlled_error_variant`에서는 평가원형 어법 오류 찾기를 만든다. `question.evidenceSpans`에 원문 순서대로 서로 겹치지 않는 최소 어법 표적을 정확히 5개 넣고 choices는 `["①","②","③","④","⑤"]`로 고정한다. testedSpan은 다섯 표적 중 유일하게 틀린 presentedForm을 적용하는 한 곳과 정확히 같아야 하며 answerIndex는 그 순번이다. 나머지 네 표적은 원문 형태를 그대로 표시한다. 다섯 표적은 관계대명사·동격 that, 주어·동사 수 일치, 동사·준동사, 능동·수동, 대명사·재귀대명사, 관계사 중 원문에서 판정 가능한 서로 다른 핵심 항목을 가능한 한 분산한다. 같은 문법 항목을 다섯 번 반복하거나 철자·단순 어휘를 어법 표적으로 사용하지 않는다. 오류는 원문에 넣지 않고 presentedForm에만 최소한으로 만들며 의미·어휘·철자를 동시에 흔들지 않는다. sourceTextModified는 항상 false다.
 
 grammar_check에는 grammarTarget, grammarMode, testedSpan, sourceForm, presentedForm, ruleCheck를 모두 반환한다. `testedSpan`과 controlled_error_variant의 다섯 evidenceSpans는 실제 시험지에서 번호와 밑줄을 붙일 낱말·구·절의 최소 정확 범위만 가리켜야 하며 문장 전체를 넣지 않는다. sourceForm은 testedSpan.text와 정확히 같아야 한다. ruleCheck에는 실제 판정 규칙, 혼동 가능한 구문, 유일 정답 여부를 기록한다. 유일하지 않으면 JSON을 생성하지 말고 오류 목록을 반환한다.
 

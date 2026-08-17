@@ -119,6 +119,13 @@ describe('Provided Passage V0.2', () => {
     expect(buildProvidedPassageV02Request(set).source.passage).toBe(set.material)
   })
 
+  it('collapses line breaks from previously saved V0.2 passages at print presentation time', () => {
+    const set = configured([createProvidedPassageV02Plan('content-legacy-breaks', 'content_match')])
+    set.providedPassageV02!.originalText = 'First sentence remains connected.\r\n\r\nMoreover, the final sentence stays in the same paragraph.'
+    set.material = set.providedPassageV02!.originalText
+    expect(providedPassageV02SharedMaterialText(set)).toBe('First sentence remains connected. Moreover, the final sentence stays in the same paragraph.')
+  })
+
   it('imports a five-target grammar item and decorates every target with a numbered underline', () => {
     const plan = { ...createProvidedPassageV02Plan('grammar-five', 'grammar'), grammarTarget: 'subject_verb_agreement' as const, grammarMode: 'controlled_error_variant' as const }
     const set = configured([plan])
@@ -129,6 +136,9 @@ describe('Provided Passage V0.2', () => {
     expect(material).toContain('① [[밑줄:student]]')
     expect(material).toContain('③ [[밑줄:arrive]]')
     expect(material).toContain('⑤ [[밑줄:bring]]')
+    const prompt = generateProvidedPassageV02Prompt(set)
+    expect(prompt).toContain('관계대명사·동격 that')
+    expect(prompt).toContain('같은 문법 항목만 다섯 번 반복')
   })
 
   it('repairs a uniquely identifiable grammar offset but keeps the correction visible as a warning', () => {

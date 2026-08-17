@@ -22,7 +22,7 @@ export const PROVIDED_PASSAGE_GRAMMAR_LABELS: Record<ProvidedPassageGrammarTarge
   dummy_it: '가주어·진주어', cleft_it_that: '강조 it-that',
 }
 export const PROVIDED_PASSAGE_GRAMMAR_MODE_LABELS: Record<ProvidedPassageGrammarMode, string> = {
-  source_form_check: '한 표적 구조 설명형 (기존 호환)', controlled_error_variant: '①~⑤ 어법 오류 찾기',
+  source_form_check: '한 표적 구조 설명형 (구형 JSON 호환)', controlled_error_variant: '평가원형 ①~⑤ 어법 오류 찾기 (권장)',
 }
 export const PROVIDED_PASSAGE_GRAMMAR_MODE_HELP: Record<ProvidedPassageGrammarMode, string> = {
   source_form_check: '원문의 한 표현에 밑줄을 긋고 문법적 구조를 설명하는 기존 JSON과 호환됩니다.',
@@ -280,7 +280,7 @@ export function buildProvidedPassageV02Request(set: EnglishQuestionSet) {
 
 export function generateProvidedPassageV02Prompt(set: EnglishQuestionSet) {
   const request = buildProvidedPassageV02Request(set)
-  const grammarDetails = request.items.filter((item) => item.questionType === 'grammar').map((item) => `- ${item.itemId}: ${item.grammarTarget ? PROVIDED_PASSAGE_GRAMMAR_RULES[item.grammarTarget] : ''} 모드는 ${item.grammarMode}. question.stem은 requiredStem과 글자 단위로 같아야 한다. testedSpan은 실제로 밑줄 칠 최소 어법 표현만 가리키며 문장 전체를 범위로 삼지 않는다. sourceForm은 testedSpan.text와 같고 오류 변형은 presentedForm에만 둔다.${item.grammarMode === 'controlled_error_variant' ? ' question.evidenceSpans에는 원문 순서대로 서로 겹치지 않는 최소 어법 표적을 정확히 5개 넣는다. choices는 ["①","②","③","④","⑤"]로 고정하고, testedSpan은 이 다섯 표적 중 유일하게 틀린 presentedForm을 적용할 한 곳이다. answerIndex는 해당 표적의 순번과 같아야 한다. 나머지 네 표적은 원문 형태를 그대로 제시한다.' : ''}`).join('\n')
+  const grammarDetails = request.items.filter((item) => item.questionType === 'grammar').map((item) => `- ${item.itemId}: ${item.grammarTarget ? PROVIDED_PASSAGE_GRAMMAR_RULES[item.grammarTarget] : ''} 모드는 ${item.grammarMode}. question.stem은 requiredStem과 글자 단위로 같아야 한다. testedSpan은 실제로 밑줄 칠 최소 어법 표현만 가리키며 문장 전체를 범위로 삼지 않는다. sourceForm은 testedSpan.text와 같고 오류 변형은 presentedForm에만 둔다.${item.grammarMode === 'controlled_error_variant' ? ' question.evidenceSpans에는 원문 순서대로 서로 겹치지 않는 최소 어법 표적을 정확히 5개 넣는다. choices는 ["①","②","③","④","⑤"]로 고정하고, testedSpan은 이 다섯 표적 중 유일하게 틀린 presentedForm을 적용할 한 곳이다. answerIndex는 해당 표적의 순번과 같아야 한다. 나머지 네 표적은 원문 형태를 그대로 제시한다. 다섯 표적은 관계대명사·동격 that, 주어·동사 수 일치, 동사·준동사, 능동·수동, 대명사·재귀대명사, 관계사 중 원문에서 판정 가능한 서로 다른 핵심 항목을 가능한 한 분산한다. 같은 문법 항목만 다섯 번 반복하거나 철자·단순 어휘를 어법 표적으로 사용하지 않는다.' : ''}`).join('\n')
   const grammar = `${grammarDetails || '- 어법 문항 없음'}\n- Request Schema V0.2의 items[].requiredStem은 additional property가 아니라 item.required와 item.properties에 모두 정의된 비어 있지 않은 정식 필수 문자열이다. 이를 오류로 판정하거나 Request에서 삭제하지 않는다.\n- question.stem은 대응하는 requiredStem과 공백·문장부호까지 글자 단위로 정확히 같아야 하며 questionType만으로 재구성하지 않는다.\n- 1차 JSON은 문제지와 정답지 완성이 목적이다. question의 explanation, intention, distractorReasons와 item의 qualityReview는 출력하지 않는다. evidenceSpans와 materialOperation은 구조 검증을 위해 반환한다.\n- 앞의 해설 작성 지시는 2차 해설 생성 단계에만 적용하며, 1차 JSON에서는 해설 필드를 생략한다.\n- 기존 방식대로 해설 필드와 qualityReview를 함께 출력해도 앱은 호환하여 가져올 수 있다.`
   return `[PROVIDED_PASSAGE_GENERATION_V0.2]\n당신은 사용자가 제공한 영어 원문을 수정하지 않고 여러 내신형 문항을 설계·생성하는 영어 출제자다.\n\n[절대 원칙]\n- source.passage는 유일한 권위 원문이며 응답에 전체를 반환하지 않는다.\n- 문장 삽입이 아닌 모든 items는 동일한 source.passage 한 지문을 공유한다. 같은 지문을 문항별로 새로 만들거나 반복 반환하지 않는다.\n- 내용 일치·불일치 문항이 여러 개면 같은 원문에서 서로 다른 근거와 오답 원리로 각각 독립된 문항을 만든다.\n- content_inference 내용 이해 문항은 단순 사실 재진술이 아니라 지문의 둘 이상의 단서 또는 하나의 충분한 함의로 도출되는 추론을 묻는다. 정답은 외부 배경지식 없이 원문만으로 유일하게 도출하고, 과도한 일반화·인과 비약·범위 왜곡·주체 변경을 오답으로 사용한다.\n- 내용 이해의 evidenceSpans에는 실제 추론에 사용한 원문 단서를 넣고, 추론 설명은 2차 해설 단계에서 작성한다.\n- 문장 삽입 item은 최대 하나이며 항상 items 배열의 마지막에 둔다.\n- sourcePassageId, sourceFingerprint와 모든 itemId를 그대로 반환한다.\n- sentence ID·offset과 boundary ID·offset은 Request에 있는 값만 사용하며 새로 만들거나 바꾸지 않는다.\n- 각 item의 question.stem은 해당 item의 requiredStem과 공백·문장부호까지 정확히 같아야 한다.\n- items마다 요청된 유형·언어·어휘 수준·문법 태그를 독립적으로 지킨다.\n- 문장 삽입의 generatedSentence, 후보 경계와 표식은 해당 itemId의 materialOperation에만 둔다. 다른 문항이나 공통 원문에 전파하지 않는다.\n- 정답은 문항마다 정확히 하나이며 외부 사실로 판정하지 않는다.\n- 어법 문항은 원문 근거가 하나로 결정될 때만 만든다. source_form_check는 sourceForm과 presentedForm이 같고, controlled_error_variant는 원문을 고치지 않은 채 presentedForm에만 최소 변형을 둔다.\n- 어법 testedSpan은 실제로 밑줄 칠 낱말·구·절의 최소 정확 범위여야 한다. 근거 문장 전체는 evidenceSpans에 둘 수 있지만 testedSpan이나 sourceForm에 문장 전체를 넣지 않는다.\n- 관계대명사는 선행사와 관계절 성분, 동격 that은 완전한 절과 명사 내용 관계, 수 일치는 실제 주어, 분사구문은 의미상 주어와 태, 계속적 관계대명사는 쉼표·that 금지, 대명사 일치는 선행사, 가주어는 진주어, 강조 it-that은 강조 대상과 잔여 절을 반드시 확인한다.\n${grammar || '- 어법 문항 없음'}\n\n[Request 검증 순서]\n1. schemaId와 mode를 확인한다.\n2. 필수 최상위 필드를 확인한다.\n3. items 배열을 확인한다.\n4. 각 item의 필수 필드를 확인한다.\n5. additionalProperties를 검사한다. requiredStem을 포함해 properties에 정의된 필드는 추가 속성이 아니다.\n\n[출력]\nRequest가 유효하면 설계안이나 승인 질문 없이 즉시 ${PROVIDED_PASSAGE_V02_RESPONSE_SCHEMA_ID} 문제·정답 JSON 객체 하나만 출력한다. 유효하지 않으면 오류 목록만 출력하고 임시 JSON, Markdown 설명, 승인 문장, 지원 유형으로의 임의 변경을 출력하지 않는다.\n\n[Request JSON]\n${JSON.stringify(request, null, 2)}`
 }
@@ -428,7 +428,7 @@ export function providedPassageV02PresentationSpec(set: EnglishQuestionSet, ques
   const boundaries = state.boundaries.filter((boundary) => markers.has(boundary.id)).sort((left, right) => right.offset - left.offset)
   let body = state.originalText
   boundaries.forEach((boundary) => { body = `${body.slice(0, boundary.offset)} [[삽입위치:${markers.get(boundary.id)}]] ${body.slice(boundary.offset)}` })
-  return { kind: 'insertion' as const, givenSentence: operation.generatedSentence, body }
+  return { kind: 'insertion' as const, givenSentence: operation.generatedSentence, body: normalizeEnglishPassage(body) }
 }
 
 function grammarMaterialEvents(result: ProvidedPassageV02ItemResult, state: ProvidedPassageV02State) {
@@ -460,17 +460,17 @@ function applyMaterialEvents(source: string, events: Array<{ start: number; end:
 
 export function providedPassageV02QuestionMaterialText(set: EnglishQuestionSet, questionId: string) {
   const state = set.providedPassageV02
-  if (!state) return set.material
+  if (!state) return normalizeEnglishPassage(set.material)
   const result = state.results?.find((item) => item.itemId === questionId)
-  if (!result) return state.originalText
-  return applyMaterialEvents(state.originalText, grammarMaterialEvents(result, state))
+  if (!result) return normalizeEnglishPassage(state.originalText)
+  return normalizeEnglishPassage(applyMaterialEvents(state.originalText, grammarMaterialEvents(result, state)))
 }
 
 export function providedPassageV02SharedMaterialText(set: EnglishQuestionSet) {
   const state = set.providedPassageV02
   if (!state || !orderedProvidedPassageV02Questions(set).some((question) => question.type !== '문장 삽입')) return undefined
   const operations = (state.results ?? []).flatMap((result) => grammarMaterialEvents(result, state))
-  return applyMaterialEvents(state.originalText, operations)
+  return normalizeEnglishPassage(applyMaterialEvents(state.originalText, operations))
 }
 
 export function providedPassageV02SharedPresentationSpec(set: EnglishQuestionSet) {
@@ -484,6 +484,6 @@ export function providedPassageV02SharedPresentationSpec(set: EnglishQuestionSet
     return boundary ? [{ start: boundary.offset, end: boundary.offset, replacement: ` [[삽입위치:${CSAT_INLINE_POSITION_CHOICES[index]}]] ` }] : []
   })
   ;(state.results ?? []).forEach((result) => events.push(...grammarMaterialEvents(result, state)))
-  const body = applyMaterialEvents(state.originalText, events)
+  const body = normalizeEnglishPassage(applyMaterialEvents(state.originalText, events))
   return { kind: 'insertion' as const, givenSentence: insertion.generatedSentence, body }
 }

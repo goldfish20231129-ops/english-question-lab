@@ -37,7 +37,7 @@ Provided Passage V0.2는 `school_english_provided_passage`와 `English`만 지�
 - `dummy_it`: 가주어 it과 뒤의 진주어
 - `cleft_it_that`: 강조 대상과 잔여 절, 가주어 구문과의 구별
 
-어법 문항은 `testedSpan`, `sourceForm`, `presentedForm`, `ruleCheck`를 반환한다. `testedSpan`은 실제로 밑줄 칠 최소 어법 표현만 가리키고 문장 전체를 범위로 사용하지 않는다. `controlled_error_variant`는 `question.evidenceSpans`에 원문 순서의 서로 겹치지 않는 최소 표적을 정확히 5개 반환하며 시험지에서는 ①~⑤와 밑줄로 표시한다. choices는 ①~⑤로 고정하고 testedSpan 및 answerIndex는 유일한 오류 표적과 일치해야 한다. `ruleCheck.isUniquelyDetermined`는 반드시 true다. 근거가 모호하면 해당 문항을 생성하지 않는다.
+어법 문항은 `testedSpan`, `sourceForm`, `presentedForm`, `ruleCheck`를 반환한다. `testedSpan`은 실제로 밑줄 칠 최소 어법 표현만 가리키고 문장 전체를 범위로 사용하지 않는다. 새 문항의 기본 형식인 `controlled_error_variant`는 `question.evidenceSpans`에 원문 순서의 서로 겹치지 않는 최소 표적을 정확히 5개 반환하며 시험지에서는 ①~⑤와 밑줄로 표시한다. 다섯 표적은 관계사·동격 that, 수 일치, 동사·준동사, 능수동, 대명사 등 서로 다른 핵심 문법 항목을 가능한 한 분산한다. choices는 ①~⑤로 고정하고 testedSpan 및 answerIndex는 유일한 오류 표적과 일치해야 한다. `ruleCheck.isUniquelyDetermined`는 반드시 true다. 근거가 모호하면 해당 문항을 생성하지 않는다.
 
 ## 문법 모드
 

@@ -51,6 +51,21 @@ async function remove(storeName: string, id: string) {
   finally { database.close() }
 }
 
+async function removeMany(storeName: string, ids: string[]) {
+  if (!ids.length) return
+  const database = await openDatabase()
+  try {
+    await new Promise<void>((resolve, reject) => {
+      const transaction = database.transaction(storeName, 'readwrite')
+      const store = transaction.objectStore(storeName)
+      ids.forEach((id) => store.delete(id))
+      transaction.oncomplete = () => resolve()
+      transaction.onerror = () => reject(transaction.error ?? new Error('여러 항목을 삭제하지 못했습니다.'))
+      transaction.onabort = () => reject(transaction.error ?? new Error('일괄 삭제가 중단되었습니다.'))
+    })
+  } finally { database.close() }
+}
+
 async function replace<T>(storeName: string, values: T[]) {
   const database = await openDatabase()
   try {
@@ -96,6 +111,7 @@ export const saveQuestionSet = (value: EnglishQuestionSet) => put(QUESTION_SETS,
 export const deleteQuestionSet = (id: string) => remove(QUESTION_SETS, id)
 export const saveExamDocument = (value: EnglishExamDocument) => put(EXAMS, value)
 export const deleteExamDocument = (id: string) => remove(EXAMS, id)
+export const deleteExamDocuments = (ids: string[]) => removeMany(EXAMS, ids)
 export const saveMediaAsset = (value: MediaAsset) => put(MEDIA, value)
 export const deleteMediaAsset = (id: string) => remove(MEDIA, id)
 
