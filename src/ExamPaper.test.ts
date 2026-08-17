@@ -1,7 +1,7 @@
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
-import { ExamQuestionPages, SetLivePreview } from './ExamPaper'
+import { ExamAnswerPages, ExamQuestionPages, SetLivePreview } from './ExamPaper'
 import { createEnglishSet, createExamLayout, createQuestion } from './english'
 import { contentEntriesForSet } from './examLayout'
 import { createProvidedPassageV02Plan, syncProvidedPassageV02Questions, transitionSchoolProvidedPassageV02 } from './providedPassageV02'
@@ -73,6 +73,30 @@ describe('내신형 새 지문 혼합 세트 출력', () => {
     expect(sharedHtml.match(/First sentence explains the topic\./g)).toHaveLength(1)
     expect(sharedHtml.match(/This connection becomes clearer/g)).toHaveLength(1)
     expect(sharedHtml.match(/class="insertion-position"/g)).toHaveLength(5)
+  })
+
+  it('해설의 내부 boundary ID를 문항 위치 기호로 표시한다', () => {
+    const passage = 'First sentence explains the topic. Second sentence adds evidence. Third sentence gives a contrast. Fourth sentence states a result. Fifth sentence adds a limitation. Sixth sentence closes the discussion.'
+    const seed = createEnglishSet('school')
+    seed.material = passage
+    let set = transitionSchoolProvidedPassageV02(seed, 'provided')
+    const insertion = createProvidedPassageV02Plan('insert-symbols', 'sentence_insertion')
+    set = { ...set, providedPassageV02: { ...set.providedPassageV02!, itemPlans: [insertion] }, questions: syncProvidedPassageV02Questions(set, [insertion]) }
+    const state = set.providedPassageV02!
+    const candidateBoundaryIds = state.boundaries.slice(2, 7).map((boundary) => boundary.id)
+    const first = state.sentences[0]
+    const second = state.sentences[1]
+    state.results = [{ itemId: insertion.itemId, evidenceSpans: [], materialOperation: { kind: 'insert_sentence', generatedSentence: 'A given sentence.', candidateBoundaryIds, answerBoundaryId: candidateBoundaryIds[2], positionReasons: candidateBoundaryIds.map((boundaryId) => ({ boundaryId, reason: `${boundaryId}의 결속을 확인한다.` })), beforeEvidence: { sentenceId: first.id, start: first.start, end: first.end, text: first.text }, afterEvidence: { sentenceId: second.id, start: second.start, end: second.end, text: second.text }, lexicalLevel: 'source_matched' } }]
+    set.questions[0].answerIndex = 3
+    set.questions[0].explanation = `정답은 ${candidateBoundaryIds[2]}에 들어간다.`
+    set.questions[0].distractorReasons = [`${candidateBoundaryIds[0]}은 이르다.`, `${candidateBoundaryIds[1]}은 연결되지 않는다.`, `${candidateBoundaryIds[3]}은 늦다.`, `${candidateBoundaryIds[4]}은 결론 뒤다.`]
+    const exam = { id: 'exam-symbols', title: '기호 시험', setIds: [set.id], contentEntries: contentEntriesForSet(set), layout: createExamLayout('school'), setOverrides: {}, entryOverrides: {}, createdAt: '', updatedAt: '' }
+
+    const html = renderToStaticMarkup(createElement(ExamAnswerPages, { exam, sets: [set] }))
+
+    expect(html).toContain('정답은 ③에 들어간다.')
+    expect(html).toContain('①은 이르다.')
+    candidateBoundaryIds.forEach((id) => expect(html).not.toContain(id))
   })
 
   it('기존 지문 어법 오류형은 한 문단 안 ①~⑤ 밑줄로 표시하고 별도 번호 선지를 숨긴다', () => {

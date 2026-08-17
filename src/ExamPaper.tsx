@@ -3,7 +3,7 @@ import { collapseCsatProseParagraphs, csatLongExpositoryText, csatLongNarrativeS
 import { CsatMaterialView } from './CsatMaterialView'
 import { buildExamFlowBlocks, examFlowMeasurementKey, geometryKey, getOversizedQuestionIssues, paginateAtomicAnswerBlocks, paginateExamBlocks, resolveExamEntries, type ExamFlowBlock, type ExamLayoutMetrics } from './examLayout'
 import { providedPassagePresentationSpec } from './providedPassage'
-import { orderedProvidedPassageV02Questions, providedPassageV02PresentationSpec, providedPassageV02QuestionMaterialText, providedPassageV02SharedMaterialText, providedPassageV02SharedPresentationSpec } from './providedPassageV02'
+import { humanizeProvidedPassageBoundaryReferences, orderedProvidedPassageV02Questions, providedPassageV02PresentationSpec, providedPassageV02QuestionMaterialText, providedPassageV02SharedMaterialText, providedPassageV02SharedPresentationSpec } from './providedPassageV02'
 import { generatedSchoolSharedMaterialPresentation, isSchoolInsertionQuestion, isSchoolSummaryQuestion, orderedSchoolQuestions, schoolQuestionMaterialPresentation, usesInlineSchoolChoices, usesQuestionScopedSchoolMaterial } from './schoolMaterial'
 import { schoolQuestionChoiceLayout } from './schoolCatalog'
 import type { CsatItemDesign, EnglishExamDocument, EnglishQuestion, EnglishQuestionSet, ExamLayoutSettings, LayoutPreset, MediaAsset } from './types'
@@ -252,10 +252,11 @@ type AnswerQuestionEntry = {
 function AnswerSolutionSection({ entry, number, measureIndex }: { entry: AnswerQuestionEntry; number: number; measureIndex?: number }) {
   const { set, question, csatItem } = entry
   const stale = Boolean(set.explanationSourceFingerprint && set.explanationSourceFingerprint !== explanationSourceFingerprint(set))
+  const displayText = (text: string) => humanizeProvidedPassageBoundaryReferences(set, question.id, text)
   return <section data-answer-measure-index={measureIndex}>
     <h3>{number}. 정답 {CIRCLED[question.answerIndex - 1] ?? question.answerIndex} <small>{set.title}</small></h3>
-    <p>{stale ? '문제가 수정되어 해설을 다시 생성해야 합니다.' : question.explanation || '해설을 아직 생성하지 않았습니다.'}</p>
-    <dl><dt>정답 근거</dt><dd>{stale ? '재생성 필요' : question.evidenceRefs.join(' / ') || '미입력'}</dd><dt>출제 의도</dt><dd>{stale ? '재생성 필요' : question.intention || csatItem?.intention || set.intention || '미입력'}</dd>{!stale && question.distractorReasons.length > 0 && <><dt>선지별 해설</dt><dd>{question.distractorReasons.join(' / ')}</dd></>}</dl>
+    <p>{stale ? '문제가 수정되어 해설을 다시 생성해야 합니다.' : displayText(question.explanation) || '해설을 아직 생성하지 않았습니다.'}</p>
+    <dl><dt>정답 근거</dt><dd>{stale ? '재생성 필요' : displayText(question.evidenceRefs.join(' / ')) || '미입력'}</dd><dt>출제 의도</dt><dd>{stale ? '재생성 필요' : displayText(question.intention || csatItem?.intention || set.intention) || '미입력'}</dd>{!stale && question.distractorReasons.length > 0 && <><dt>선지별 해설</dt><dd>{displayText(question.distractorReasons.join(' / '))}</dd></>}</dl>
   </section>
 }
 

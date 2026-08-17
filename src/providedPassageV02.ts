@@ -439,6 +439,21 @@ export function providedPassageV02ValidationMessages(set: EnglishQuestionSet) {
   return messages
 }
 
+/**
+ * Boundary IDs such as b3 are stable internal coordinates, not student-facing
+ * position labels. Translate only the five candidates of the matching
+ * insertion question so saved source data can remain unchanged.
+ */
+export function humanizeProvidedPassageBoundaryReferences(set: EnglishQuestionSet, questionId: string, text: string) {
+  const operation = set.providedPassageV02?.results?.find((result) => result.itemId === questionId)?.materialOperation
+  if (!operation || operation.kind !== 'insert_sentence' || !text) return text
+  const labels = new Map(operation.candidateBoundaryIds.map((id, index) => [id, CSAT_INLINE_POSITION_CHOICES[index] ?? `${index + 1}`]))
+  return text.replace(/(^|[^A-Za-z0-9_])(b\d+)(?=$|[^A-Za-z0-9_])/g, (match, prefix: string, boundaryId: string) => {
+    const label = labels.get(boundaryId)
+    return label ? `${prefix}${label}` : match
+  })
+}
+
 export function providedPassageV02PresentationSpec(set: EnglishQuestionSet, questionId?: string) {
   const state = set.providedPassageV02
   const matchingResults = state?.results?.filter((result) => result.materialOperation?.kind === 'insert_sentence') ?? []

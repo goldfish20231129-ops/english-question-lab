@@ -106,6 +106,7 @@ export function generateExplanationPrompt(set: EnglishQuestionSet) {
 - 정답이 없거나 복수 정답 가능성이 있으면 임의로 정답을 고치지 말고 explanation 첫머리에 "[정답 충돌 확인 필요]"를 표시한다.
 - evidenceRefs는 지문에 실제로 존재하는 결정적 문장이나 구절을 직접 인용한다.
 - distractorReasons는 정답을 제외한 각 오답의 번호와 틀린 이유를 순서대로 기록한다. 예: "② 범위를 과도하게 확대했다."
+- 문장 삽입 해설에서 b0, b3 같은 내부 boundary ID를 출력하지 않는다. 제공된 candidateBoundaryIds의 배열 순서에 따라 반드시 ①, ②, ③, ④, ⑤ 위치 기호로 표현한다.
 - 설명이나 마크다운 없이 아래 형식의 유효한 JSON 객체 하나만 반환한다.
 
 [응답 식별 정보]
