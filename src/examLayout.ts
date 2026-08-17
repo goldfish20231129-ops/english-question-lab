@@ -234,23 +234,11 @@ export function buildExamFlowBlocks(exam: EnglishExamDocument, sets: EnglishQues
       }
       const plainMaterial = templateId === '25' && questions[0] ? embedCsatChartChoices(material, questions[0].choices) : material
       const pushPlainMaterial = () => splitMaterial(collapseCsatProseParagraphs(plainMaterial, templateId)).forEach((text, index) => {
-        const maxChars = layout.columns === 2 ? 980 : 1700
-        const pieces: string[] = []
-        let rest = text
-        while (!keepTogetherId && rest.length > maxChars) {
-          let cut = rest.lastIndexOf('. ', maxChars)
-          if (cut < maxChars * 0.55) cut = rest.lastIndexOf(' ', maxChars)
-          if (cut < maxChars * 0.55) cut = maxChars
-          pieces.push(rest.slice(0, cut + 1).trim())
-          rest = rest.slice(cut + 1).trim()
-        }
-        if (rest) pieces.push(rest)
-        pieces.forEach((piece, pieceIndex) => result.push({
-          id: `${entry.id}-material-${index}-${pieceIndex}`, sourceId: `${entry.id}-material-${index}`, setId: blockSetId, kind: 'material',
-          units: lines(piece, width) + 1, text: piece, set, csatItem, keepTogetherId,
-          materialContinues: set.mode === 'csat' && Boolean(csatItem) && pieceIndex < pieces.length - 1,
+        result.push({
+          id: `${entry.id}-material-${index}`, sourceId: `${entry.id}-material-${index}`, setId: blockSetId, kind: 'material',
+          units: lines(text, width) + 1, text, set, csatItem, keepTogetherId,
           effectiveLayout: layout, override,
-        }))
+        })
       })
       if (includeMaterial && set.mode === 'csat' && templateId === '41-42') {
         const text = csatLongExpositoryText(material, materialSpec)

@@ -196,6 +196,22 @@ describe('공통 조판 회귀', () => {
     expect(materials[0].text).toContain('The final sentence stays in the same paragraph.')
   })
 
+  it('학교형 2단의 긴 공유 지문도 고정 문자 수로 나누지 않는다', () => {
+    const set = createEnglishSet('school')
+    set.id = 'continuous-school-passage'
+    set.material = `${'A connected school passage continues without a paragraph break. '.repeat(24)}The final sentence remains attached to the same passage.`
+    const doc = exam()
+    doc.layout = createExamLayout('school-exam')
+    doc.contentEntries = contentEntriesForSet(set)
+    doc.setIds = [set.id]
+
+    const materials = buildExamFlowBlocks(doc, [set], []).filter((block) => block.kind === 'material')
+
+    expect(set.material.length).toBeGreaterThan(980)
+    expect(materials).toHaveLength(1)
+    expect(materials[0].text).toBe(set.material)
+  })
+
   it('40번은 발문·원문 상자·요약문 상자·선지를 하나의 조판 묶음으로 만든다', () => {
     const set = csatSet('summary', '40')
     set.csatItems![0].material = 'Source passage ends here.\n\nThe summary is [[요약빈칸:A]] and [[요약빈칸:B]].'
