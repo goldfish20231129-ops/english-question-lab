@@ -302,6 +302,7 @@ h1, h2, h3, h4, p { margin-top: 0; }
 .csat-long-expository-box p, .csat-long-narrative-box p { margin: 0; }
 .csat-long-narrative-label { display: block; margin-bottom: 4px; text-align: center; }
 .live-paper article { margin-top: 14px; }
+.live-paper article.school-inline-grammar { padding-bottom: 8px; }
 .csat-live-paper article { margin-top: 7px; }
 .live-paper article h4 { margin: 0 0 8px; text-align: left; }
 .live-paper ol, .paper-question ol { display: grid; gap: 3px; margin: 0; padding: 0; list-style: none; }
@@ -438,6 +439,7 @@ h1, h2, h3, h4, p { margin-top: 0; }
 .exam-page.preset-school-exam .paper-material, .exam-page.preset-school-exam .paper-structured-material { margin-bottom: 2.2mm; }
 .exam-page.preset-school-exam .paper-material.bordered { padding: 2mm; }
 .exam-page.preset-school-exam .paper-question h4 { margin-bottom: 1mm; font-family: "Noto Serif KR", serif; }
+.exam-page.preset-school-exam .paper-question.school-inline-grammar { padding-bottom: 4mm; }
 .exam-page.preset-school-exam .paper-question ol { gap: .45mm; }
 .exam-page.preset-school-exam .paper-footer { margin-top: 2mm; padding-top: 1mm; border-top-color: #555; color: #444; font-size: 7pt; }
 .paper-question.question-lead { margin-bottom: 1.5mm; }

@@ -153,9 +153,12 @@ export function QuestionContent({ question, number, part = 'full', set, preset }
   return <>{showLead && <h4><b>{number}.</b> <EnglishText text={question.stem} />{question.score && (preset === 'school-exam' || question.score !== 2) && <em>[{question.score}점]</em>}</h4>}{showLead && <QuestionScopedMaterial set={set} question={question} />}{showChoices && <div className={`school-choice-container school-choice-container-${choiceLayout}`}><ol>{question.choices.map((choice, index) => <li key={index}><span>{CIRCLED[index] ?? `${index + 1}.`}</span><ChoiceText choice={choice} matrix={choiceLayout === 'matrix'} /></li>)}</ol></div>}</>
 }
 
+const isInlineSchoolGrammar = (set: EnglishQuestionSet | undefined, question: EnglishQuestion | undefined) => Boolean(question?.type === '어법' && usesInlineSchoolChoices(set, question))
+
 function QuestionBlock({ block }: { block: ExamFlowBlock }) {
   const part = block.questionPart ?? 'full'
-  return <article className={`paper-question question-${part}`} data-flow-id={block.id}><QuestionContent question={block.question!} number={block.questionNumber!} part={part} set={block.set} preset={block.effectiveLayout.preset} /></article>
+  const inlineGrammar = isInlineSchoolGrammar(block.set, block.question)
+  return <article className={`paper-question question-${part}${inlineGrammar ? ' school-inline-grammar' : ''}`} data-flow-id={block.id}><QuestionContent question={block.question!} number={block.questionNumber!} part={part} set={block.set} preset={block.effectiveLayout.preset} /></article>
 }
 
 function FlowBlock({ block }: { block: ExamFlowBlock }) {
@@ -339,7 +342,7 @@ export function SetLivePreview({ set, assets = [] }: { set: EnglishQuestionSet; 
   const providedSharedBlock = providedSharedMaterial && <div className={`live-material${set.layoutOverride?.passageBorder === false ? '' : ' bordered'}`}><p><EnglishText text={collapseCsatProseParagraphs(providedSharedMaterial)} /></p></div>
   const questions = set.providedPassageV02 ? orderedProvidedPassageV02Questions(set) : orderedSchoolQuestions(set)
   const renderDefaultMaterial = !scopedMaterial && !generatedSharedMaterial
-  return <div className="live-paper"><header><span>{set.mode === 'school' ? '내신형 영어' : '맞춤설정형 영어'}</span><strong>{set.title}</strong></header>{set.materialTitle && <h4>{set.materialTitle}</h4>}{providedSharedStructuredBlock}{providedSharedBlock}{generatedSharedBlock}{renderDefaultMaterial && presentationSpec?.kind === 'summary' && plainMaterial}{renderDefaultMaterial && structuredMaterial}{renderDefaultMaterial && (!structuredReplacesText && presentationSpec?.kind !== 'summary') && plainMaterial}{assets.map((asset) => <figure key={asset.id}><img src={asset.dataUrl} alt={asset.caption || asset.name} /><figcaption>{asset.caption}</figcaption></figure>)}{questions.map((question, index) => <article key={question.id}><QuestionContent question={question} number={index + 1} set={set} /></article>)}</div>
+  return <div className="live-paper"><header><span>{set.mode === 'school' ? '내신형 영어' : '맞춤설정형 영어'}</span><strong>{set.title}</strong></header>{set.materialTitle && <h4>{set.materialTitle}</h4>}{providedSharedStructuredBlock}{providedSharedBlock}{generatedSharedBlock}{renderDefaultMaterial && presentationSpec?.kind === 'summary' && plainMaterial}{renderDefaultMaterial && structuredMaterial}{renderDefaultMaterial && (!structuredReplacesText && presentationSpec?.kind !== 'summary') && plainMaterial}{assets.map((asset) => <figure key={asset.id}><img src={asset.dataUrl} alt={asset.caption || asset.name} /><figcaption>{asset.caption}</figcaption></figure>)}{questions.map((question, index) => <article className={isInlineSchoolGrammar(set, question) ? 'school-inline-grammar' : undefined} key={question.id}><QuestionContent question={question} number={index + 1} set={set} /></article>)}</div>
 }
 
 function CsatItemPreview({ set, item, index, startNumber, assets }: { set: EnglishQuestionSet; item: CsatItemDesign; index: number; startNumber: number; assets: MediaAsset[] }) {

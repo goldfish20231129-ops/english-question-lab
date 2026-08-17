@@ -96,6 +96,7 @@ describe('내신형 새 지문 혼합 세트 출력', () => {
     expect(html).toContain('① <u>student</u>')
     expect(html).toContain('③ <u>arrive</u>')
     expect(html).toContain('⑤ <u>bring</u>')
+    expect(html).toContain('school-inline-grammar')
     expect(html).not.toContain('<ol>')
     expect(html).not.toContain('\n')
   })
