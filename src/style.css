@@ -70,8 +70,17 @@ h1, h2, h3, h4, p { margin-top: 0; }
 .sidebar-heading h2 { margin: 3px 0 10px; font-size: 17px; }
 .set-sidebar > p { color: #718078; font-size: 12px; line-height: 1.5; }
 .set-list { display: grid; gap: 8px; }
-.set-list button { display: grid; gap: 4px; width: 100%; text-align: left; }
-.set-list button.active { border-color: #3c7151; background: #e9f1ea; box-shadow: inset 3px 0 #3c7151; }
+.set-list-item { display: grid; grid-template-columns: minmax(0, 1fr) auto; overflow: hidden; border: 1px solid #cbd5ce; border-radius: 9px; background: #fff; }
+.set-list-item.active { border-color: #3c7151; background: #e9f1ea; box-shadow: inset 3px 0 #3c7151; }
+.set-list-item.delete-selected { border-color: #b75b4d; box-shadow: inset 3px 0 #b75b4d; }
+.set-list-open { display: grid; min-width: 0; gap: 4px; width: 100%; padding: 11px 8px 11px 12px; border: 0; border-radius: 0; background: transparent; text-align: left; }
+.set-list-open:hover { background: #f1f5f1; }
+.set-delete-check { display: grid; align-content: center; justify-items: center; gap: 3px; min-width: 48px; padding: 8px 7px; border-left: 1px solid #dce3de; color: #8c4a40; cursor: pointer; font-size: 10px; font-weight: 700; }
+.set-delete-check:hover { background: #fff4f1; }
+.set-delete-check input { width: auto; margin: 0; }
+.set-delete-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 10px; }
+.set-delete-actions button { padding: 7px 6px; font-size: 10px; }
+.set-delete-actions .danger { grid-column: 1 / -1; text-align: center; }
 .set-list span, .set-list small { color: #69776f; font-size: 11px; }
 .empty-state { padding: 25px 15px; border: 1px dashed #bec9c1; border-radius: 10px; color: #738078; text-align: center; }
 .set-editor, .assembly-editor { display: grid; gap: 13px; }

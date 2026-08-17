@@ -131,6 +131,7 @@ function SetWorkspace({ mode, bundle, setBundle, notify, onOpenVerification }: P
   const [explanationPrompt, setExplanationPrompt] = useState('')
   const [issues, setIssues] = useState<ValidationIssue[]>([])
   const [reviewPrompt, setReviewPrompt] = useState('')
+  const [selectedSetIds, setSelectedSetIds] = useState<string[]>([])
   const [gptConfig, setGptConfig] = useState<EnglishGptConfig>({ school: '', csat: '', custom: '', csatVerifier: '' })
   const active = bundle.questionSets.find((set) => set.id === activeId && set.mode === mode)
   const schoolProvidedMode = active?.mode === 'school' && active.materialMode === 'provided'
@@ -145,6 +146,7 @@ function SetWorkspace({ mode, bundle, setBundle, notify, onOpenVerification }: P
   const imageInput = useRef<HTMLInputElement>(null)
   useEffect(() => { if (!active) setActiveId(filtered[0]?.id ?? '') }, [mode, active, filtered])
   useEffect(() => { setJsonInput(''); setExplanationInput(''); setExplanationPrompt(''); setIssues([]); setReviewPrompt('') }, [activeId])
+  useEffect(() => { setSelectedSetIds((current) => current.filter((id) => filtered.some((set) => set.id === id))) }, [mode, bundle.questionSets])
   useEffect(() => { void loadEnglishGptConfig().then(setGptConfig) }, [])
 
   const addSet = () => {
@@ -227,12 +229,42 @@ function SetWorkspace({ mode, bundle, setBundle, notify, onOpenVerification }: P
     const stem = questionType === 'content_match' ? `다음 글의 내용과 ${schoolProvided.contentMatchPolarity === 'match' ? '일치하는' : '일치하지 않는'} 것은?` : '글의 흐름으로 보아, 주어진 문장이 들어가기에 가장 적절한 곳은?'
     updateSet({ providedPassage: updateProvidedPassageState(schoolProvided, active.material, { questionType }), questions: active.questions.map((question, index) => index === 0 ? { ...question, type, stem, choices: Array.from({ length: 5 }, (_, choiceIndex) => question.choices[choiceIndex] ?? ''), answerIndex: Math.min(question.answerIndex, 5), csatTemplateId: questionType === 'sentence_insertion' ? '38' : undefined, csatSlot: questionType === 'sentence_insertion' ? '문장 삽입' : undefined, csatItemId: undefined } : question), choiceCount: 5, prompt: '', lastImportedJson: '' })
   }
+  const deleteSets = (ids: string[]) => {
+    const selected = new Set(ids)
+    const relatedAssets = bundle.mediaAssets.filter((asset) => selected.has(asset.setId))
+    const changedExams = bundle.exams.flatMap((exam) => {
+      const setIds = exam.setIds.filter((id) => !selected.has(id))
+      const contentEntries = exam.contentEntries?.filter((entry) => !selected.has(entry.setId))
+      const changed = setIds.length !== exam.setIds.length || contentEntries?.length !== exam.contentEntries?.length
+      return changed ? [{ ...exam, setIds, contentEntries, updatedAt: new Date().toISOString() }] : []
+    })
+    const changedExamById = new Map(changedExams.map((exam) => [exam.id, exam]))
+    const remaining = bundle.questionSets.filter((set) => !selected.has(set.id))
+    setBundle((value) => ({
+      ...value,
+      questionSets: value.questionSets.filter((set) => !selected.has(set.id)),
+      mediaAssets: value.mediaAssets.filter((asset) => !selected.has(asset.setId)),
+      exams: value.exams.map((exam) => changedExamById.get(exam.id) ?? exam),
+    }))
+    if (selected.has(activeId)) setActiveId(remaining.find((set) => set.mode === mode)?.id ?? '')
+    persistLocally(Promise.all([
+      ...ids.map((id) => deleteQuestionSet(id)),
+      ...relatedAssets.map((asset) => deleteMediaAsset(asset.id)),
+      ...changedExams.map((exam) => saveExamDocument(exam)),
+    ]), ids.length > 1 ? '선택 세트 삭제' : '세트 삭제', notify)
+    setSelectedSetIds([])
+  }
   const removeSet = () => {
     if (!active || !window.confirm(`‘${active.title}’ 세트를 삭제할까요?`)) return
-    setBundle((value) => ({ ...value, questionSets: value.questionSets.filter((set) => set.id !== active.id), mediaAssets: value.mediaAssets.filter((asset) => asset.setId !== active.id), exams: value.exams.map((exam) => ({ ...exam, setIds: exam.setIds.filter((id) => id !== active.id), contentEntries: exam.contentEntries?.filter((entry) => entry.setId !== active.id) })) }))
-    persistLocally(deleteQuestionSet(active.id), '세트 삭제', notify)
-    bundle.mediaAssets.filter((asset) => asset.setId === active.id).forEach((asset) => persistLocally(deleteMediaAsset(asset.id), '이미지 삭제', notify))
+    deleteSets([active.id])
     notify('세트를 삭제했습니다.')
+  }
+  const toggleSetForDeletion = (setId: string) => setSelectedSetIds((current) => current.includes(setId) ? current.filter((id) => id !== setId) : [...current, setId])
+  const deleteSelectedSets = () => {
+    if (!selectedSetIds.length || !window.confirm(`선택한 세트 ${selectedSetIds.length}개를 삭제할까요? 연결된 시험지에서는 해당 세트 문항만 빠집니다.`)) return
+    const count = selectedSetIds.length
+    deleteSets(selectedSetIds)
+    notify(`선택한 세트 ${count}개를 삭제했습니다.`)
   }
   const copy = async (value: string, message: string) => {
     if (!value.trim()) { notify('먼저 내용을 생성해 주세요.'); return }
@@ -291,7 +323,8 @@ function SetWorkspace({ mode, bundle, setBundle, notify, onOpenVerification }: P
     <aside className="set-sidebar">
       <div className="sidebar-heading"><div><span className="eyebrow">{MODE_LABELS[mode].toUpperCase()}</span><h2>{MODE_LABELS[mode]} 세트</h2></div><button className="primary" onClick={addSet}>+ 새 세트</button></div>
       <p>{MODE_HELP[mode]}</p>
-      <div className="set-list">{filtered.map((set) => <button className={set.id === activeId ? 'active' : ''} key={set.id} onClick={() => setActiveId(set.id)}><strong>{set.title}</strong><span>{allSetQuestions(set).length}문항 · 난이도 {set.mode === 'custom' ? `${set.difficulty}/5` : englishDifficultyLabel(set.difficulty)}</span><small>{set.aiRevision ? `AI 결과 v${set.aiRevision}` : '조건 설계 중'}</small></button>)}</div>
+      <div className="set-list">{filtered.map((set) => <div className={`set-list-item${set.id === activeId ? ' active' : ''}${selectedSetIds.includes(set.id) ? ' delete-selected' : ''}`} key={set.id}><button className="set-list-open" onClick={() => setActiveId(set.id)}><strong>{set.title}</strong><span>{allSetQuestions(set).length}문항 · 난이도 {set.mode === 'custom' ? `${set.difficulty}/5` : englishDifficultyLabel(set.difficulty)}</span><small>{set.aiRevision ? `AI 결과 v${set.aiRevision}` : '조건 설계 중'}</small></button><label className="set-delete-check"><input type="checkbox" aria-label={`‘${set.title}’ 세트 삭제 선택`} checked={selectedSetIds.includes(set.id)} onChange={() => toggleSetForDeletion(set.id)} /><span>삭제</span></label></div>)}</div>
+      {filtered.length > 0 && <div className="set-delete-actions"><button type="button" onClick={() => setSelectedSetIds(filtered.map((set) => set.id))}>전체 선택</button><button type="button" disabled={!selectedSetIds.length} onClick={() => setSelectedSetIds([])}>선택 해제</button><button type="button" className="danger" disabled={!selectedSetIds.length} onClick={deleteSelectedSets}>선택한 세트 삭제 ({selectedSetIds.length})</button></div>}
       {!filtered.length && <div className="empty-state">아직 세트가 없습니다.</div>}
     </aside>
     {!active ? <section className="empty-editor"><h2>{MODE_LABELS[mode]} 영어 세트 제작</h2><p>새 세트를 만들어 출제 조건을 설계하세요.</p><button className="primary" onClick={addSet}>첫 세트 만들기</button></section> : <>
