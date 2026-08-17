@@ -60,7 +60,7 @@ choiceLanguage가 ko이면 모든 선지는 한국어, en이면 모든 선지는
 
 ## 요약문 완성
 
-`summary`는 `templateId: school-summary`, `choiceLanguage: en`, `contentMatchPolarity: null`, `grammarTarget: null`, `grammarMode: null`, `requiredCandidateBoundaryCount: null`을 사용한다. 공통 권위 원문은 반복하거나 수정하지 않고 `question.summaryText`에 원문의 중심 내용과 핵심 관계를 재진술한 자연스러운 영어 한 문장을 별도로 작성한다. Request의 `requiredStem`은 다른 유형과 마찬가지로 글자 단위로 그대로 사용하고, materialOperation은 null로 반환한다.
+`summary`는 `templateId: school-summary`, `choiceLanguage: en`, `contentMatchPolarity: null`, `grammarTarget: null`, `grammarMode: null`, `requiredCandidateBoundaryCount: null`을 사용한다. JSON 응답에는 권위 원문을 반복하거나 수정하지 않고 `question.summaryText`에 원문의 중심 내용과 핵심 관계를 재진술한 자연스러운 영어 한 문장을 별도로 작성한다. 앱은 시험지에서 같은 원문을 요약 문항 앞에 다시 출력한다. Request의 `requiredStem`은 다른 유형과 마찬가지로 글자 단위로 그대로 사용하고, materialOperation은 null로 반환한다.
 
 `summaryText`에는 `[[요약빈칸:A]]`와 `[[요약빈칸:B]]`를 각각 정확히 한 번 넣는다. choices는 `A값|B값` 형식의 서로 다른 단어쌍 다섯 개로 작성하되 발문과 같은 언어를 사용한다. 각 choice에는 `|`가 정확히 하나 있어야 하고 양쪽 값이 모두 비어 있지 않아야 한다. 정답은 두 빈칸을 문법적·의미적·논리적으로 모두 충족하는 하나뿐이어야 한다.
 

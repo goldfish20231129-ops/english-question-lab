@@ -74,16 +74,16 @@ describe('새 자료 내신형 문항별 지문 표시', () => {
     expect(generatedSchoolInsertionMarkupIssues(set)[0]).toContain('①')
   })
 
-  it('학교 시험형은 삽입 위치가 있는 공통 지문을 한 번만 공유한다', () => {
+  it('예전 공통 지문 공유 설정도 삽입 문항을 독립 지문으로 출력한다', () => {
     const set = createEnglishSet('school')
     set.schoolInsertionPresentation = 'shared'
     set.questions = [createQuestion('문장 삽입'), createQuestion('어법'), createQuestion('내용 이해')]
     set.material = MARKED
 
-    expect(usesQuestionScopedSchoolMaterial(set)).toBe(false)
-    expect(orderedGeneratedSchoolQuestions(set).map((question) => question.type)).toEqual(['문장 삽입', '어법', '내용 이해'])
-    expect(generatedSchoolSharedMaterialPresentation(set)?.spec).toMatchObject({ kind: 'insertion', givenSentence: 'This evidence changed their view.' })
-    expect(schoolQuestionMaterialPresentation(set, set.questions[0])).toEqual({ text: '' })
+    expect(usesQuestionScopedSchoolMaterial(set)).toBe(true)
+    expect(orderedGeneratedSchoolQuestions(set).map((question) => question.type)).toEqual(['어법', '내용 이해', '문장 삽입'])
+    expect(generatedSchoolSharedMaterialPresentation(set)?.text).toContain('The class reviewed the claim.')
+    expect(schoolQuestionMaterialPresentation(set, set.questions[0]).spec).toMatchObject({ kind: 'insertion', givenSentence: 'This evidence changed their view.' })
   })
 
   it('같은 공통 지문의 어법과 문장 삽입에 서로 다른 기호군을 배정한다', () => {
@@ -98,7 +98,7 @@ describe('새 자료 내신형 문항별 지문 표시', () => {
     expect(schoolInlineChoiceLabels(set, insertion)).toEqual(['ⓐ', 'ⓑ', 'ⓒ', 'ⓓ', 'ⓔ'])
     expect(schoolQuestionDisplayStem(set, grammar)).toContain('선택 기호: ㉠~㉤')
     expect(schoolQuestionDisplayStem(set, insertion)).toContain('선택 기호: ⓐ~ⓔ')
-    const spec = generatedSchoolSharedMaterialPresentation(set)?.spec
+    const spec = schoolQuestionMaterialPresentation(set, insertion).spec
     expect(spec).toMatchObject({ kind: 'insertion' })
     if (spec?.kind !== 'insertion') throw new Error('삽입형 자료가 필요합니다.')
     expect(spec.body).toContain('㉠ [[밑줄:They]]')
@@ -128,6 +128,7 @@ describe('새 자료 내신형 문항별 지문 표시', () => {
     expect(usesQuestionScopedSchoolMaterial(set)).toBe(true)
     expect(generatedSchoolSharedMaterialPresentation(set)?.text).toBe(set.material)
     expect(schoolQuestionMaterialPresentation(set, content)).toEqual({ text: '' })
+    expect(schoolQuestionMaterialPresentation(set, summary).text).toBe(set.material)
     expect(schoolQuestionMaterialPresentation(set, summary).spec).toEqual({ kind: 'summary', summary: summary.schoolSummaryText })
   })
 
@@ -138,7 +139,8 @@ describe('새 자료 내신형 문항별 지문 표시', () => {
     set.material = 'The original passage remains the shared source.'
     set.materialSpec = { kind: 'summary', summary: 'Evidence [[요약빈칸:A]] a claim and [[요약빈칸:B]] uncertainty.' }
 
-    expect(generatedSchoolSharedMaterialPresentation(set)?.text).toBe(set.material)
+    expect(generatedSchoolSharedMaterialPresentation(set)).toBeUndefined()
+    expect(schoolQuestionMaterialPresentation(set, summary).text).toBe(set.material)
     expect(schoolQuestionMaterialPresentation(set, summary).spec).toEqual(set.materialSpec)
   })
 })

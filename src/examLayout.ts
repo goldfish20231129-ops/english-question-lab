@@ -1,7 +1,7 @@
 import { collapseCsatProseParagraphs, csatLongExpositoryText, csatLongNarrativeSections, csatPrintFlow, embedCsatChartChoices, getCsatItems, splitCsatSummaryMaterial } from './csat'
 import { providedPassagePresentationSpec } from './providedPassage'
 import { providedPassageV02PresentationSpec, providedPassageV02QuestionMaterialText, providedPassageV02SharedMaterialText, providedPassageV02SharedPresentationSpec } from './providedPassageV02'
-import { generatedSchoolSharedMaterialPresentation, isSchoolInsertionQuestion, orderedSchoolQuestions, schoolQuestionMaterialPresentation, usesInlineSchoolChoices, usesQuestionScopedSchoolMaterial } from './schoolMaterial'
+import { generatedSchoolSharedMaterialPresentation, isSchoolInsertionQuestion, isSchoolSummaryQuestion, orderedSchoolQuestions, schoolQuestionMaterialPresentation, usesInlineSchoolChoices, usesQuestionScopedSchoolMaterial } from './schoolMaterial'
 import type { CsatItemDesign, CsatMaterialSpec, EnglishExamDocument, EnglishQuestion, EnglishQuestionSet, ExamContentEntry, ExamLayoutSettings, MediaAsset, SetLayoutOverride } from './types'
 
 export type ExamFlowKind = 'set-header' | 'structured-material' | 'summary-material' | 'long-expository-material' | 'long-narrative-section' | 'material' | 'asset' | 'question' | 'question-lead' | 'question-choices'
@@ -337,15 +337,17 @@ export function buildExamFlowBlocks(exam: EnglishExamDocument, sets: EnglishQues
       const choiceUnits = usesInlineSchoolChoices(set, question) ? 0 : question.choices.reduce((sum, choice) => sum + lines(choice, width), 0)
       const scopedGeneratedMaterial = usesQuestionScopedSchoolMaterial(set)
       const generatedPresentation = scopedGeneratedMaterial ? schoolQuestionMaterialPresentation(set, question) : undefined
-      const providedInsertion = Boolean(set.providedPassageV02 && isSchoolInsertionQuestion(question))
+      const providedQuestionMaterial = Boolean(set.providedPassageV02 && (isSchoolInsertionQuestion(question) || isSchoolSummaryQuestion(question)))
       const questionMaterialSpec = part !== 'choices'
-        ? providedInsertion ? providedPassageV02PresentationSpec(set, question.id) : generatedPresentation?.spec
+        ? providedQuestionMaterial ? providedPassageV02PresentationSpec(set, question.id) : generatedPresentation?.spec
         : undefined
+      const questionSourceText = part === 'choices' ? ''
+        : providedQuestionMaterial ? providedPassageV02QuestionMaterialText(set, question.id)
+          : generatedPresentation?.text ?? ''
       const questionMaterialText = part === 'choices' ? ''
         : questionMaterialSpec?.kind === 'insertion' ? `${questionMaterialSpec.givenSentence} ${questionMaterialSpec.body}`
-          : questionMaterialSpec?.kind === 'summary' ? questionMaterialSpec.summary
-          : providedInsertion ? providedPassageV02QuestionMaterialText(set, question.id)
-            : generatedPresentation?.text ?? ''
+          : questionMaterialSpec?.kind === 'summary' ? `${questionSourceText} ${questionMaterialSpec.summary}`
+          : questionSourceText
       const questionMaterialUnits = questionMaterialText ? lines(collapseCsatProseParagraphs(questionMaterialText), width) + 3 : 0
       result.push({
         id: `${entry.id}-${question.id}-${part}`, sourceId: `${entry.id}-${question.id}`, setId: blockSetId,

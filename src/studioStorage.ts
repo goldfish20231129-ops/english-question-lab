@@ -105,7 +105,7 @@ export function normalizeQuestionSet(value: EnglishQuestionSet): EnglishQuestion
   if (normalized.mode !== 'school') return normalized
   return {
     ...normalized,
-    schoolInsertionPresentation: normalized.schoolInsertionPresentation ?? 'isolated',
+    schoolInsertionPresentation: normalized.mode === 'school' ? 'isolated' : normalized.schoolInsertionPresentation,
     questions: normalized.questions.map((question) => {
       const template = inferSchoolQuestionTemplate(question)
       const schoolStemLanguage = question.schoolStemLanguage ?? (/[A-Za-z]/.test(question.stem) && !/[가-힣]/.test(question.stem) ? 'en' : 'ko')

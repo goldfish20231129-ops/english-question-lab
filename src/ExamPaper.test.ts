@@ -69,10 +69,10 @@ describe('내신형 새 지문 혼합 세트 출력', () => {
     expect(html.indexOf(set.questions[0].stem)).toBeLessThan(html.indexOf('글의 흐름으로 보아'))
 
     set.schoolInsertionPresentation = 'shared'
-    const sharedHtml = renderToStaticMarkup(createElement(SetLivePreview, { set }))
-    expect(sharedHtml.match(/First sentence explains the topic\./g)).toHaveLength(1)
-    expect(sharedHtml.match(/This connection becomes clearer/g)).toHaveLength(1)
-    expect(sharedHtml.match(/class="insertion-position"/g)).toHaveLength(5)
+    const legacySharedHtml = renderToStaticMarkup(createElement(SetLivePreview, { set }))
+    expect(legacySharedHtml.match(/First sentence explains the topic\./g)).toHaveLength(2)
+    expect(legacySharedHtml.match(/This connection becomes clearer/g)).toHaveLength(1)
+    expect(legacySharedHtml.match(/class="insertion-position"/g)).toHaveLength(5)
   })
 
   it('해설의 내부 boundary ID를 문항 위치 기호로 표시한다', () => {
@@ -125,7 +125,7 @@ describe('내신형 새 지문 혼합 세트 출력', () => {
     expect(html).not.toContain('\n')
   })
 
-  it('학교 시험형 공유 삽입은 위치가 표시된 공통 지문을 중복 출력하지 않는다', () => {
+  it('예전 공유 설정이 남아 있어도 삽입 문항은 같은 지문을 다시 출력한다', () => {
     const set = createEnglishSet('school')
     set.schoolInsertionPresentation = 'shared'
     set.questions = [createQuestion('내용 이해'), createQuestion('문장 삽입')]
@@ -133,12 +133,12 @@ describe('내신형 새 지문 혼합 세트 출력', () => {
 
     const html = renderToStaticMarkup(createElement(SetLivePreview, { set }))
 
-    expect(html.match(/Shared opening\./g)).toHaveLength(1)
+    expect(html.match(/Shared opening\./g)).toHaveLength(2)
     expect(html.match(/Given sentence\./g)).toHaveLength(1)
     expect(html.match(/class="insertion-position"/g)).toHaveLength(5)
   })
 
-  it('내신형 요약문을 공통 지문 아래 화살표·상자·단어쌍 선지로 표시한다', () => {
+  it('내신형 요약문 앞에 같은 지문을 다시 출력하고 화살표·상자·단어쌍 선지를 표시한다', () => {
     const set = createEnglishSet('school')
     const content = createQuestion('내용 이해')
     const summary = createQuestion('요약문 완성', 5, 'school')
@@ -149,12 +149,26 @@ describe('내신형 새 지문 혼합 세트 출력', () => {
 
     const html = renderToStaticMarkup(createElement(SetLivePreview, { set }))
 
-    expect(html.match(/Learners compare explanations/g)).toHaveLength(1)
+    expect(html.match(/Learners compare explanations/g)).toHaveLength(2)
     expect(html).toContain('school-summary-material')
     expect(html).toContain('csat-summary-arrow')
     expect(html).toContain('english-summary-blank')
     expect(html).toContain('school-choice-container-matrix')
     expect(html).toContain('<span>enables</span><span>revise</span>')
+  })
+
+  it('요약문만 있는 세트는 공통 블록 없이 문항 안에서 원문을 한 번 출력한다', () => {
+    const set = createEnglishSet('school')
+    const summary = createQuestion('요약문 완성', 5, 'school')
+    summary.schoolSummaryText = 'Evidence [[요약빈칸:A]] learners to [[요약빈칸:B]] conclusions.'
+    set.questions = [summary]
+    set.material = 'A single source passage is printed with its summary question.'
+
+    const html = renderToStaticMarkup(createElement(SetLivePreview, { set }))
+
+    expect(html.match(/A single source passage/g)).toHaveLength(1)
+    expect(html).toContain('csat-summary-passage')
+    expect(html).toContain('csat-summary-sentence')
   })
 
   it('학교형-2단 시험 첫 페이지에 편집 헤더와 자동 문항·배점 합계를 표시한다', () => {

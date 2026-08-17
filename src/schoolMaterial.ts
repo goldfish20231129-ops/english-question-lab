@@ -21,7 +21,6 @@ export function isSchoolSummaryQuestion(question: EnglishQuestion) {
 
 export function orderedGeneratedSchoolQuestions(set: EnglishQuestionSet) {
   if (!isGeneratedSchoolSet(set)) return set.questions
-  if (set.schoolInsertionPresentation === 'shared') return set.questions
   const regular = set.questions.filter((question) => !isSchoolInsertionQuestion(question))
   const insertion = set.questions.filter(isSchoolInsertionQuestion)
   return [...regular, ...insertion]
@@ -29,7 +28,6 @@ export function orderedGeneratedSchoolQuestions(set: EnglishQuestionSet) {
 
 export function orderedSchoolQuestions(set: EnglishQuestionSet) {
   if (set.mode !== 'school' || (!isGeneratedSchoolSet(set) && !set.providedPassageV02)) return set.questions
-  if (set.schoolInsertionPresentation === 'shared') return set.questions
   const regular = set.questions.filter((question) => !isSchoolInsertionQuestion(question))
   const insertion = set.questions.filter(isSchoolInsertionQuestion)
   return [...regular, ...insertion]
@@ -92,8 +90,7 @@ export function relabelGeneratedSchoolSharedMaterial(set: EnglishQuestionSet, te
 
 export function usesQuestionScopedSchoolMaterial(set: EnglishQuestionSet) {
   if (!isGeneratedSchoolSet(set)) return false
-  const hasIsolatedInsertion = set.schoolInsertionPresentation !== 'shared' && set.questions.some(isSchoolInsertionQuestion)
-  return hasIsolatedInsertion || set.questions.some(isSchoolSummaryQuestion)
+  return set.questions.some((question) => isSchoolInsertionQuestion(question) || isSchoolSummaryQuestion(question))
 }
 
 function hasGeneratedSchoolInsertion(set: EnglishQuestionSet) {
@@ -105,11 +102,8 @@ export function cleanInsertionMarkupForOtherQuestion(text: string) {
 }
 
 export function generatedSchoolSharedMaterialPresentation(set: EnglishQuestionSet): { text: string; spec?: CsatMaterialSpec } | undefined {
-  if (hasGeneratedSchoolInsertion(set) && set.schoolInsertionPresentation === 'shared') {
-    const spec = deriveGeneratedSchoolInsertionSpec(set)
-    return spec ? { text: '', spec } : { text: relabelGeneratedSchoolSharedMaterial(set, set.material), spec: set.materialSpec }
-  }
-  if (!usesQuestionScopedSchoolMaterial(set) || !set.questions.some((question) => !isSchoolInsertionQuestion(question))) return undefined
+  const hasRegularQuestion = set.questions.some((question) => !isSchoolInsertionQuestion(question) && !isSchoolSummaryQuestion(question))
+  if (!usesQuestionScopedSchoolMaterial(set) || !hasRegularQuestion) return undefined
   if (set.materialSpec?.kind === 'insertion') return { text: relabelGeneratedSchoolSharedMaterial(set, cleanInsertionMarkupForOtherQuestion(set.materialSpec.body)) }
   return { text: relabelGeneratedSchoolSharedMaterial(set, cleanInsertionMarkupForOtherQuestion(set.material)) }
 }
@@ -154,9 +148,10 @@ export function usesInlineGeneratedSchoolChoices(set: EnglishQuestionSet | undef
 export function schoolQuestionMaterialPresentation(set: EnglishQuestionSet, question: EnglishQuestion): { text: string; spec?: CsatMaterialSpec } {
   if (isSchoolSummaryQuestion(question)) {
     const summary = question.schoolSummaryText ?? (set.materialSpec?.kind === 'summary' ? set.materialSpec.summary : '')
-    return summary ? { text: '', spec: { kind: 'summary', summary } } : { text: '' }
+    const source = set.materialSpec?.kind === 'insertion' ? set.materialSpec.body : set.material
+    const text = relabelGeneratedSchoolSharedMaterial(set, cleanInsertionMarkupForOtherQuestion(source))
+    return summary ? { text, spec: { kind: 'summary', summary } } : { text }
   }
-  if (set.schoolInsertionPresentation === 'shared') return { text: '' }
   if (!usesQuestionScopedSchoolMaterial(set)) return { text: set.material, spec: set.materialSpec }
   if (isSchoolInsertionQuestion(question)) {
     const spec = deriveGeneratedSchoolInsertionSpec(set)

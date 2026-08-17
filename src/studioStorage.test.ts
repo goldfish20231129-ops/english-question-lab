@@ -12,4 +12,11 @@ describe('내신형 선택 필드 저장 정규화', () => {
     expect(normalized.schoolInsertionPresentation).toBe('isolated')
     expect(normalized.questions[0]).toMatchObject({ schoolTemplateId: 'content-inference', schoolChoiceLayout: 'auto' })
   })
+
+  it('예전 공통 지문 공유 설정은 독립 지문 출력 방식으로 정규화한다', () => {
+    const legacy = createEnglishSet('school')
+    legacy.schoolInsertionPresentation = 'shared'
+
+    expect(normalizeQuestionSet(legacy).schoolInsertionPresentation).toBe('isolated')
+  })
 })

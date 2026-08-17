@@ -316,9 +316,7 @@ export function generateEnglishPrompt(set: EnglishQuestionSet): string {
   const activeModeInstructions = set.mode === 'school' && set.materialMode === 'generated'
     ? ['요청된 주제·소재와 학습 수준에 맞는 새 영어 지문을 작성한다.', ...modeInstructions.school.slice(1)]
     : modeInstructions[set.mode]
-  const insertionPresentationRule = set.schoolInsertionPresentation === 'shared'
-    ? '- 문장 삽입 표식이 있는 공통 material을 다른 문항도 함께 사용하고 요청된 questions 순서를 유지한다. 삽입 표식을 제거한 새 지문을 문항별로 반복하지 않는다.'
-    : '- 문장 삽입 문항은 questions 배열의 마지막 문항으로 두고, 공통 지문과 같은 내용을 사용하되 삽입 문장 상자와 위치 표시가 있는 독립 블록으로 출력할 수 있게 한다.'
+  const insertionPresentationRule = '- 문장 삽입 문항은 questions 배열의 마지막 문항으로 두고, 앱이 공통 지문과 같은 내용을 삽입 문장 상자·위치 표시가 있는 독립 블록으로 다시 출력할 수 있게 한다.'
   const inlineMarkerQuestions = set.mode === 'school'
     ? orderedQuestions.filter((question) => question.type === '문장 삽입' || question.schoolTemplateId === 'grammar-error')
     : []
@@ -328,7 +326,7 @@ export function generateEnglishPrompt(set: EnglishQuestionSet): string {
 - 한 세트에서 생성하는 문항은 최대 ${MAX_SCHOOL_SET_QUESTIONS}개다.
 - 아래 문항 구성을 한 번의 응답에 모두 생성하고 최상위 questions 배열의 순서를 그대로 지킨다.
 - 일반 내용 선지의 choices에는 ①~⑤나 1.~5. 같은 번호를 넣지 않고 선지 본문만 작성한다. 번호는 앱이 자동으로 표시한다.
-- 모든 일반 문항은 하나의 공통 material을 공유하며, 문항마다 지문을 반복 생성하지 않는다.
+- 일반 문항은 하나의 공통 material을 공유한다. 요약문 완성과 문장 삽입도 동일한 material 내용을 사용하며, 앱이 각 특수 문항 앞에 같은 지문을 독립적으로 다시 출력한다. AI는 JSON에 material을 한 번만 반환한다.
 - 각 문항은 발문과 내용 선지를 하나의 문항 언어로 통일한다. 문항 언어가 영어이면 발문과 선지를 모두 자연스러운 영어로, 한국어이면 모두 자연스러운 한국어로 작성한다. 위치 번호·표식은 언어 조건에서 제외한다.
 - 내용 이해는 지문에 그대로 진술된 사실을 다시 찾는 문항이 아니다. 지문의 둘 이상의 단서 또는 하나의 충분한 함의를 근거로 가장 타당하게 추론할 수 있는 내용 하나를 고르게 한다.
 - 내용 이해의 정답은 외부 배경지식 없이 지문만으로 도출되어야 하며, 과도한 일반화·인과 비약·범위 왜곡·주체 변경을 오답 원리로 활용한다.
@@ -518,7 +516,7 @@ export function parseEnglishSetJson(raw: string, base: EnglishQuestionSet): Engl
   if (generatedSchool && expectedQuestions.length > MAX_SCHOOL_SET_QUESTIONS) throw new Error(`내신형 세트는 한 번에 최대 ${MAX_SCHOOL_SET_QUESTIONS}문항까지 가져올 수 있습니다.`)
   if (generatedSchool && input.questions.length > MAX_SCHOOL_SET_QUESTIONS) throw new Error(`내신형 AI 결과는 최대 ${MAX_SCHOOL_SET_QUESTIONS}문항까지만 가져올 수 있습니다.`)
   if (generatedSchool && input.questions.length !== expectedQuestions.length) throw new Error(`요청한 ${expectedQuestions.length}개 문항과 응답의 ${input.questions.length}개 문항 수가 다릅니다.`)
-  const inputQuestions = generatedSchool && base.schoolInsertionPresentation !== 'shared'
+  const inputQuestions = generatedSchool
     ? [...input.questions].sort((left, right) => {
       const leftInsertion = Boolean(left && typeof left === 'object' && (left as Record<string, unknown>).type === '문장 삽입')
       const rightInsertion = Boolean(right && typeof right === 'object' && (right as Record<string, unknown>).type === '문장 삽입')
