@@ -1,7 +1,7 @@
 import Ajv2020, { type ErrorObject } from 'ajv/dist/2020'
 import requestSchema from '../docs/english-gpt/provided-passage-request-schema-v0.2.json'
 import responseSchema from '../docs/english-gpt/provided-passage-response-schema-v0.2.json'
-import { CSAT_INLINE_POSITION_CHOICES } from './csat'
+import { CSAT_INLINE_POSITION_CHOICES, normalizeEnglishPassage } from './csat'
 import { fingerprintProvidedPassage, normalizeProvidedPassageForFingerprint, segmentProvidedPassage } from './providedPassage'
 import type {
   CsatQualityReview, EnglishQuestion, EnglishQuestionSet, ProvidedPassageEvidenceSpan, ProvidedPassageGrammarMode,
@@ -22,11 +22,11 @@ export const PROVIDED_PASSAGE_GRAMMAR_LABELS: Record<ProvidedPassageGrammarTarge
   dummy_it: '가주어·진주어', cleft_it_that: '강조 it-that',
 }
 export const PROVIDED_PASSAGE_GRAMMAR_MODE_LABELS: Record<ProvidedPassageGrammarMode, string> = {
-  source_form_check: '원문 형태 확인', controlled_error_variant: '별도 오류 변형',
+  source_form_check: '한 표적 구조 설명형 (기존 호환)', controlled_error_variant: '①~⑤ 어법 오류 찾기',
 }
 export const PROVIDED_PASSAGE_GRAMMAR_MODE_HELP: Record<ProvidedPassageGrammarMode, string> = {
-  source_form_check: '원문에 실제로 쓰인 형태가 문법상 적절한지 판정합니다. 원문 표현을 바꾸지 않습니다.',
-  controlled_error_variant: '원문은 그대로 보존하고, 시험에 제시할 최소 오류형만 presentedForm에 별도로 만듭니다.',
+  source_form_check: '원문의 한 표현에 밑줄을 긋고 문법적 구조를 설명하는 기존 JSON과 호환됩니다.',
+  controlled_error_variant: '원문 속 다섯 표현에 ①~⑤와 밑줄을 표시하고, 그중 하나만 별도 오류형으로 제시합니다.',
 }
 
 export const PROVIDED_PASSAGE_GRAMMAR_RULES: Record<ProvidedPassageGrammarTarget, string> = {
@@ -58,7 +58,7 @@ export function providedPassageV02DefaultStem(
   if (type === 'grammar') {
     const label = PROVIDED_PASSAGE_GRAMMAR_STEM_LABELS[grammarTarget ?? 'relative_clause']
     return grammarMode === 'controlled_error_variant'
-      ? `밑줄 친 ${label}의 어법상 오류에 대한 설명으로 가장 적절한 것은?`
+      ? '다음 글의 밑줄 친 부분 중, 어법상 틀린 것은?'
       : `밑줄 친 ${label}의 문법적 구조에 대한 설명으로 가장 적절한 것은?`
   }
   if (type === 'content_inference') return '다음 글의 내용으로부터 추론할 수 있는 것은?'
@@ -72,7 +72,7 @@ function questionShape(
   grammarMode: ProvidedPassageV02ItemPlan['grammarMode'] = 'source_form_check',
 ): Pick<EnglishQuestion, 'type' | 'stem' | 'choices' | 'answerIndex'> {
   if (type === 'sentence_insertion') return { type: '문장 삽입', stem: providedPassageV02DefaultStem(type), choices: [...CSAT_INLINE_POSITION_CHOICES], answerIndex: 1 }
-  if (type === 'grammar') return { type: '어법', stem: providedPassageV02DefaultStem(type, polarity, grammarTarget, grammarMode), choices: Array.from({ length: 5 }, () => ''), answerIndex: 1 }
+  if (type === 'grammar') return { type: '어법', stem: providedPassageV02DefaultStem(type, polarity, grammarTarget, grammarMode), choices: grammarMode === 'controlled_error_variant' ? [...CSAT_INLINE_POSITION_CHOICES] : Array.from({ length: 5 }, () => ''), answerIndex: 1 }
   if (type === 'content_inference') return { type: '내용 이해', stem: providedPassageV02DefaultStem(type), choices: Array.from({ length: 5 }, () => ''), answerIndex: 1 }
   return { type: '내용 일치 및 불일치', stem: providedPassageV02DefaultStem(type, polarity), choices: Array.from({ length: 5 }, () => ''), answerIndex: 1 }
 }
@@ -101,9 +101,10 @@ export function orderedProvidedPassageV02Plans(plans: ProvidedPassageV02ItemPlan
 }
 
 export function createProvidedPassageV02State(text: string, plans: ProvidedPassageV02ItemPlan[] = [createProvidedPassageV02Plan()]): ProvidedPassageV02State {
-  const sourceFingerprint = fingerprintProvidedPassage(text)
-  const { sentences, boundaries } = segmentProvidedPassage(text)
-  return { version: '0.2', sourcePassageId: `source-${sourceFingerprint.slice(7, 23)}`, sourceFingerprint, originalText: text, normalizedForFingerprint: normalizeProvidedPassageForFingerprint(text), sentences, boundaries, itemPlans: orderedProvidedPassageV02Plans(plans) }
+  const originalText = normalizeEnglishPassage(text)
+  const sourceFingerprint = fingerprintProvidedPassage(originalText)
+  const { sentences, boundaries } = segmentProvidedPassage(originalText)
+  return { version: '0.2', sourcePassageId: `source-${sourceFingerprint.slice(7, 23)}`, sourceFingerprint, originalText, normalizedForFingerprint: normalizeProvidedPassageForFingerprint(originalText), sentences, boundaries, itemPlans: orderedProvidedPassageV02Plans(plans) }
 }
 
 export function transitionSchoolProvidedPassageV02(set: EnglishQuestionSet, mode: 'provided' | 'generated'): EnglishQuestionSet {
@@ -115,7 +116,8 @@ export function transitionSchoolProvidedPassageV02(set: EnglishQuestionSet, mode
   const plans = orderedProvidedPassageV02Plans(currentQuestions.map((question) => createProvidedPassageV02Plan(question.id, replacePristineDefault ? 'content_match' : questionTypeFromExisting(question)!)))
   const questionById = new Map(currentQuestions.map((question) => [question.id, question]))
   const questions = plans.map((plan) => ({ ...questionById.get(plan.itemId)!, ...questionShapeForPlan(plan), id: plan.itemId }))
-  return { ...set, materialMode: 'provided', sourceKind: set.sourceKind === 'generated' ? 'external' : set.sourceKind, choiceCount: 5, providedPassage: undefined, providedPassageV02: createProvidedPassageV02State(set.material, plans), questions }
+  const providedPassageV02 = createProvidedPassageV02State(set.material, plans)
+  return { ...set, material: providedPassageV02.originalText, materialMode: 'provided', sourceKind: set.sourceKind === 'generated' ? 'external' : set.sourceKind, choiceCount: 5, providedPassage: undefined, providedPassageV02, questions }
 }
 
 function questionTypeFromExisting(question: EnglishQuestion): ProvidedPassageV02QuestionType | undefined {
@@ -278,7 +280,7 @@ export function buildProvidedPassageV02Request(set: EnglishQuestionSet) {
 
 export function generateProvidedPassageV02Prompt(set: EnglishQuestionSet) {
   const request = buildProvidedPassageV02Request(set)
-  const grammarDetails = request.items.filter((item) => item.questionType === 'grammar').map((item) => `- ${item.itemId}: ${item.grammarTarget ? PROVIDED_PASSAGE_GRAMMAR_RULES[item.grammarTarget] : ''} 모드는 ${item.grammarMode}. question.stem은 requiredStem과 글자 단위로 같아야 한다. testedSpan은 실제로 밑줄 칠 최소 어법 표현만 가리키며 문장 전체를 범위로 삼지 않는다. sourceForm은 testedSpan.text와 같고 오류 변형은 presentedForm에만 둔다.`).join('\n')
+  const grammarDetails = request.items.filter((item) => item.questionType === 'grammar').map((item) => `- ${item.itemId}: ${item.grammarTarget ? PROVIDED_PASSAGE_GRAMMAR_RULES[item.grammarTarget] : ''} 모드는 ${item.grammarMode}. question.stem은 requiredStem과 글자 단위로 같아야 한다. testedSpan은 실제로 밑줄 칠 최소 어법 표현만 가리키며 문장 전체를 범위로 삼지 않는다. sourceForm은 testedSpan.text와 같고 오류 변형은 presentedForm에만 둔다.${item.grammarMode === 'controlled_error_variant' ? ' question.evidenceSpans에는 원문 순서대로 서로 겹치지 않는 최소 어법 표적을 정확히 5개 넣는다. choices는 ["①","②","③","④","⑤"]로 고정하고, testedSpan은 이 다섯 표적 중 유일하게 틀린 presentedForm을 적용할 한 곳이다. answerIndex는 해당 표적의 순번과 같아야 한다. 나머지 네 표적은 원문 형태를 그대로 제시한다.' : ''}`).join('\n')
   const grammar = `${grammarDetails || '- 어법 문항 없음'}\n- Request Schema V0.2의 items[].requiredStem은 additional property가 아니라 item.required와 item.properties에 모두 정의된 비어 있지 않은 정식 필수 문자열이다. 이를 오류로 판정하거나 Request에서 삭제하지 않는다.\n- question.stem은 대응하는 requiredStem과 공백·문장부호까지 글자 단위로 정확히 같아야 하며 questionType만으로 재구성하지 않는다.\n- 1차 JSON은 문제지와 정답지 완성이 목적이다. question의 explanation, intention, distractorReasons와 item의 qualityReview는 출력하지 않는다. evidenceSpans와 materialOperation은 구조 검증을 위해 반환한다.\n- 앞의 해설 작성 지시는 2차 해설 생성 단계에만 적용하며, 1차 JSON에서는 해설 필드를 생략한다.\n- 기존 방식대로 해설 필드와 qualityReview를 함께 출력해도 앱은 호환하여 가져올 수 있다.`
   return `[PROVIDED_PASSAGE_GENERATION_V0.2]\n당신은 사용자가 제공한 영어 원문을 수정하지 않고 여러 내신형 문항을 설계·생성하는 영어 출제자다.\n\n[절대 원칙]\n- source.passage는 유일한 권위 원문이며 응답에 전체를 반환하지 않는다.\n- 문장 삽입이 아닌 모든 items는 동일한 source.passage 한 지문을 공유한다. 같은 지문을 문항별로 새로 만들거나 반복 반환하지 않는다.\n- 내용 일치·불일치 문항이 여러 개면 같은 원문에서 서로 다른 근거와 오답 원리로 각각 독립된 문항을 만든다.\n- content_inference 내용 이해 문항은 단순 사실 재진술이 아니라 지문의 둘 이상의 단서 또는 하나의 충분한 함의로 도출되는 추론을 묻는다. 정답은 외부 배경지식 없이 원문만으로 유일하게 도출하고, 과도한 일반화·인과 비약·범위 왜곡·주체 변경을 오답으로 사용한다.\n- 내용 이해의 evidenceSpans에는 실제 추론에 사용한 원문 단서를 넣고, 추론 설명은 2차 해설 단계에서 작성한다.\n- 문장 삽입 item은 최대 하나이며 항상 items 배열의 마지막에 둔다.\n- sourcePassageId, sourceFingerprint와 모든 itemId를 그대로 반환한다.\n- sentence ID·offset과 boundary ID·offset은 Request에 있는 값만 사용하며 새로 만들거나 바꾸지 않는다.\n- 각 item의 question.stem은 해당 item의 requiredStem과 공백·문장부호까지 정확히 같아야 한다.\n- items마다 요청된 유형·언어·어휘 수준·문법 태그를 독립적으로 지킨다.\n- 문장 삽입의 generatedSentence, 후보 경계와 표식은 해당 itemId의 materialOperation에만 둔다. 다른 문항이나 공통 원문에 전파하지 않는다.\n- 정답은 문항마다 정확히 하나이며 외부 사실로 판정하지 않는다.\n- 어법 문항은 원문 근거가 하나로 결정될 때만 만든다. source_form_check는 sourceForm과 presentedForm이 같고, controlled_error_variant는 원문을 고치지 않은 채 presentedForm에만 최소 변형을 둔다.\n- 어법 testedSpan은 실제로 밑줄 칠 낱말·구·절의 최소 정확 범위여야 한다. 근거 문장 전체는 evidenceSpans에 둘 수 있지만 testedSpan이나 sourceForm에 문장 전체를 넣지 않는다.\n- 관계대명사는 선행사와 관계절 성분, 동격 that은 완전한 절과 명사 내용 관계, 수 일치는 실제 주어, 분사구문은 의미상 주어와 태, 계속적 관계대명사는 쉼표·that 금지, 대명사 일치는 선행사, 가주어는 진주어, 강조 it-that은 강조 대상과 잔여 절을 반드시 확인한다.\n${grammar || '- 어법 문항 없음'}\n\n[Request 검증 순서]\n1. schemaId와 mode를 확인한다.\n2. 필수 최상위 필드를 확인한다.\n3. items 배열을 확인한다.\n4. 각 item의 필수 필드를 확인한다.\n5. additionalProperties를 검사한다. requiredStem을 포함해 properties에 정의된 필드는 추가 속성이 아니다.\n\n[출력]\nRequest가 유효하면 설계안이나 승인 질문 없이 즉시 ${PROVIDED_PASSAGE_V02_RESPONSE_SCHEMA_ID} 문제·정답 JSON 객체 하나만 출력한다. 유효하지 않으면 오류 목록만 출력하고 임시 JSON, Markdown 설명, 승인 문장, 지원 유형으로의 임의 변경을 출력하지 않는다.\n\n[Request JSON]\n${JSON.stringify(request, null, 2)}`
 }
@@ -287,6 +289,22 @@ function validateSpan(span: ProvidedPassageEvidenceSpan, state: ProvidedPassageV
   const sentence = state.sentences.find((candidate) => candidate.id === span.sentenceId)
   if (!sentence) throw new Error(`${label}: 존재하지 않는 sentenceId ${span.sentenceId}`)
   if (span.start < sentence.start || span.end > sentence.end || span.start >= span.end || state.originalText.slice(span.start, span.end) !== span.text) throw new Error(`${label}: 원문 offset과 text가 일치하지 않습니다.`)
+}
+
+function repairUniqueSpanOffset(span: ProvidedPassageEvidenceSpan, state: ProvidedPassageV02State) {
+  const sentence = state.sentences.find((candidate) => candidate.id === span.sentenceId)
+  if (!sentence || !span.text || state.originalText.slice(span.start, span.end) === span.text) return { span, repaired: false }
+  const indexes: number[] = []
+  let cursor = 0
+  while (cursor <= sentence.text.length - span.text.length) {
+    const index = sentence.text.indexOf(span.text, cursor)
+    if (index < 0) break
+    indexes.push(index)
+    cursor = index + Math.max(1, span.text.length)
+  }
+  if (indexes.length !== 1) return { span, repaired: false }
+  const start = sentence.start + indexes[0]
+  return { span: { ...span, start, end: start + span.text.length }, repaired: true }
 }
 
 function containsAuthoritativePassage(value: unknown, authoritativeText: string): boolean {
@@ -298,12 +316,13 @@ function containsAuthoritativePassage(value: unknown, authoritativeText: string)
 
 export function adaptProvidedPassageV02Response(value: unknown, base: EnglishQuestionSet): EnglishQuestionSet {
   if (!responseValidator(value)) throw new Error(`Provided Passage V0.2 Response Schema 오류: ${(responseValidator.errors ?? []).map(schemaError).join(' / ')}`)
-  const root = value as Record<string, unknown>
+  const normalizedValue = structuredClone(value)
+  const root = normalizedValue as Record<string, unknown>
   const state = base.providedPassageV02
   if (!state) throw new Error('Provided Passage V0.2 상태가 없습니다.')
   const blocked = providedPassageV02BlockingReason(base)
   if (blocked) throw new Error(blocked)
-  if (containsAuthoritativePassage(value, state.originalText)) throw new Error('AI Response에 권위 원문 전체가 포함되어 있어 가져오기를 거부했습니다.')
+  if (containsAuthoritativePassage(normalizedValue, state.originalText)) throw new Error('AI Response에 권위 원문 전체가 포함되어 있어 가져오기를 거부했습니다.')
   if (root.sourcePassageId !== state.sourcePassageId || root.sourceFingerprint !== state.sourceFingerprint) throw new Error('원문 ID 또는 fingerprint가 일치하지 않습니다.')
   const records = root.items as Array<Record<string, unknown>>
   if (records.length !== state.itemPlans.length) throw new Error('응답 문항 수가 요청 문항 수와 일치하지 않습니다.')
@@ -312,6 +331,7 @@ export function adaptProvidedPassageV02Response(value: unknown, base: EnglishQue
   const questions: EnglishQuestion[] = []
   const results: ProvidedPassageV02ItemResult[] = []
   const reviews: CsatQualityReview[] = []
+  const importWarnings: string[] = []
   const orderedPlans = orderedProvidedPassageV02Plans(state.itemPlans)
   for (const plan of orderedPlans) {
     const record = recordById.get(plan.itemId)
@@ -322,7 +342,12 @@ export function adaptProvidedPassageV02Response(value: unknown, base: EnglishQue
     const question = record.question as Record<string, unknown>
     const expectedShape = questionShapeForPlan(plan)
     if (question.type !== expectedShape.type || String(question.stem) !== expectedShape.stem) throw new Error(`${plan.itemId}: 문항 유형 또는 기본 발문이 다릅니다. 요청 발문: “${expectedShape.stem}” / 응답 발문: “${String(question.stem)}”`)
-    const evidenceSpans = question.evidenceSpans as ProvidedPassageEvidenceSpan[]
+    const evidenceSpans = (question.evidenceSpans as ProvidedPassageEvidenceSpan[]).map((span, index) => {
+      const repaired = repairUniqueSpanOffset(span, state)
+      if (repaired.repaired) importWarnings.push(`${plan.itemId}.evidenceSpans[${index}] offset을 원문에서 유일하게 확인된 “${span.text}” 위치로 자동 교정했습니다.`)
+      return repaired.span
+    })
+    question.evidenceSpans = evidenceSpans
     evidenceSpans.forEach((span, index) => validateSpan(span, state, `${plan.itemId}.evidenceSpans[${index}]`))
     const choices = (question.choices as string[]).map((choice) => choice.trim())
     if (new Set(choices.map((choice) => choice.normalize('NFC').replace(/\s+/g, ' ').toLowerCase())).size !== 5) throw new Error(`${plan.itemId}: 선택지는 서로 달라야 합니다.`)
@@ -346,6 +371,9 @@ export function adaptProvidedPassageV02Response(value: unknown, base: EnglishQue
     } else {
       if (!operation || operation.kind !== 'grammar_check') throw new Error(`${plan.itemId}: grammar_check operation이 필요합니다.`)
       const grammarOperation = operation as ProvidedPassageGrammarOperation
+      const repairedTestedSpan = repairUniqueSpanOffset(grammarOperation.testedSpan, state)
+      if (repairedTestedSpan.repaired) importWarnings.push(`${plan.itemId}.testedSpan offset을 원문에서 유일하게 확인된 “${grammarOperation.testedSpan.text}” 위치로 자동 교정했습니다.`)
+      grammarOperation.testedSpan = repairedTestedSpan.span
       validateSpan(grammarOperation.testedSpan, state, `${plan.itemId}.testedSpan`)
       const testedSentence = state.sentences.find((sentence) => sentence.id === grammarOperation.testedSpan.sentenceId)
       if (testedSentence && grammarOperation.testedSpan.start === testedSentence.start && grammarOperation.testedSpan.end === testedSentence.end) throw new Error(`${plan.itemId}: 어법 testedSpan이 문장 전체를 가리킵니다. evidenceSpans에는 근거 문장을 둘 수 있지만 testedSpan·sourceForm에는 실제로 밑줄 칠 최소 어법 표현만 넣어 주세요.`)
@@ -353,13 +381,22 @@ export function adaptProvidedPassageV02Response(value: unknown, base: EnglishQue
       if (!grammarOperation.ruleCheck.isUniquelyDetermined || grammarOperation.sourceTextModified !== false) throw new Error(`${plan.itemId}: 문법 판정이 유일하지 않거나 원문 변경 플래그가 잘못되었습니다.`)
       if (grammarOperation.sourceForm !== grammarOperation.testedSpan.text) throw new Error(`${plan.itemId}: sourceForm이 원문 testedSpan과 다릅니다.`)
       if (plan.grammarMode === 'source_form_check' && grammarOperation.presentedForm !== grammarOperation.sourceForm) throw new Error(`${plan.itemId}: 원문 확인 모드는 별도 변형을 허용하지 않습니다.`)
-      if (plan.grammarMode === 'controlled_error_variant' && grammarOperation.presentedForm === grammarOperation.sourceForm) throw new Error(`${plan.itemId}: 오류 변형 모드는 presentedForm에 명시적 변형이 필요합니다.`)
+      if (plan.grammarMode === 'controlled_error_variant') {
+        if (grammarOperation.presentedForm === grammarOperation.sourceForm) throw new Error(`${plan.itemId}: 오류 변형 모드는 presentedForm에 명시적 변형이 필요합니다.`)
+        if (evidenceSpans.length !== 5) throw new Error(`${plan.itemId}: ①~⑤ 어법 오류 찾기는 밑줄 표적 evidenceSpans가 정확히 5개 필요합니다.`)
+        const orderedEvidence = [...evidenceSpans].sort((left, right) => left.start - right.start)
+        if (orderedEvidence.some((span, index) => span !== evidenceSpans[index] || (index > 0 && span.start < orderedEvidence[index - 1].end))) throw new Error(`${plan.itemId}: 다섯 어법 표적은 원문 순서대로 서로 겹치지 않아야 합니다.`)
+        const testedIndex = evidenceSpans.findIndex((span) => span.start === grammarOperation.testedSpan.start && span.end === grammarOperation.testedSpan.end && span.text === grammarOperation.testedSpan.text)
+        if (testedIndex < 0) throw new Error(`${plan.itemId}: testedSpan은 다섯 evidenceSpans 중 하나와 정확히 같아야 합니다.`)
+        if (choices.some((choice, index) => choice !== CSAT_INLINE_POSITION_CHOICES[index])) throw new Error(`${plan.itemId}: ①~⑤ 어법 오류 찾기의 choices는 위치 번호 다섯 개로 고정됩니다.`)
+        if (question.answerIndex !== testedIndex + 1) throw new Error(`${plan.itemId}: 정답 번호가 오류 변형을 적용한 밑줄 위치와 일치하지 않습니다.`)
+      }
     }
     questions.push({ id: plan.itemId, type: expectedShape.type, stem: expectedShape.stem, choices, answerIndex: question.answerIndex as number, explanation: typeof question.explanation === 'string' ? question.explanation.trim() : '', intention: typeof question.intention === 'string' ? question.intention.trim() : '', evidenceRefs: evidenceSpans.map((span) => span.text), distractorReasons: Array.isArray(question.distractorReasons) ? question.distractorReasons.map(String) : [], score: question.score as number })
     results.push({ itemId: plan.itemId, evidenceSpans, materialOperation: operation })
     if (record.qualityReview) reviews.push(record.qualityReview as CsatQualityReview)
   }
-  return { ...base, title: String(root.title || base.title), material: state.originalText, questions, providedPassageV02: { ...state, itemPlans: orderedPlans, results }, providedPassageQualityReview: reviews.length ? { passage: reviews[0]?.passage ?? {}, questions: reviews.flatMap((review) => review.questions ?? []) } : undefined, aiRevision: base.aiRevision + 1, validatedRevision: 0, lastImportedJson: JSON.stringify(value, null, 2), explanationSourceFingerprint: undefined, updatedAt: new Date().toISOString() }
+  return { ...base, title: String(root.title || base.title), material: state.originalText, questions, providedPassageV02: { ...state, itemPlans: orderedPlans, results, importWarnings }, providedPassageQualityReview: reviews.length ? { passage: reviews[0]?.passage ?? {}, questions: reviews.flatMap((review) => review.questions ?? []) } : undefined, aiRevision: base.aiRevision + 1, validatedRevision: 0, lastImportedJson: JSON.stringify(normalizedValue, null, 2), explanationSourceFingerprint: undefined, updatedAt: new Date().toISOString() }
 }
 
 export function parseProvidedPassageV02Json(raw: string, base: EnglishQuestionSet) {
@@ -375,6 +412,7 @@ export function providedPassageV02ValidationMessages(set: EnglishQuestionSet) {
   const blocked = providedPassageV02BlockingReason(set)
   if (blocked) messages.push({ level: 'error', label: 'Provided Passage V0.2', detail: blocked })
   if (!state.results) messages.push({ level: 'warning', label: 'AI 결과 전', detail: `${state.itemPlans.length}개 문항 계획과 원문 근거가 준비되었습니다.` })
+  state.importWarnings?.forEach((detail) => messages.push({ level: 'warning', label: 'AI offset 자동 교정', detail }))
   return messages
 }
 
@@ -393,35 +431,46 @@ export function providedPassageV02PresentationSpec(set: EnglishQuestionSet, ques
   return { kind: 'insertion' as const, givenSentence: operation.generatedSentence, body }
 }
 
+function grammarMaterialEvents(result: ProvidedPassageV02ItemResult, state: ProvidedPassageV02State) {
+  const operation = result.materialOperation
+  if (!operation || operation.kind !== 'grammar_check') return []
+  if (operation.grammarMode === 'controlled_error_variant' && result.evidenceSpans.length === 5) {
+    return [...result.evidenceSpans].sort((left, right) => left.start - right.start).flatMap((span, index) => {
+      if (state.originalText.slice(span.start, span.end) !== span.text) return []
+      const isErrorTarget = span.start === operation.testedSpan.start && span.end === operation.testedSpan.end && span.text === operation.testedSpan.text
+      const displayForm = isErrorTarget ? operation.presentedForm : span.text
+      return [{ start: span.start, end: span.end, replacement: `${CSAT_INLINE_POSITION_CHOICES[index]} [[밑줄:${displayForm}]]` }]
+    })
+  }
+  const { start, end, text } = operation.testedSpan
+  if (state.originalText.slice(start, end) !== text || operation.sourceForm !== text) return []
+  return [{ start, end, replacement: `[[밑줄:${operation.presentedForm}]]` }]
+}
+
+function applyMaterialEvents(source: string, events: Array<{ start: number; end: number; replacement: string }>) {
+  let material = source
+  let nextStart = source.length
+  events.sort((left, right) => right.start - left.start || right.end - left.end).forEach((event) => {
+    if (event.end > nextStart) return
+    material = `${material.slice(0, event.start)}${event.replacement}${material.slice(event.end)}`
+    nextStart = event.start
+  })
+  return material
+}
+
 export function providedPassageV02QuestionMaterialText(set: EnglishQuestionSet, questionId: string) {
   const state = set.providedPassageV02
   if (!state) return set.material
   const result = state.results?.find((item) => item.itemId === questionId)
-  const operation = result?.materialOperation
-  if (!operation || operation.kind !== 'grammar_check') return state.originalText
-  const { start, end, text } = operation.testedSpan
-  if (state.originalText.slice(start, end) !== text || operation.sourceForm !== text) return state.originalText
-  return `${state.originalText.slice(0, start)}[[밑줄:${operation.presentedForm}]]${state.originalText.slice(end)}`
+  if (!result) return state.originalText
+  return applyMaterialEvents(state.originalText, grammarMaterialEvents(result, state))
 }
 
 export function providedPassageV02SharedMaterialText(set: EnglishQuestionSet) {
   const state = set.providedPassageV02
   if (!state || !orderedProvidedPassageV02Questions(set).some((question) => question.type !== '문장 삽입')) return undefined
-  const operations = (state.results ?? []).flatMap((result) => {
-    const operation = result.materialOperation
-    if (!operation || operation.kind !== 'grammar_check') return []
-    const { start, end, text } = operation.testedSpan
-    if (state.originalText.slice(start, end) !== text || operation.sourceForm !== text) return []
-    return [{ start, end, presentedForm: operation.presentedForm }]
-  }).sort((left, right) => right.start - left.start)
-  let material = state.originalText
-  let nextStart = state.originalText.length
-  operations.forEach((operation) => {
-    if (operation.end > nextStart) return
-    material = `${material.slice(0, operation.start)}[[밑줄:${operation.presentedForm}]]${material.slice(operation.end)}`
-    nextStart = operation.start
-  })
-  return material
+  const operations = (state.results ?? []).flatMap((result) => grammarMaterialEvents(result, state))
+  return applyMaterialEvents(state.originalText, operations)
 }
 
 export function providedPassageV02SharedPresentationSpec(set: EnglishQuestionSet) {
@@ -434,19 +483,7 @@ export function providedPassageV02SharedPresentationSpec(set: EnglishQuestionSet
     const boundary = boundaryById.get(id)
     return boundary ? [{ start: boundary.offset, end: boundary.offset, replacement: ` [[삽입위치:${CSAT_INLINE_POSITION_CHOICES[index]}]] ` }] : []
   })
-  ;(state.results ?? []).forEach((result) => {
-    const operation = result.materialOperation
-    if (!operation || operation.kind !== 'grammar_check') return
-    const { start, end, text } = operation.testedSpan
-    if (state.originalText.slice(start, end) !== text || operation.sourceForm !== text) return
-    events.push({ start, end, replacement: `[[밑줄:${operation.presentedForm}]]` })
-  })
-  let body = state.originalText
-  let nextStart = state.originalText.length
-  events.sort((left, right) => right.start - left.start || right.end - left.end).forEach((event) => {
-    if (event.end > nextStart) return
-    body = `${body.slice(0, event.start)}${event.replacement}${body.slice(event.end)}`
-    nextStart = event.start
-  })
+  ;(state.results ?? []).forEach((result) => events.push(...grammarMaterialEvents(result, state)))
+  const body = applyMaterialEvents(state.originalText, events)
   return { kind: 'insertion' as const, givenSentence: insertion.generatedSentence, body }
 }

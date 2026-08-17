@@ -191,7 +191,7 @@ function SetWorkspace({ mode, bundle, setBundle, notify, onOpenVerification }: P
         next.choiceLanguage = patch.questionType === 'content_match' || patch.questionType === 'content_inference' ? plan.choiceLanguage ?? 'ko' : null
         next.contentMatchPolarity = patch.questionType === 'content_match' ? plan.contentMatchPolarity ?? 'mismatch' : null
         next.grammarTarget = patch.questionType === 'grammar' ? plan.grammarTarget ?? 'relative_clause' : null
-        next.grammarMode = patch.questionType === 'grammar' ? plan.grammarMode ?? 'source_form_check' : null
+        next.grammarMode = patch.questionType === 'grammar' ? plan.grammarMode ?? 'controlled_error_variant' : null
       }
       return next
     })
@@ -203,7 +203,9 @@ function SetWorkspace({ mode, bundle, setBundle, notify, onOpenVerification }: P
       if (schoolProvidedV02.itemPlans.some((plan) => plan.questionType === 'sentence_insertion')) { notify('문장 삽입은 이미 추가되어 있습니다. 한 세트에 한 문항만 만들 수 있습니다.'); return }
       if (schoolProvidedV02.boundaries.length < 6) { notify(`문장 삽입에는 후보 위치 5개가 필요합니다. 현재 지문은 ${schoolProvidedV02.sentences.length}문장이라 후보 경계가 부족합니다.`); return }
     }
-    updateSchoolProvidedV02Plans([...schoolProvidedV02.itemPlans, createProvidedPassageV02Plan(undefined, questionType)])
+    const nextPlan = createProvidedPassageV02Plan(undefined, questionType)
+    if (questionType === 'grammar') nextPlan.grammarMode = 'controlled_error_variant'
+    updateSchoolProvidedV02Plans([...schoolProvidedV02.itemPlans, nextPlan])
   }
   const removeSchoolProvidedV02Plan = (itemId: string) => {
     if (!schoolProvidedV02 || schoolProvidedV02.itemPlans.length === 1) return
@@ -216,7 +218,7 @@ function SetWorkspace({ mode, bundle, setBundle, notify, onOpenVerification }: P
     updateSet({ providedPassage: nextState, questions: active.questions.map((question, index) => index === 0 && stem ? { ...question, stem } : question), prompt: '', lastImportedJson: '' })
   }
   const updateSchoolProvidedMaterial = (material: string) => {
-    if (schoolProvidedV02) { updateSet({ material, providedPassageV02: updateProvidedPassageV02Material(schoolProvidedV02, material), prompt: '', lastImportedJson: '' }); return }
+    if (schoolProvidedV02) { const nextState = updateProvidedPassageV02Material(schoolProvidedV02, material); updateSet({ material: nextState.originalText, providedPassageV02: nextState, prompt: '', lastImportedJson: '' }); return }
     if (schoolProvided) updateSet({ material, providedPassage: updateProvidedPassageState(schoolProvided, material), prompt: '', lastImportedJson: '' })
   }
   const selectSchoolProvidedQuestionType = (questionType: 'content_match' | 'sentence_insertion') => {
@@ -325,9 +327,9 @@ function SetWorkspace({ mode, bundle, setBundle, notify, onOpenVerification }: P
                 {(plan.questionType === 'content_match' || plan.questionType === 'content_inference') && <label>선지 언어<select value={plan.choiceLanguage ?? 'ko'} onChange={(event) => patchSchoolProvidedV02Plan(plan.itemId, { choiceLanguage: event.target.value as ProvidedPassageChoiceLanguage })}>{(Object.keys(PROVIDED_PASSAGE_CHOICE_LANGUAGE_LABELS) as ProvidedPassageChoiceLanguage[]).map((value) => <option key={value} value={value}>{PROVIDED_PASSAGE_CHOICE_LANGUAGE_LABELS[value]}</option>)}</select></label>}
                 {plan.questionType === 'content_match' && <label>발문 극성<select value={plan.contentMatchPolarity ?? 'mismatch'} onChange={(event) => patchSchoolProvidedV02Plan(plan.itemId, { contentMatchPolarity: event.target.value as ProvidedPassageContentPolarity })}>{(Object.keys(PROVIDED_PASSAGE_POLARITY_LABELS) as ProvidedPassageContentPolarity[]).map((value) => <option key={value} value={value}>{PROVIDED_PASSAGE_POLARITY_LABELS[value]}</option>)}</select></label>}
                 {plan.questionType === 'content_inference' && <div className="grammar-plan-guidance"><strong>내용 이해 출제 기준</strong><span>지문에 그대로 적힌 문장을 찾는 대신, 지문의 단서와 관계를 종합해 가장 타당하게 추론할 수 있는 내용을 묻습니다.</span><small>외부 배경지식·과도한 일반화·근거 없는 인과 추론은 정답으로 허용하지 않습니다.</small></div>}
-                {plan.questionType === 'grammar' && <><label>핵심 문법<select value={plan.grammarTarget ?? 'relative_clause'} onChange={(event) => patchSchoolProvidedV02Plan(plan.itemId, { grammarTarget: event.target.value as ProvidedPassageGrammarTarget })}>{(Object.keys(PROVIDED_PASSAGE_GRAMMAR_LABELS) as ProvidedPassageGrammarTarget[]).map((value) => <option key={value} value={value}>{PROVIDED_PASSAGE_GRAMMAR_LABELS[value]}</option>)}</select></label><label>출제 방식<select value={plan.grammarMode ?? 'source_form_check'} onChange={(event) => patchSchoolProvidedV02Plan(plan.itemId, { grammarMode: event.target.value as ProvidedPassageGrammarMode })}>{(Object.keys(PROVIDED_PASSAGE_GRAMMAR_MODE_LABELS) as ProvidedPassageGrammarMode[]).map((value) => <option key={value} value={value}>{PROVIDED_PASSAGE_GRAMMAR_MODE_LABELS[value]}</option>)}</select></label></>}
+                {plan.questionType === 'grammar' && <><label>핵심 문법<select value={plan.grammarTarget ?? 'relative_clause'} onChange={(event) => patchSchoolProvidedV02Plan(plan.itemId, { grammarTarget: event.target.value as ProvidedPassageGrammarTarget })}>{(Object.keys(PROVIDED_PASSAGE_GRAMMAR_LABELS) as ProvidedPassageGrammarTarget[]).map((value) => <option key={value} value={value}>{PROVIDED_PASSAGE_GRAMMAR_LABELS[value]}</option>)}</select></label><label>출제 방식<select value={plan.grammarMode ?? 'controlled_error_variant'} onChange={(event) => patchSchoolProvidedV02Plan(plan.itemId, { grammarMode: event.target.value as ProvidedPassageGrammarMode })}>{(Object.keys(PROVIDED_PASSAGE_GRAMMAR_MODE_LABELS) as ProvidedPassageGrammarMode[]).map((value) => <option key={value} value={value}>{PROVIDED_PASSAGE_GRAMMAR_MODE_LABELS[value]}</option>)}</select></label></>}
                 <label>생성 영어 수준<select value={plan.vocabularyLevel} onChange={(event) => patchSchoolProvidedV02Plan(plan.itemId, { vocabularyLevel: event.target.value as ProvidedPassageVocabularyLevel })}>{(Object.keys(PROVIDED_PASSAGE_VOCABULARY_LABELS) as ProvidedPassageVocabularyLevel[]).map((value) => <option key={value} value={value}>{PROVIDED_PASSAGE_VOCABULARY_LABELS[value]}</option>)}</select></label></div>
-              {plan.questionType === 'grammar' && <div className="grammar-plan-guidance"><strong>{PROVIDED_PASSAGE_GRAMMAR_LABELS[plan.grammarTarget ?? 'relative_clause']} 판정 기준</strong><span>{PROVIDED_PASSAGE_GRAMMAR_RULES[plan.grammarTarget ?? 'relative_clause']}</span><small>{PROVIDED_PASSAGE_GRAMMAR_MODE_HELP[plan.grammarMode ?? 'source_form_check']} 원문 근거가 하나로 결정될 때만 생성합니다.</small></div>}
+              {plan.questionType === 'grammar' && <div className="grammar-plan-guidance"><strong>{PROVIDED_PASSAGE_GRAMMAR_LABELS[plan.grammarTarget ?? 'relative_clause']} 판정 기준</strong><span>{PROVIDED_PASSAGE_GRAMMAR_RULES[plan.grammarTarget ?? 'relative_clause']}</span><small>{PROVIDED_PASSAGE_GRAMMAR_MODE_HELP[plan.grammarMode ?? 'controlled_error_variant']} 각 표적은 지문 안에 번호와 밑줄로 직접 표시됩니다.</small></div>}
             </article>)}</div>
             <details className="sentence-preview"><summary>문장·경계 Preview</summary><ol>{schoolProvidedV02.sentences.map((sentence) => <li key={sentence.id}><b>{sentence.id}</b><span>{sentence.text}</span><small>{sentence.start}–{sentence.end}</small></li>)}</ol></details>
             <div className={`provided-validation ${schoolProvidedBlockingReason ? 'error' : 'pass'}`}><strong>V0.2 검증 결과</strong><span>{schoolProvidedBlockingReason ?? `${schoolProvidedV02.itemPlans.length}개 문항 계획과 원문 근거가 연결되었습니다.`}</span>{schoolProvidedBlockingReason?.includes('발문') && <button onClick={() => updateSet({ questions: repairProvidedPassageV02QuestionStems(active), prompt: '', lastImportedJson: '' })}>유형·발문 동기화</button>}</div>

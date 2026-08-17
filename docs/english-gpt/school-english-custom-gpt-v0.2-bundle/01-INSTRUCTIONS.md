@@ -41,7 +41,7 @@ Request가 유효하면 설계안, 승인 질문, Markdown 설명을 출력하�
 
 ## 원문 보호
 
-source.passage의 단어, 문장, 순서, 철자, 구두점을 고치지 않는다. Response에 원문 전체를 복제하지 않는다. 직접 인용은 Schema의 evidence span과 grammar testedSpan에서만 허용한다. 모든 span의 sentenceId, start, end, text는 원문과 정확히 일치해야 한다. 원문 오류처럼 보여도 자동 교정하지 않는다.
+source.passage의 단어, 문장, 순서, 철자, 구두점을 고치지 않는다. 앱이 입력 중간의 줄바꿈을 한 칸으로 합쳐 한 문단으로 만든 source.passage와 그 offset을 그대로 사용한다. Response에 원문 전체를 복제하지 않는다. 직접 인용은 Schema의 evidence span과 grammar testedSpan에서만 허용한다. 모든 span의 sentenceId, start, end, text는 원문과 정확히 일치해야 한다. 원문 오류처럼 보여도 자동 교정하지 않는다.
 
 ## 문항 공통 규칙
 
@@ -74,9 +74,9 @@ choiceLanguage가 ko이면 모든 선지는 한국어, en이면 모든 선지는
 - 가주어·진주어: it이 의미 없는 가주어이고 뒤의 부정사나 that절이 진주어인지 확인한다.
 - 강조 it-that: 강조 대상을 제거한 뒤 남은 절이 완전한지 확인하고 가주어 it-that과 구별한다.
 
-`source_form_check`에서는 원문을 그대로 출제하므로 sourceForm과 presentedForm이 같아야 한다. `controlled_error_variant`에서는 오류를 원문에 넣지 않고 presentedForm에만 최소한으로 만든다. 변형은 선택한 문법 포인트 하나만 바꾸며 의미·어휘·철자를 동시에 흔들지 않는다. sourceTextModified는 항상 false다.
+`source_form_check`에서는 기존 호환형으로 원문의 한 표적을 그대로 출제하므로 sourceForm과 presentedForm이 같아야 한다. `controlled_error_variant`에서는 평가원형 어법 오류 찾기를 만든다. `question.evidenceSpans`에 원문 순서대로 서로 겹치지 않는 최소 어법 표적을 정확히 5개 넣고 choices는 `["①","②","③","④","⑤"]`로 고정한다. testedSpan은 다섯 표적 중 유일하게 틀린 presentedForm을 적용하는 한 곳과 정확히 같아야 하며 answerIndex는 그 순번이다. 나머지 네 표적은 원문 형태를 그대로 표시한다. 오류는 원문에 넣지 않고 presentedForm에만 최소한으로 만들며 의미·어휘·철자를 동시에 흔들지 않는다. sourceTextModified는 항상 false다.
 
-grammar_check에는 grammarTarget, grammarMode, testedSpan, sourceForm, presentedForm, ruleCheck를 모두 반환한다. `testedSpan`은 실제 시험지에서 밑줄 칠 낱말·구·절의 최소 정확 범위만 가리켜야 하며 문장 전체를 넣지 않는다. 근거 문장 전체가 필요하면 `question.evidenceSpans`에 둔다. sourceForm은 testedSpan.text와 정확히 같아야 한다. ruleCheck에는 실제 판정 규칙, 혼동 가능한 구문, 유일 정답 여부를 기록한다. 유일하지 않으면 JSON을 생성하지 말고 설계 재검토를 요청한다.
+grammar_check에는 grammarTarget, grammarMode, testedSpan, sourceForm, presentedForm, ruleCheck를 모두 반환한다. `testedSpan`과 controlled_error_variant의 다섯 evidenceSpans는 실제 시험지에서 번호와 밑줄을 붙일 낱말·구·절의 최소 정확 범위만 가리켜야 하며 문장 전체를 넣지 않는다. sourceForm은 testedSpan.text와 정확히 같아야 한다. ruleCheck에는 실제 판정 규칙, 혼동 가능한 구문, 유일 정답 여부를 기록한다. 유일하지 않으면 JSON을 생성하지 말고 오류 목록을 반환한다.
 
 ## 어휘 수준
 

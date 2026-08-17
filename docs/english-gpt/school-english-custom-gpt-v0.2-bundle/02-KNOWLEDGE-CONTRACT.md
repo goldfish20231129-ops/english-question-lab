@@ -20,7 +20,7 @@ Provided Passage V0.2는 `school_english_provided_passage`와 `English`만 지�
 
 ## 원문 권위
 
-앱의 `material`과 `providedPassageV02.originalText`가 권위 원문이다. Response는 원문 전체를 반환하지 않는다. `sourcePassageId`, SHA-256 fingerprint, sentence ID, `[start,end)` offset, boundary ID는 Request와 일치해야 한다. 어법 오류 변형은 `grammar_check.presentedForm`에만 저장하고 원문을 덮어쓰지 않는다.
+앱은 입력 중간의 줄바꿈을 한 칸으로 합쳐 일반 영어 지문을 한 문단으로 정규화한다. 정규화된 `material`과 `providedPassageV02.originalText`가 권위 원문이다. Response는 원문 전체를 반환하지 않는다. `sourcePassageId`, SHA-256 fingerprint, sentence ID, `[start,end)` offset, boundary ID는 Request와 일치해야 한다. 어법 오류 변형은 `grammar_check.presentedForm`에만 저장하고 원문을 덮어쓰지 않는다.
 
 ## 문항별 계획
 
@@ -37,12 +37,12 @@ Provided Passage V0.2는 `school_english_provided_passage`와 `English`만 지�
 - `dummy_it`: 가주어 it과 뒤의 진주어
 - `cleft_it_that`: 강조 대상과 잔여 절, 가주어 구문과의 구별
 
-어법 문항은 `testedSpan`, `sourceForm`, `presentedForm`, `ruleCheck`를 반환한다. `testedSpan`은 실제로 밑줄 칠 최소 어법 표현만 가리키고 문장 전체를 범위로 사용하지 않는다. 근거 문장 전체는 `question.evidenceSpans`에 둘 수 있다. `ruleCheck.isUniquelyDetermined`는 반드시 true다. 근거가 모호하면 해당 문항을 생성하지 않고 설계 단계에서 검토 필요를 알린다.
+어법 문항은 `testedSpan`, `sourceForm`, `presentedForm`, `ruleCheck`를 반환한다. `testedSpan`은 실제로 밑줄 칠 최소 어법 표현만 가리키고 문장 전체를 범위로 사용하지 않는다. `controlled_error_variant`는 `question.evidenceSpans`에 원문 순서의 서로 겹치지 않는 최소 표적을 정확히 5개 반환하며 시험지에서는 ①~⑤와 밑줄로 표시한다. choices는 ①~⑤로 고정하고 testedSpan 및 answerIndex는 유일한 오류 표적과 일치해야 한다. `ruleCheck.isUniquelyDetermined`는 반드시 true다. 근거가 모호하면 해당 문항을 생성하지 않는다.
 
 ## 문법 모드
 
 - `source_form_check`: 원문 형태를 그대로 판단한다. `sourceForm === presentedForm`이어야 한다.
-- `controlled_error_variant`: 원문은 보존하고 별도 문제 표현만 최소 변형한다. `sourceForm !== presentedForm`이어야 한다.
+- `controlled_error_variant`: 원문은 보존하고 다섯 밑줄 중 한 곳의 별도 문제 표현만 최소 변형한다. `sourceForm !== presentedForm`이어야 한다.
 
 ## Request 검증과 출력
 

@@ -75,6 +75,27 @@ function insertionResponse(set: EnglishQuestionSet) {
   }
 }
 
+function controlledGrammarResponse(set: EnglishQuestionSet) {
+  const request = buildProvidedPassageV02Request(set)
+  const item = request.items[0]
+  const state = set.providedPassageV02!
+  const texts = ['student', 'who', 'arrives', 'checks', 'bring']
+  const spans = texts.map((text) => {
+    const start = state.originalText.indexOf(text)
+    const sentence = state.sentences.find((candidate) => start >= candidate.start && start < candidate.end)!
+    return { sentenceId: sentence.id, start, end: start + text.length, text }
+  })
+  return {
+    schemaId: 'english-question-lab-provided-passage-generation-v0.2', mode: request.mode, subject: request.subject,
+    sourcePassageId: state.sourcePassageId, sourceFingerprint: state.sourceFingerprint, title: 'Five target grammar test',
+    items: [{
+      ...responseIdentity(item),
+      question: { type: '어법', stem: providedPassageV02DefaultStem('grammar', 'mismatch', item.grammarTarget, item.grammarMode), choices: ['①', '②', '③', '④', '⑤'], answerIndex: 3, evidenceSpans: spans, score: 2 },
+      materialOperation: { kind: 'grammar_check', grammarTarget: item.grammarTarget, grammarMode: item.grammarMode, testedSpan: spans[2], sourceForm: 'arrives', presentedForm: 'arrive', ruleCheck: { classification: item.grammarTarget, decisionRule: '단수 주어 student에는 arrives가 필요하다.', contrastWith: '복수 주어', isUniquelyDetermined: true }, sourceTextModified: false },
+    }],
+  }
+}
+
 function mixedResponse() {
   const contentPlan = createProvidedPassageV02Plan('content-1', 'content_match')
   const grammarPlan = createProvidedPassageV02Plan('grammar-1', 'grammar')
@@ -89,6 +110,40 @@ function mixedResponse() {
 }
 
 describe('Provided Passage V0.2', () => {
+  it('normalizes pasted line breaks into one authoritative paragraph before fingerprinting', () => {
+    const seed = createEnglishSet('school')
+    seed.material = 'First line wraps here.\r\nSecond line continues.\n\nThird line closes.'
+    const set = transitionSchoolProvidedPassageV02(seed, 'provided')
+    expect(set.material).toBe('First line wraps here. Second line continues. Third line closes.')
+    expect(set.providedPassageV02?.originalText).toBe(set.material)
+    expect(buildProvidedPassageV02Request(set).source.passage).toBe(set.material)
+  })
+
+  it('imports a five-target grammar item and decorates every target with a numbered underline', () => {
+    const plan = { ...createProvidedPassageV02Plan('grammar-five', 'grammar'), grammarTarget: 'subject_verb_agreement' as const, grammarMode: 'controlled_error_variant' as const }
+    const set = configured([plan])
+    const next = adaptProvidedPassageV02Response(controlledGrammarResponse(set), set)
+    const material = providedPassageV02SharedMaterialText(next) ?? ''
+    expect(next.questions[0]).toMatchObject({ stem: '다음 글의 밑줄 친 부분 중, 어법상 틀린 것은?', choices: ['①', '②', '③', '④', '⑤'], answerIndex: 3 })
+    expect(material.match(/\[\[밑줄:/g)).toHaveLength(5)
+    expect(material).toContain('① [[밑줄:student]]')
+    expect(material).toContain('③ [[밑줄:arrive]]')
+    expect(material).toContain('⑤ [[밑줄:bring]]')
+  })
+
+  it('repairs a uniquely identifiable grammar offset but keeps the correction visible as a warning', () => {
+    const plan = { ...createProvidedPassageV02Plan('grammar-five', 'grammar'), grammarTarget: 'subject_verb_agreement' as const, grammarMode: 'controlled_error_variant' as const }
+    const set = configured([plan])
+    const payload = controlledGrammarResponse(set)
+    const operation = payload.items[0].materialOperation
+    operation.testedSpan = { ...operation.testedSpan, start: operation.testedSpan.start - 2, end: operation.testedSpan.end - 2 }
+    payload.items[0].question.evidenceSpans[2] = { ...payload.items[0].question.evidenceSpans[2], start: payload.items[0].question.evidenceSpans[2].start - 2, end: payload.items[0].question.evidenceSpans[2].end - 2 }
+    const next = adaptProvidedPassageV02Response(payload, set)
+    const repaired = next.providedPassageV02?.results?.[0].materialOperation
+    expect(repaired?.kind === 'grammar_check' ? repaired.testedSpan.text : '').toBe('arrives')
+    expect(next.providedPassageV02?.importWarnings).toHaveLength(2)
+  })
+
   it('treats requiredStem as a required declared property, not an additional property', () => {
     const validate = new Ajv2020({ allErrors: true, strict: true }).compile(canonicalRequestSchema)
     const valid = structuredClone(buildProvidedPassageV02Request(configured()))

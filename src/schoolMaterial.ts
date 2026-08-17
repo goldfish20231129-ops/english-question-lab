@@ -77,7 +77,10 @@ export function generatedSchoolInsertionMarkupIssues(set: EnglishQuestionSet) {
 }
 
 export function usesInlineSchoolChoices(set: EnglishQuestionSet | undefined, question: EnglishQuestion) {
-  return Boolean(set && set.mode === 'school' && isSchoolInsertionQuestion(question) && (hasGeneratedSchoolInsertion(set) || set.providedPassageV02))
+  if (!set || set.mode !== 'school') return false
+  if (isSchoolInsertionQuestion(question) && (hasGeneratedSchoolInsertion(set) || set.providedPassageV02)) return true
+  const providedResult = set.providedPassageV02?.results?.find((result) => result.itemId === question.id)
+  return Boolean(question.type === '어법' && providedResult?.materialOperation?.kind === 'grammar_check' && providedResult.materialOperation.grammarMode === 'controlled_error_variant')
 }
 
 export function usesInlineGeneratedSchoolChoices(set: EnglishQuestionSet | undefined, question: EnglishQuestion) {

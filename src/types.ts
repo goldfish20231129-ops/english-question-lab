@@ -135,6 +135,7 @@ export interface ProvidedPassageV02State {
   boundaries: ProvidedPassageBoundary[]
   itemPlans: ProvidedPassageV02ItemPlan[]
   results?: ProvidedPassageV02ItemResult[]
+  importWarnings?: string[]
 }
 
 export interface CsatPassageQualityReview {

@@ -60,6 +60,31 @@ describe('내신형 새 지문 혼합 세트 출력', () => {
     expect(sharedHtml.match(/class="insertion-position"/g)).toHaveLength(5)
   })
 
+  it('기존 지문 어법 오류형은 한 문단 안 ①~⑤ 밑줄로 표시하고 별도 번호 선지를 숨긴다', () => {
+    const passage = 'The student who leads the club arrives early. She checks the room before every meeting. The members bring their notebooks while the teacher prepares a short guide.'
+    const seed = createEnglishSet('school')
+    seed.material = passage
+    let set = transitionSchoolProvidedPassageV02(seed, 'provided')
+    const plan = { ...createProvidedPassageV02Plan('grammar-five', 'grammar'), grammarTarget: 'subject_verb_agreement' as const, grammarMode: 'controlled_error_variant' as const }
+    set = { ...set, providedPassageV02: { ...set.providedPassageV02!, itemPlans: [plan] }, questions: syncProvidedPassageV02Questions(set, [plan]) }
+    const state = set.providedPassageV02!
+    const texts = ['student', 'who', 'arrives', 'checks', 'bring']
+    const spans = texts.map((text) => {
+      const start = state.originalText.indexOf(text)
+      const sentence = state.sentences.find((candidate) => start >= candidate.start && start < candidate.end)!
+      return { sentenceId: sentence.id, start, end: start + text.length, text }
+    })
+    state.results = [{ itemId: plan.itemId, evidenceSpans: spans, materialOperation: { kind: 'grammar_check', grammarTarget: 'subject_verb_agreement', grammarMode: 'controlled_error_variant', testedSpan: spans[2], sourceForm: 'arrives', presentedForm: 'arrive', ruleCheck: { classification: 'subject_verb_agreement', decisionRule: '단수 주어와 동사의 수 일치', contrastWith: '복수 주어', isUniquelyDetermined: true }, sourceTextModified: false } }]
+
+    const html = renderToStaticMarkup(createElement(SetLivePreview, { set }))
+
+    expect(html).toContain('① <u>student</u>')
+    expect(html).toContain('③ <u>arrive</u>')
+    expect(html).toContain('⑤ <u>bring</u>')
+    expect(html).not.toContain('<ol>')
+    expect(html).not.toContain('\n')
+  })
+
   it('학교 시험형 공유 삽입은 위치가 표시된 공통 지문을 중복 출력하지 않는다', () => {
     const set = createEnglishSet('school')
     set.schoolInsertionPresentation = 'shared'
