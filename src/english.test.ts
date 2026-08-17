@@ -55,6 +55,7 @@ describe('영어 세트 공통 흐름', () => {
     expect(defaultQuestionStem('순서 배열')).toBe('주어진 글 다음에 이어질 글의 순서로 가장 적절한 것은?')
     expect(defaultQuestionStem('문장 삽입')).toBe('글의 흐름으로 보아, 주어진 문장이 들어가기에 가장 적절한 곳은?')
     expect(defaultQuestionStem('어법')).toBe('다음 글의 밑줄 친 부분 중, 어법상 틀린 것은?')
+    expect(defaultQuestionStem('요약문 완성')).toContain('(A)와 (B)')
   })
 
   it('새 자료 내신형은 문장 삽입을 포함한 다문항을 한 번의 전용 경로로 요청한다', () => {
@@ -123,6 +124,32 @@ describe('영어 세트 공통 흐름', () => {
     })
     expect(() => parseEnglishSetJson(raw, set)).toThrow(/삽입 위치/)
     expect(set.aiRevision).toBe(0)
+  })
+
+  it('새 자료 내신형 요약문을 문항별 (A)·(B) 구조로 가져온다', () => {
+    const set = createEnglishSet('school')
+    const summary = createQuestion('요약문 완성', 5, 'school')
+    set.questions = [summary]
+    const summaryText = 'Comparing accounts [[요약빈칸:A]] learners to [[요약빈칸:B]] their judgments.'
+    const raw = JSON.stringify({
+      title: 'Summary set', materialTitle: '', material: 'Learners compare accounts, inspect evidence, and revise their judgments.', materialSpec: null,
+      questions: [{ type: summary.type, stem: summary.stem, summaryText, choices: ['enables|revise', 'prevents|repeat', 'forces|ignore', 'allows|copy', 'stops|preserve'], answerIndex: 1, score: 2 }],
+    })
+    const imported = parseEnglishSetJson(raw, set)
+
+    expect(imported.questions[0].schoolSummaryText).toBe(summaryText)
+    expect(imported.questions[0].schoolChoiceLayout).toBe('matrix')
+    expect(generateEnglishPrompt(set)).toContain('summaryText')
+  })
+
+  it('요약문 (A)·(B) 표식이나 단어쌍이 빠지면 가져오기를 거부한다', () => {
+    const set = createEnglishSet('school')
+    const summary = createQuestion('요약문 완성', 5, 'school')
+    set.questions = [summary]
+    const base = { title: 'Summary set', materialTitle: '', material: 'A source passage.', materialSpec: null }
+    const question = { type: summary.type, stem: summary.stem, summaryText: 'A claim [[요약빈칸:A]] evidence.', choices: ['supports|carefully', 'rejects|quickly', 'copies|fully', 'hides|often', 'shows|clearly'], answerIndex: 1, score: 2 }
+    expect(() => parseEnglishSetJson(JSON.stringify({ ...base, questions: [question] }), set)).toThrow(/요약빈칸:B/)
+    expect(() => parseEnglishSetJson(JSON.stringify({ ...base, questions: [{ ...question, summaryText: 'A claim [[요약빈칸:A]] evidence and [[요약빈칸:B]] limits.', choices: ['supports', 'rejects|quickly', 'copies|fully', 'hides|often', 'shows|clearly'] }] }), set)).toThrow(/A단어\|B단어/)
   })
 
   it('수능형 세트가 있으면 새 시험지의 권장 기본 양식을 수능형으로 정한다', () => {

@@ -292,6 +292,7 @@ h1, h2, h3, h4, p { margin-top: 0; }
 .live-material { margin-bottom: 13px; white-space: normal; text-align: justify; }
 .live-material.bordered { padding: 9px; border: 1px solid #777; }
 .csat-summary-material { margin-bottom: 13px; }
+.school-summary-material { margin: 2px 0 9px; }
 .csat-summary-passage, .csat-summary-sentence { padding: 8px 9px; border: 1px solid #444; text-align: justify; }
 .csat-summary-passage p, .csat-summary-sentence p { margin: 0; }
 .csat-summary-arrow { display: grid; height: 16px; place-items: center; font-family: Arial, sans-serif; font-size: 14px; font-weight: 900; line-height: 1; }

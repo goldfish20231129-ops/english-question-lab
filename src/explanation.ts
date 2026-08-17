@@ -27,6 +27,7 @@ function explanationSource(set: EnglishQuestionSet) {
     choices: question.choices,
     answerIndex: question.answerIndex,
     score: question.score ?? 2,
+    schoolSummaryText: question.schoolSummaryText ?? null,
   }))
   if (set.mode === 'csat') {
     return {

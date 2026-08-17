@@ -92,7 +92,7 @@ const DEFAULT_STEMS: Record<string, string> = {
   '글의 순서': '주어진 글 다음에 이어질 글의 순서로 가장 적절한 것은?',
   '순서 배열': '주어진 글 다음에 이어질 글의 순서로 가장 적절한 것은?',
   '문장 삽입': '글의 흐름으로 보아, 주어진 문장이 들어가기에 가장 적절한 곳은?',
-  '요약문 완성': '다음 글의 내용을 한 문장으로 요약하고자 한다. 빈칸에 들어갈 말로 가장 적절한 것은?',
+  '요약문 완성': '다음 글의 내용을 한 문장으로 요약하고자 한다. 빈칸 (A)와 (B)에 들어갈 말로 가장 적절한 것은?',
   '장문 독해': '다음 글의 내용으로 가장 적절한 것은?',
   '내용 이해': '다음 글의 내용으로부터 추론할 수 있는 것은?',
   '어법상 옳은 표현 조합': '다음 글의 밑줄 친 부분 중, 어법상 옳은 것만을 고른 것은?',
@@ -292,6 +292,8 @@ export function generateEnglishPrompt(set: EnglishQuestionSet): string {
 - 문장 삽입이 있으면 material에 [[삽입문장:문장]] 1개와 [[삽입위치:①]]~[[삽입위치:⑤]]를 순서대로 각각 1개씩 표시한다. 다른 문항의 내용과 정답 근거는 같은 지문의 삽입 표식을 제외한 본문을 기준으로 한다.
 - 문장 삽입 choices는 ["①", "②", "③", "④", "⑤"]로 고정한다.
 ${insertionPresentationRule}
+- 요약문 완성은 공통 material을 바꾸거나 반복하지 않는다. 해당 questions[] 항목의 summaryText에 원문을 재진술한 영어 한 문장을 별도로 작성한다.
+- summaryText에는 [[요약빈칸:A]]와 [[요약빈칸:B]]를 각각 정확히 한 번 넣고, choices는 ["A단어|B단어", ...] 형식의 다섯 단어쌍으로 작성한다.
 - 공통 보기형은 [[보기:a. word|b. word|c. word|d. word|e. word]]와 라벨 빈칸 [[빈칸:ⓐ]] 형식을 사용한다.
 - 복수 빈칸 조합형의 각 choice는 (A), (B), (C) 값을 세로줄 문자 | 로 구분한다.
 - 설계안이나 승인 질문을 먼저 출력하지 말고, 이 프롬프트의 출력 JSON 형식에 맞는 객체 하나를 바로 반환한다.
@@ -341,7 +343,7 @@ ${plan}
 - 일반 공유 지문은 null로 둔다.
 - 글의 순서는 {"kind":"ordered","lead":"도입문","sections":[{"label":"A","text":"..."},{"label":"B","text":"..."},{"label":"C","text":"..."}]}로 둔다.
 - 문장 삽입은 {"kind":"insertion","givenSentence":"삽입 문장","body":"①~⑤ 위치 표식이 있는 본문"}로 둘 수 있다.
-- 요약문 완성은 {"kind":"summary","summary":"요약 빈칸이 있는 한 문장"}로 두어 원문 아래 별도 상자로 출력한다.
+- 내신형 요약문 완성은 최상위 materialSpec을 null로 유지하고 해당 문항의 summaryText를 사용한다. 예전 JSON의 {"kind":"summary","summary":"..."}도 호환용으로 가져올 수 있다.
 - material과 materialSpec은 같은 원문 근거를 사용하고 서로 충돌하지 않게 한다.
 
 [출력 JSON]
@@ -354,6 +356,7 @@ ${plan}
     {
       "type": "문항 유형",
       "stem": "발문",
+      "summaryText": "요약문 완성일 때만 [[요약빈칸:A]]와 [[요약빈칸:B]]가 있는 영어 한 문장",
       "choices": ["선지 1", "선지 2", "선지 3", "선지 4", "선지 5"],
       "answerIndex": 1,
       "score": 2
@@ -476,6 +479,7 @@ export function parseEnglishSetJson(raw: string, base: EnglishQuestionSet): Engl
     })
     : input.questions
   const choiceCount = base.choiceCount
+  const materialSpec = cleanMaterialSpec(input.materialSpec)
   const questions = inputQuestions.map((value, index) => {
     if (!value || typeof value !== 'object') throw new Error(`${index + 1}번 문항 형식이 올바르지 않습니다.`)
     const item = value as Record<string, unknown>
@@ -488,6 +492,17 @@ export function parseEnglishSetJson(raw: string, base: EnglishQuestionSet): Engl
     if (generatedSchool && item.type === '문장 삽입' && choices.join('|') !== CSAT_INLINE_POSITION_CHOICES.join('|')) throw new Error('문장 삽입 choices는 ①~⑤ 위치 번호여야 합니다.')
     const type = typeof item.type === 'string' ? item.type : base.questions[index]?.type ?? '내용 이해'
     const expectedTemplate = expected ? inferSchoolQuestionTemplate(expected) : SCHOOL_QUESTION_TEMPLATES.find((template) => template.questionType === type)
+    const rawSummary = typeof item.summaryText === 'string' ? item.summaryText : typeof item.schoolSummaryText === 'string' ? item.schoolSummaryText : undefined
+    const schoolSummaryText = expectedTemplate?.id === 'summary'
+      ? rawSummary?.trim() || (materialSpec?.kind === 'summary' ? materialSpec.summary : '')
+      : undefined
+    if (generatedSchool && expectedTemplate?.id === 'summary' && rawSummary === undefined && materialSpec?.kind !== 'summary') throw new Error(`${index + 1}번 요약문에 summaryText가 필요합니다.`)
+    if (generatedSchool && expectedTemplate?.id === 'summary' && rawSummary !== undefined) {
+      const markerA = [...rawSummary.matchAll(/\[\[요약빈칸:A\]\]/g)].length
+      const markerB = [...rawSummary.matchAll(/\[\[요약빈칸:B\]\]/g)].length
+      if (markerA !== 1 || markerB !== 1) throw new Error(`${index + 1}번 요약문에는 [[요약빈칸:A]]와 [[요약빈칸:B]]가 각각 정확히 1개 필요합니다.`)
+      if (choices.some((choice) => choice.split('|').map((cell) => cell.trim()).filter(Boolean).length !== 2)) throw new Error(`${index + 1}번 요약문 선지는 A단어|B단어 형식이어야 합니다.`)
+    }
     return {
       id: crypto.randomUUID(), type,
       stem: item.stem.trim(), choices, answerIndex: parseAnswerIndex(item.answerIndex ?? item.answer, choiceCount),
@@ -495,9 +510,9 @@ export function parseEnglishSetJson(raw: string, base: EnglishQuestionSet): Engl
       evidenceRefs: cleanStrings(item.evidenceRefs), distractorReasons: cleanStrings(item.distractorReasons), score: typeof item.score === 'number' ? item.score : 2,
       schoolTemplateId: expectedTemplate?.id,
       schoolChoiceLayout: expected?.schoolChoiceLayout ?? expectedTemplate?.choiceLayout,
+      schoolSummaryText,
     }
   })
-  const materialSpec = cleanMaterialSpec(input.materialSpec)
   if (generatedSchool) {
     const insertionCount = questions.filter((question) => question.type === '문장 삽입').length
     if (insertionCount > 1) throw new Error('새 자료 작성 세트에는 문장 삽입을 한 문항만 포함할 수 있습니다.')

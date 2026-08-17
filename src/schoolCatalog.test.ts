@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { createEnglishSet, createQuestion, generateEnglishPrompt, questionTypesFor } from './english'
-import { SCHOOL_QUESTION_TEMPLATES, schoolQuestionChoiceLayout, validateSchoolTemplateMarkup } from './schoolCatalog'
+import { SCHOOL_QUESTION_TEMPLATES, inferSchoolQuestionTemplate, schoolQuestionChoiceLayout, validateSchoolTemplateMarkup } from './schoolCatalog'
 
 describe('내신형 객관식 템플릿 카탈로그', () => {
   it('요청된 15개 객관식 구조를 중복 없이 제공한다', () => {
@@ -27,5 +27,20 @@ describe('내신형 객관식 템플릿 카탈로그', () => {
     expect(prompt).toContain('multi-blank')
     expect(prompt).toContain('word-bank')
     expect(prompt).toContain('하나의 공통 material')
+  })
+
+  it('요약문은 별도 (A)·(B) 문장과 단어쌍 선지를 검사한다', () => {
+    const set = createEnglishSet('school')
+    const summary = createQuestion('요약문 완성')
+    summary.schoolSummaryText = 'The evidence [[요약빈칸:A]] the claim while [[요약빈칸:B]] its limits.'
+    summary.choices = ['supports|revealing', 'rejects|hiding', 'copies|ignoring', 'weakens|removing', 'repeats|denying']
+    set.questions = [summary]
+    set.material = 'A source passage presents evidence and explains the limits of the claim.'
+
+    expect(validateSchoolTemplateMarkup(set)).toEqual([])
+    expect(inferSchoolQuestionTemplate(summary).choiceLayout).toBe('matrix')
+
+    summary.schoolSummaryText = 'The evidence [[요약빈칸:A]] the claim.'
+    expect(validateSchoolTemplateMarkup(set)[0]).toContain('[[요약빈칸:B]]')
   })
 })

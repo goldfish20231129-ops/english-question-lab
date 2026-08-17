@@ -14,6 +14,10 @@ export function isSchoolInsertionQuestion(question: EnglishQuestion) {
   return question.type === '문장 삽입'
 }
 
+export function isSchoolSummaryQuestion(question: EnglishQuestion) {
+  return question.type === '요약문 완성'
+}
+
 export function orderedGeneratedSchoolQuestions(set: EnglishQuestionSet) {
   if (!isGeneratedSchoolSet(set)) return set.questions
   if (set.schoolInsertionPresentation === 'shared') return set.questions
@@ -31,7 +35,9 @@ export function orderedSchoolQuestions(set: EnglishQuestionSet) {
 }
 
 export function usesQuestionScopedSchoolMaterial(set: EnglishQuestionSet) {
-  return isGeneratedSchoolSet(set) && set.schoolInsertionPresentation !== 'shared' && set.questions.some(isSchoolInsertionQuestion)
+  if (!isGeneratedSchoolSet(set)) return false
+  const hasIsolatedInsertion = set.schoolInsertionPresentation !== 'shared' && set.questions.some(isSchoolInsertionQuestion)
+  return hasIsolatedInsertion || set.questions.some(isSchoolSummaryQuestion)
 }
 
 function hasGeneratedSchoolInsertion(set: EnglishQuestionSet) {
@@ -88,6 +94,10 @@ export function usesInlineGeneratedSchoolChoices(set: EnglishQuestionSet | undef
 }
 
 export function schoolQuestionMaterialPresentation(set: EnglishQuestionSet, question: EnglishQuestion): { text: string; spec?: CsatMaterialSpec } {
+  if (isSchoolSummaryQuestion(question)) {
+    const summary = question.schoolSummaryText ?? (set.materialSpec?.kind === 'summary' ? set.materialSpec.summary : '')
+    return summary ? { text: '', spec: { kind: 'summary', summary } } : { text: '' }
+  }
   if (set.schoolInsertionPresentation === 'shared') return { text: '' }
   if (!usesQuestionScopedSchoolMaterial(set)) return { text: set.material, spec: set.materialSpec }
   if (isSchoolInsertionQuestion(question)) {

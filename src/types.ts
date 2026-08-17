@@ -251,6 +251,8 @@ export interface EnglishQuestion {
   csatItemId?: string
   schoolTemplateId?: SchoolQuestionTemplateId
   schoolChoiceLayout?: SchoolChoiceLayout
+  /** 내신형 요약문 완성에서 공통 지문과 별도로 출력하는 (A)·(B) 요약문 */
+  schoolSummaryText?: string
 }
 
 export type VerificationScope = 'set' | 'exam'

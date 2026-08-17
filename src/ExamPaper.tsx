@@ -4,7 +4,7 @@ import { CsatMaterialView } from './CsatMaterialView'
 import { buildExamFlowBlocks, examFlowMeasurementKey, geometryKey, getOversizedQuestionIssues, paginateAtomicAnswerBlocks, paginateExamBlocks, resolveExamEntries, type ExamFlowBlock, type ExamLayoutMetrics } from './examLayout'
 import { providedPassagePresentationSpec } from './providedPassage'
 import { orderedProvidedPassageV02Questions, providedPassageV02PresentationSpec, providedPassageV02QuestionMaterialText, providedPassageV02SharedMaterialText, providedPassageV02SharedPresentationSpec } from './providedPassageV02'
-import { generatedSchoolSharedMaterialPresentation, isSchoolInsertionQuestion, orderedSchoolQuestions, schoolQuestionMaterialPresentation, usesInlineSchoolChoices, usesQuestionScopedSchoolMaterial } from './schoolMaterial'
+import { generatedSchoolSharedMaterialPresentation, isSchoolInsertionQuestion, isSchoolSummaryQuestion, orderedSchoolQuestions, schoolQuestionMaterialPresentation, usesInlineSchoolChoices, usesQuestionScopedSchoolMaterial } from './schoolMaterial'
 import { schoolQuestionChoiceLayout } from './schoolCatalog'
 import type { CsatItemDesign, EnglishExamDocument, EnglishQuestion, EnglishQuestionSet, ExamLayoutSettings, LayoutPreset, MediaAsset } from './types'
 import { englishDifficultyLabel } from './difficulty'
@@ -123,13 +123,16 @@ function AssetBlock({ block }: { block: ExamFlowBlock }) {
 
 function QuestionScopedMaterial({ set, question }: { set?: EnglishQuestionSet; question: EnglishQuestion }) {
   if (!set) return null
-  if (set.schoolInsertionPresentation === 'shared') return null
+  if (set.schoolInsertionPresentation === 'shared' && !isSchoolSummaryQuestion(question)) return null
   if (set.providedPassageV02 && !isSchoolInsertionQuestion(question)) return null
   const presentationSpec = set.providedPassageV02
     ? providedPassageV02PresentationSpec(set, question.id)
     : usesQuestionScopedSchoolMaterial(set) ? schoolQuestionMaterialPresentation(set, question).spec : undefined
   if (presentationSpec?.kind === 'insertion') {
     return <div className="paper-structured-material provided-v02-question-material"><CsatMaterialView spec={presentationSpec} collapseParagraphs renderText={(text) => <EnglishText text={collapseCsatProseParagraphs(text)} />} /></div>
+  }
+  if (presentationSpec?.kind === 'summary') {
+    return <div className="school-summary-material provided-v02-question-material"><div className="csat-summary-arrow" aria-hidden="true">↓</div><div className="csat-summary-sentence"><p><EnglishText text={collapseCsatProseParagraphs(presentationSpec.summary)} /></p></div></div>
   }
   if (!set.providedPassageV02 && !usesQuestionScopedSchoolMaterial(set)) return null
   const text = set.providedPassageV02 ? providedPassageV02QuestionMaterialText(set, question.id) : schoolQuestionMaterialPresentation(set, question).text

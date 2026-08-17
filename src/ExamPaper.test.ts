@@ -113,6 +113,25 @@ describe('내신형 새 지문 혼합 세트 출력', () => {
     expect(html.match(/class="insertion-position"/g)).toHaveLength(5)
   })
 
+  it('내신형 요약문을 공통 지문 아래 화살표·상자·단어쌍 선지로 표시한다', () => {
+    const set = createEnglishSet('school')
+    const content = createQuestion('내용 이해')
+    const summary = createQuestion('요약문 완성', 5, 'school')
+    summary.schoolSummaryText = 'Careful comparison [[요약빈칸:A]] learners to [[요약빈칸:B]] their conclusions.'
+    summary.choices = ['enables|revise', 'prevents|repeat', 'forces|ignore', 'allows|copy', 'stops|preserve']
+    set.questions = [content, summary]
+    set.material = 'Learners compare explanations and use evidence to revise their conclusions.'
+
+    const html = renderToStaticMarkup(createElement(SetLivePreview, { set }))
+
+    expect(html.match(/Learners compare explanations/g)).toHaveLength(1)
+    expect(html).toContain('school-summary-material')
+    expect(html).toContain('csat-summary-arrow')
+    expect(html).toContain('english-summary-blank')
+    expect(html).toContain('school-choice-container-matrix')
+    expect(html).toContain('<span>enables</span><span>revise</span>')
+  })
+
   it('학교형-2단 시험 첫 페이지에 편집 헤더와 자동 문항·배점 합계를 표시한다', () => {
     const set = createEnglishSet('school')
     set.material = 'A completely new passage is used only for layout verification.'

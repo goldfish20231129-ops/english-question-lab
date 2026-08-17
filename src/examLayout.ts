@@ -333,6 +333,7 @@ export function buildExamFlowBlocks(exam: EnglishExamDocument, sets: EnglishQues
         : undefined
       const questionMaterialText = part === 'choices' ? ''
         : questionMaterialSpec?.kind === 'insertion' ? `${questionMaterialSpec.givenSentence} ${questionMaterialSpec.body}`
+          : questionMaterialSpec?.kind === 'summary' ? questionMaterialSpec.summary
           : providedInsertion ? providedPassageV02QuestionMaterialText(set, question.id)
             : generatedPresentation?.text ?? ''
       const questionMaterialUnits = questionMaterialText ? lines(collapseCsatProseParagraphs(questionMaterialText), width) + 3 : 0

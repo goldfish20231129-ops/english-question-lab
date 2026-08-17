@@ -96,4 +96,29 @@ describe('새 자료 내신형 문항별 지문 표시', () => {
     expect(isGeneratedSchoolSet(set)).toBe(false)
     expect(generatedSchoolSharedMaterialPresentation(set)).toBeUndefined()
   })
+
+  it('요약문은 공통 지문과 분리된 문항 전용 상자로 제공한다', () => {
+    const set = createEnglishSet('school')
+    const content = createQuestion('내용 이해')
+    const summary = createQuestion('요약문 완성')
+    summary.schoolSummaryText = 'Careful comparison [[요약빈칸:A]] learners to [[요약빈칸:B]] their judgments.'
+    set.questions = [content, summary]
+    set.material = 'Learners compare several explanations and revise their judgments after examining the evidence.'
+
+    expect(usesQuestionScopedSchoolMaterial(set)).toBe(true)
+    expect(generatedSchoolSharedMaterialPresentation(set)?.text).toBe(set.material)
+    expect(schoolQuestionMaterialPresentation(set, content)).toEqual({ text: '' })
+    expect(schoolQuestionMaterialPresentation(set, summary).spec).toEqual({ kind: 'summary', summary: summary.schoolSummaryText })
+  })
+
+  it('예전 최상위 summary materialSpec도 문항 전용 요약문으로 표시한다', () => {
+    const set = createEnglishSet('school')
+    const summary = createQuestion('요약문 완성')
+    set.questions = [summary]
+    set.material = 'The original passage remains the shared source.'
+    set.materialSpec = { kind: 'summary', summary: 'Evidence [[요약빈칸:A]] a claim and [[요약빈칸:B]] uncertainty.' }
+
+    expect(generatedSchoolSharedMaterialPresentation(set)?.text).toBe(set.material)
+    expect(schoolQuestionMaterialPresentation(set, summary).spec).toEqual(set.materialSpec)
+  })
 })
