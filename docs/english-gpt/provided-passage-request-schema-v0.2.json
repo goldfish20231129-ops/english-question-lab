@@ -54,9 +54,9 @@
       "required": ["itemId", "templateId", "variantId", "questionType", "choiceLanguage", "vocabularyLevel", "contentMatchPolarity", "grammarTarget", "grammarMode", "requiredStem", "targetLevel", "score", "requiredCandidateBoundaryCount"],
       "properties": {
         "itemId": { "type": "string", "minLength": 1 },
-        "templateId": { "enum": ["school-content-match", "school-content-inference", "school-sentence-insertion", "school-grammar"] },
+        "templateId": { "enum": ["school-content-match", "school-content-inference", "school-sentence-insertion", "school-grammar", "school-summary"] },
         "variantId": { "const": "standard" },
-        "questionType": { "enum": ["content_match", "content_inference", "sentence_insertion", "grammar"] },
+        "questionType": { "enum": ["content_match", "content_inference", "sentence_insertion", "grammar", "summary"] },
         "choiceLanguage": { "enum": ["ko", "en", null] },
         "vocabularyLevel": { "enum": ["source_matched", "grade_1", "grade_2", "grade_3_csat"] },
         "contentMatchPolarity": { "enum": ["match", "mismatch", null] },

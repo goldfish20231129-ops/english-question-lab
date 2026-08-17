@@ -16,7 +16,7 @@ export const PROVIDED_PASSAGE_V02_RESPONSE_SCHEMA_ID = 'english-question-lab-pro
 export const PROVIDED_PASSAGE_V02_MAX_ITEMS = MAX_SCHOOL_SET_QUESTIONS
 
 export const PROVIDED_PASSAGE_V02_TYPE_LABELS: Record<ProvidedPassageV02QuestionType, string> = {
-  content_match: '내용 일치·불일치', content_inference: '내용 이해·추론', sentence_insertion: '문장 삽입', grammar: '어법',
+  content_match: '내용 일치·불일치', content_inference: '내용 이해·추론', sentence_insertion: '문장 삽입', grammar: '어법', summary: '요약문 완성',
 }
 export const PROVIDED_PASSAGE_GRAMMAR_LABELS: Record<ProvidedPassageGrammarTarget, string> = {
   relative_clause: '관계대명사', appositive_that: '동격 that', subject_verb_agreement: '수 일치',
@@ -59,6 +59,7 @@ export function providedPassageV02DefaultStem(
 ) {
   if (language === 'en') {
     if (type === 'sentence_insertion') return 'Where is the most appropriate place for the given sentence?'
+    if (type === 'summary') return 'Which pair of words best completes blanks (A) and (B) in the summary?'
     if (type === 'grammar') {
       return grammarMode === 'controlled_error_variant'
         ? 'Which of the underlined parts is grammatically incorrect?'
@@ -70,6 +71,7 @@ export function providedPassageV02DefaultStem(
       : 'Which of the following is NOT consistent with the passage?'
   }
   if (type === 'sentence_insertion') return '글의 흐름으로 보아, 주어진 문장이 들어가기에 가장 적절한 곳은?'
+  if (type === 'summary') return '다음 글의 내용을 한 문장으로 요약하고자 한다. 빈칸 (A)와 (B)에 들어갈 말로 가장 적절한 것은?'
   if (type === 'grammar') {
     const label = PROVIDED_PASSAGE_GRAMMAR_STEM_LABELS[grammarTarget ?? 'relative_clause']
     return grammarMode === 'controlled_error_variant'
@@ -87,9 +89,10 @@ function questionShape(
   grammarMode: ProvidedPassageV02ItemPlan['grammarMode'] = 'source_form_check',
   language: ProvidedPassageChoiceLanguage = 'ko',
 ): Pick<EnglishQuestion, 'type' | 'stem' | 'choices' | 'answerIndex' | 'schoolStemLanguage' | 'schoolChoiceLanguage'> {
-  const languageFields = { schoolStemLanguage: language, schoolChoiceLanguage: usesChoiceLanguage(type) ? 'ko' as const : undefined }
+  const languageFields = { schoolStemLanguage: language, schoolChoiceLanguage: usesChoiceLanguage(type) ? defaultChoiceLanguage(type) ?? undefined : undefined }
   if (type === 'sentence_insertion') return { type: '문장 삽입', stem: providedPassageV02DefaultStem(type, polarity, grammarTarget, grammarMode, language), choices: [...CSAT_INLINE_POSITION_CHOICES], answerIndex: 1, ...languageFields }
   if (type === 'grammar') return { type: '어법', stem: providedPassageV02DefaultStem(type, polarity, grammarTarget, grammarMode, language), choices: grammarMode === 'controlled_error_variant' ? [...CSAT_INLINE_POSITION_CHOICES] : Array.from({ length: 5 }, () => ''), answerIndex: 1, ...languageFields }
+  if (type === 'summary') return { type: '요약문 완성', stem: providedPassageV02DefaultStem(type, polarity, grammarTarget, grammarMode, language), choices: Array.from({ length: 5 }, () => ''), answerIndex: 1, ...languageFields }
   if (type === 'content_inference') return { type: '내용 이해', stem: providedPassageV02DefaultStem(type, polarity, grammarTarget, grammarMode, language), choices: Array.from({ length: 5 }, () => ''), answerIndex: 1, ...languageFields }
   return { type: '내용 일치 및 불일치', stem: providedPassageV02DefaultStem(type, polarity, grammarTarget, grammarMode, language), choices: Array.from({ length: 5 }, () => ''), answerIndex: 1, ...languageFields }
 }
@@ -100,12 +103,17 @@ function questionShapeForPlan(plan: ProvidedPassageV02ItemPlan) {
 }
 
 function usesChoiceLanguage(type: ProvidedPassageV02QuestionType) {
-  return type === 'content_match' || type === 'content_inference'
+  return type === 'content_match' || type === 'content_inference' || type === 'summary'
+}
+
+function defaultChoiceLanguage(type: ProvidedPassageV02QuestionType): ProvidedPassageChoiceLanguage | null {
+  if (type === 'summary') return 'en'
+  return type === 'content_match' || type === 'content_inference' ? 'ko' : null
 }
 
 export function createProvidedPassageV02Plan(itemId: string = crypto.randomUUID(), questionType: ProvidedPassageV02QuestionType = 'content_match'): ProvidedPassageV02ItemPlan {
   return {
-    itemId, questionType, stemLanguage: 'ko', choiceLanguage: usesChoiceLanguage(questionType) ? 'ko' : null,
+    itemId, questionType, stemLanguage: 'ko', choiceLanguage: defaultChoiceLanguage(questionType),
     vocabularyLevel: 'source_matched', contentMatchPolarity: questionType === 'content_match' ? 'mismatch' : null,
     grammarTarget: questionType === 'grammar' ? 'relative_clause' : null,
     grammarMode: questionType === 'grammar' ? 'source_form_check' : null,
@@ -148,6 +156,7 @@ function questionTypeFromExisting(question: EnglishQuestion): ProvidedPassageV02
   if (question.type === '내용 이해') return 'content_inference'
   if (question.type === '문장 삽입') return 'sentence_insertion'
   if (question.type === '어법') return 'grammar'
+  if (question.type === '요약문 완성') return 'summary'
   return undefined
 }
 
@@ -175,7 +184,7 @@ export function syncProvidedPassageV02Questions(set: EnglishQuestionSet, plans: 
   return orderedProvidedPassageV02Plans(plans).map((plan) => {
     const previous = existing.get(plan.itemId)
     const shape = questionShapeForPlan(plan)
-    return { id: plan.itemId, ...shape, explanation: previous?.explanation ?? '', intention: previous?.intention ?? '', evidenceRefs: previous?.evidenceRefs ?? [], distractorReasons: previous?.distractorReasons ?? [], score: previous?.score ?? 2 }
+    return { id: plan.itemId, ...shape, explanation: previous?.explanation ?? '', intention: previous?.intention ?? '', evidenceRefs: previous?.evidenceRefs ?? [], distractorReasons: previous?.distractorReasons ?? [], score: previous?.score ?? 2, schoolTemplateId: plan.questionType === 'summary' ? 'summary' : undefined, schoolChoiceLayout: plan.questionType === 'summary' ? 'matrix' : undefined, schoolSummaryText: plan.questionType === 'summary' ? previous?.schoolSummaryText ?? '' : undefined }
   })
 }
 
@@ -231,10 +240,14 @@ const requestValidator = ajv.compile(requestSchema)
 const responseValidator = ajv.compile(responseSchema)
 
 function templateId(type: ProvidedPassageV02QuestionType) {
-  return type === 'content_match' ? 'school-content-match' : type === 'content_inference' ? 'school-content-inference' : type === 'sentence_insertion' ? 'school-sentence-insertion' : 'school-grammar'
+  if (type === 'content_match') return 'school-content-match'
+  if (type === 'content_inference') return 'school-content-inference'
+  if (type === 'sentence_insertion') return 'school-sentence-insertion'
+  if (type === 'summary') return 'school-summary'
+  return 'school-grammar'
 }
 
-const SUPPORTED_TYPES = new Set<ProvidedPassageV02QuestionType>(['content_match', 'content_inference', 'sentence_insertion', 'grammar'])
+const SUPPORTED_TYPES = new Set<ProvidedPassageV02QuestionType>(['content_match', 'content_inference', 'sentence_insertion', 'grammar', 'summary'])
 
 function rawProvidedPassageV02Request(set: EnglishQuestionSet, state: ProvidedPassageV02State) {
   const questionById = new Map(set.questions.map((question) => [question.id, question]))
@@ -304,8 +317,8 @@ export function buildProvidedPassageV02Request(set: EnglishQuestionSet) {
 export function generateProvidedPassageV02Prompt(set: EnglishQuestionSet) {
   const request = buildProvidedPassageV02Request(set)
   const grammarDetails = request.items.filter((item) => item.questionType === 'grammar').map((item) => `- ${item.itemId}: ${item.grammarTarget ? PROVIDED_PASSAGE_GRAMMAR_RULES[item.grammarTarget] : ''} 모드는 ${item.grammarMode}. question.stem은 requiredStem과 글자 단위로 같아야 한다. testedSpan은 실제로 밑줄 칠 최소 어법 표현만 가리키며 문장 전체를 범위로 삼지 않는다. sourceForm은 testedSpan.text와 같고 오류 변형은 presentedForm에만 둔다.${item.grammarMode === 'controlled_error_variant' ? ' question.evidenceSpans에는 원문 순서대로 서로 겹치지 않는 최소 어법 표적을 정확히 5개 넣는다. choices는 ["①","②","③","④","⑤"]로 고정하고, testedSpan은 이 다섯 표적 중 유일하게 틀린 presentedForm을 적용할 한 곳이다. answerIndex는 해당 표적의 순번과 같아야 한다. 나머지 네 표적은 원문 형태를 그대로 제시한다. 다섯 표적은 관계대명사·동격 that, 주어·동사 수 일치, 동사·준동사, 능동·수동, 대명사·재귀대명사, 관계사 중 원문에서 판정 가능한 서로 다른 핵심 항목을 가능한 한 분산한다. 같은 문법 항목만 다섯 번 반복하거나 철자·단순 어휘를 어법 표적으로 사용하지 않는다.' : ''}`).join('\n')
-  const grammar = `- 한 세트는 요청된 문항을 최대 ${PROVIDED_PASSAGE_V02_MAX_ITEMS}개까지만 생성한다.\n${grammarDetails || '- 어법 문항 없음'}\n- Request Schema V0.2의 items[].requiredStem은 additional property가 아니라 item.required와 item.properties에 모두 정의된 비어 있지 않은 정식 필수 문자열이다. 이를 오류로 판정하거나 Request에서 삭제하지 않는다.\n- question.stem은 대응하는 requiredStem과 공백·문장부호까지 글자 단위로 정확히 같아야 하며 questionType만으로 재구성하지 않는다.\n- 1차 JSON은 문제지와 정답지 완성이 목적이다. question의 explanation, intention, distractorReasons와 item의 qualityReview는 출력하지 않는다. evidenceSpans와 materialOperation은 구조 검증을 위해 반환한다.\n- 앞의 해설 작성 지시는 2차 해설 생성 단계에만 적용하며, 1차 JSON에서는 해설 필드를 생략한다.\n- 기존 방식대로 해설 필드와 qualityReview를 함께 출력해도 앱은 호환하여 가져올 수 있다.`
-  return `[PROVIDED_PASSAGE_GENERATION_V0.2]\n당신은 사용자가 제공한 영어 원문을 수정하지 않고 여러 내신형 문항을 설계·생성하는 영어 출제자다.\n\n[절대 원칙]\n- source.passage는 유일한 권위 원문이며 응답에 전체를 반환하지 않는다.\n- 문장 삽입이 아닌 모든 items는 동일한 source.passage 한 지문을 공유한다. 같은 지문을 문항별로 새로 만들거나 반복 반환하지 않는다.\n- 내용 일치·불일치 문항이 여러 개면 같은 원문에서 서로 다른 근거와 오답 원리로 각각 독립된 문항을 만든다.\n- content_inference 내용 이해 문항은 단순 사실 재진술이 아니라 지문의 둘 이상의 단서 또는 하나의 충분한 함의로 도출되는 추론을 묻는다. 정답은 외부 배경지식 없이 원문만으로 유일하게 도출하고, 과도한 일반화·인과 비약·범위 왜곡·주체 변경을 오답으로 사용한다.\n- 내용 이해의 evidenceSpans에는 실제 추론에 사용한 원문 단서를 넣고, 추론 설명은 2차 해설 단계에서 작성한다.\n- 문장 삽입 item은 최대 하나이며 항상 items 배열의 마지막에 둔다.\n- sourcePassageId, sourceFingerprint와 모든 itemId를 그대로 반환한다.\n- sentence ID·offset과 boundary ID·offset은 Request에 있는 값만 사용하며 새로 만들거나 바꾸지 않는다.\n- 각 item의 question.stem은 해당 item의 requiredStem과 공백·문장부호까지 정확히 같아야 한다.\n- items마다 요청된 유형·언어·어휘 수준·문법 태그를 독립적으로 지킨다.\n- 문장 삽입의 generatedSentence, 후보 경계와 표식은 해당 itemId의 materialOperation에만 둔다. 다른 문항이나 공통 원문에 전파하지 않는다.\n- 정답은 문항마다 정확히 하나이며 외부 사실로 판정하지 않는다.\n- 어법 문항은 원문 근거가 하나로 결정될 때만 만든다. source_form_check는 sourceForm과 presentedForm이 같고, controlled_error_variant는 원문을 고치지 않은 채 presentedForm에만 최소 변형을 둔다.\n- 어법 testedSpan은 실제로 밑줄 칠 낱말·구·절의 최소 정확 범위여야 한다. 근거 문장 전체는 evidenceSpans에 둘 수 있지만 testedSpan이나 sourceForm에 문장 전체를 넣지 않는다.\n- 관계대명사는 선행사와 관계절 성분, 동격 that은 완전한 절과 명사 내용 관계, 수 일치는 실제 주어, 분사구문은 의미상 주어와 태, 계속적 관계대명사는 쉼표·that 금지, 대명사 일치는 선행사, 가주어는 진주어, 강조 it-that은 강조 대상과 잔여 절을 반드시 확인한다.\n${grammar || '- 어법 문항 없음'}\n\n[Request 검증 순서]\n1. schemaId와 mode를 확인한다.\n2. 필수 최상위 필드를 확인한다.\n3. items 배열을 확인한다.\n4. 각 item의 필수 필드를 확인한다.\n5. additionalProperties를 검사한다. requiredStem을 포함해 properties에 정의된 필드는 추가 속성이 아니다.\n\n[출력]\nRequest가 유효하면 설계안이나 승인 질문 없이 즉시 ${PROVIDED_PASSAGE_V02_RESPONSE_SCHEMA_ID} 문제·정답 JSON 객체 하나만 출력한다. 유효하지 않으면 오류 목록만 출력하고 임시 JSON, Markdown 설명, 승인 문장, 지원 유형으로의 임의 변경을 출력하지 않는다.\n\n[Request JSON]\n${JSON.stringify(request, null, 2)}`
+  const grammar = `- 한 세트는 요청된 문항을 최대 ${PROVIDED_PASSAGE_V02_MAX_ITEMS}개까지만 생성한다.\n${grammarDetails || '- 어법 문항 없음'}\n- Request Schema V0.2의 items[].requiredStem은 additional property가 아니라 item.required와 item.properties에 모두 정의된 비어 있지 않은 정식 필수 문자열이다. 이를 오류로 판정하거나 Request에서 삭제하지 않는다.\n- question.stem은 대응하는 requiredStem과 공백·문장부호까지 글자 단위로 정확히 같아야 하며 questionType만으로 재구성하지 않는다.\n- 문장 삽입의 candidateBoundaryIds, answerBoundaryId, positionReasons[].boundaryId에는 Request의 내부 ID를 그대로 유지한다. positionReasons[].reason이나 호환형 해설·검토 등 사용자용 문장에서는 내부 ID를 금지하고 후보 배열의 순서대로 ①~⑤를 사용한다. boundary ID의 숫자를 위치 번호로 직접 변환하지 않는다.\n- 1차 JSON은 문제지와 정답지 완성이 목적이다. question의 explanation, intention, distractorReasons와 item의 qualityReview는 출력하지 않는다. evidenceSpans와 materialOperation은 구조 검증을 위해 반환한다.\n- 앞의 해설 작성 지시는 2차 해설 생성 단계에만 적용하며, 1차 JSON에서는 해설 필드를 생략한다.\n- 기존 방식대로 해설 필드와 qualityReview를 함께 출력해도 앱은 호환하여 가져올 수 있다.`
+  return `[PROVIDED_PASSAGE_GENERATION_V0.2]\n당신은 사용자가 제공한 영어 원문을 수정하지 않고 여러 내신형 문항을 설계·생성하는 영어 출제자다.\n\n[절대 원칙]\n- source.passage는 유일한 권위 원문이며 응답에 전체를 반환하지 않는다.\n- 문장 삽입이 아닌 모든 items는 동일한 source.passage 한 지문을 공유한다. 같은 지문을 문항별로 새로 만들거나 반복 반환하지 않는다.\n- 내용 일치·불일치 문항이 여러 개면 같은 원문에서 서로 다른 근거와 오답 원리로 각각 독립된 문항을 만든다.\n- content_inference 내용 이해 문항은 단순 사실 재진술이 아니라 지문의 둘 이상의 단서 또는 하나의 충분한 함의로 도출되는 추론을 묻는다. 정답은 외부 배경지식 없이 원문만으로 유일하게 도출하고, 과도한 일반화·인과 비약·범위 왜곡·주체 변경을 오답으로 사용한다.\n- 내용 이해의 evidenceSpans에는 실제 추론에 사용한 원문 단서를 넣고, 추론 설명은 2차 해설 단계에서 작성한다.\n- summary 요약문 완성은 공통 원문을 반복하지 않고 question.summaryText에 원문 전체의 핵심 관계를 재진술한 영어 한 문장을 작성한다. summaryText에는 [[요약빈칸:A]]와 [[요약빈칸:B]]를 각각 정확히 한 번 넣고 choices는 ["A단어|B단어", ...] 형식의 서로 다른 다섯 영어 단어쌍으로 만든다.\n- 문장 삽입 item은 최대 하나이며 항상 items 배열의 마지막에 둔다.\n- sourcePassageId, sourceFingerprint와 모든 itemId를 그대로 반환한다.\n- sentence ID·offset과 boundary ID·offset은 Request에 있는 값만 사용하며 새로 만들거나 바꾸지 않는다.\n- 각 item의 question.stem은 해당 item의 requiredStem과 공백·문장부호까지 정확히 같아야 한다.\n- items마다 요청된 유형·언어·어휘 수준·문법 태그를 독립적으로 지킨다.\n- 문장 삽입의 generatedSentence, 후보 경계와 표식은 해당 itemId의 materialOperation에만 둔다. 다른 문항이나 공통 원문에 전파하지 않는다.\n- 정답은 문항마다 정확히 하나이며 외부 사실로 판정하지 않는다.\n- 어법 문항은 원문 근거가 하나로 결정될 때만 만든다. source_form_check는 sourceForm과 presentedForm이 같고, controlled_error_variant는 원문을 고치지 않은 채 presentedForm에만 최소 변형을 둔다.\n- 어법 testedSpan은 실제로 밑줄 칠 낱말·구·절의 최소 정확 범위여야 한다. 근거 문장 전체는 evidenceSpans에 둘 수 있지만 testedSpan이나 sourceForm에 문장 전체를 넣지 않는다.\n- 관계대명사는 선행사와 관계절 성분, 동격 that은 완전한 절과 명사 내용 관계, 수 일치는 실제 주어, 분사구문은 의미상 주어와 태, 계속적 관계대명사는 쉼표·that 금지, 대명사 일치는 선행사, 가주어는 진주어, 강조 it-that은 강조 대상과 잔여 절을 반드시 확인한다.\n${grammar || '- 어법 문항 없음'}\n\n[Request 검증 순서]\n1. schemaId와 mode를 확인한다.\n2. 필수 최상위 필드를 확인한다.\n3. items 배열을 확인한다.\n4. 각 item의 필수 필드를 확인한다.\n5. additionalProperties를 검사한다. requiredStem을 포함해 properties에 정의된 필드는 추가 속성이 아니다.\n\n[출력]\nRequest가 유효하면 설계안이나 승인 질문 없이 즉시 ${PROVIDED_PASSAGE_V02_RESPONSE_SCHEMA_ID} 문제·정답 JSON 객체 하나만 출력한다. 유효하지 않으면 오류 목록만 출력하고 임시 JSON, Markdown 설명, 승인 문장, 지원 유형으로의 임의 변경을 출력하지 않는다.\n\n[Request JSON]\n${JSON.stringify(request, null, 2)}`
 }
 
 function validateSpan(span: ProvidedPassageEvidenceSpan, state: ProvidedPassageV02State, label: string) {
@@ -375,10 +388,17 @@ export function adaptProvidedPassageV02Response(value: unknown, base: EnglishQue
     const choices = (question.choices as string[]).map(stripLeadingChoiceMarker)
     if (new Set(choices.map((choice) => choice.normalize('NFC').replace(/\s+/g, ' ').toLowerCase())).size !== 5) throw new Error(`${plan.itemId}: 선택지는 서로 달라야 합니다.`)
     const operation = record.materialOperation as ProvidedPassageV02ItemResult['materialOperation']
-    if (plan.questionType === 'content_match' || plan.questionType === 'content_inference') {
+    if (plan.questionType === 'content_match' || plan.questionType === 'content_inference' || plan.questionType === 'summary') {
       if (operation !== null) throw new Error(`${plan.itemId}: 내용 문항의 materialOperation은 null이어야 합니다.`)
       if (plan.choiceLanguage === 'ko' && choices.some((choice) => !/[가-힣]/.test(choice))) throw new Error(`${plan.itemId}: 한국어 선지로 통일해야 합니다.`)
       if (plan.choiceLanguage === 'en' && choices.some((choice) => /[가-힣]/.test(choice) || !/[A-Za-z]/.test(choice))) throw new Error(`${plan.itemId}: 영어 선지로 통일해야 합니다.`)
+      if (plan.questionType === 'summary') {
+        const summaryText = typeof question.summaryText === 'string' ? question.summaryText.trim() : ''
+        const markerA = summaryText.match(/\[\[요약빈칸:A\]\]/g)?.length ?? 0
+        const markerB = summaryText.match(/\[\[요약빈칸:B\]\]/g)?.length ?? 0
+        if (markerA !== 1 || markerB !== 1) throw new Error(`${plan.itemId}: 요약문에는 [[요약빈칸:A]]와 [[요약빈칸:B]]가 각각 정확히 1개 필요합니다.`)
+        if (choices.some((choice) => choice.split('|').length !== 2 || choice.split('|').some((part) => !part.trim()))) throw new Error(`${plan.itemId}: 요약문 선지는 A단어|B단어 형식의 단어쌍 다섯 개가 필요합니다.`)
+      }
     } else if (plan.questionType === 'sentence_insertion') {
       if (!operation || operation.kind !== 'insert_sentence') throw new Error(`${plan.itemId}: 삽입 operation이 필요합니다.`)
       const boundaryById = new Map(state.boundaries.map((boundary) => [boundary.id, boundary]))
@@ -388,6 +408,16 @@ export function adaptProvidedPassageV02Response(value: unknown, base: EnglishQue
       if (candidateOffsets.some((offset, index) => index > 0 && offset <= candidateOffsets[index - 1])) throw new Error(`${plan.itemId}: 삽입 후보 경계는 원문 순서대로 겹치지 않게 제시해야 합니다.`)
       const reasonIds = operation.positionReasons.map((reason) => reason.boundaryId)
       if (new Set(reasonIds).size !== 5 || reasonIds.some((id) => !operation.candidateBoundaryIds.includes(id))) throw new Error(`${plan.itemId}: 위치별 이유는 다섯 후보 boundaryId와 정확히 대응해야 합니다.`)
+      const answerPosition = operation.candidateBoundaryIds.indexOf(operation.answerBoundaryId)
+      if (question.answerIndex !== answerPosition + 1) throw new Error(`${plan.itemId}: answerIndex와 answerBoundaryId가 같은 후보 위치를 가리켜야 합니다.`)
+      const userFacingStrings = [
+        ...operation.positionReasons.map((reason) => reason.reason),
+        typeof question.explanation === 'string' ? question.explanation : '',
+        typeof question.intention === 'string' ? question.intention : '',
+        ...((Array.isArray(question.distractorReasons) ? question.distractorReasons : []).map(String)),
+        ...((record.qualityReview as CsatQualityReview | undefined)?.questions?.map((review) => review.decisiveReason ?? '') ?? []),
+      ]
+      if (userFacingStrings.some((text) => /\bb\d+\b/i.test(text))) throw new Error(`${plan.itemId}: 사용자용 문장에는 내부 boundary ID를 출력할 수 없습니다. 후보 배열 순서에 따른 ①~⑤를 사용해 주세요.`)
       validateSpan(operation.beforeEvidence, state, `${plan.itemId}.beforeEvidence`); validateSpan(operation.afterEvidence, state, `${plan.itemId}.afterEvidence`)
       const answerBoundary = boundaryById.get(operation.answerBoundaryId)!
       if (operation.beforeEvidence.sentenceId !== answerBoundary.beforeSentenceId || operation.afterEvidence.sentenceId !== answerBoundary.afterSentenceId) throw new Error(`${plan.itemId}: 정답 경계의 바로 앞·뒤 문장이 evidence와 일치하지 않습니다.`)
@@ -415,7 +445,7 @@ export function adaptProvidedPassageV02Response(value: unknown, base: EnglishQue
         if (question.answerIndex !== testedIndex + 1) throw new Error(`${plan.itemId}: 정답 번호가 오류 변형을 적용한 밑줄 위치와 일치하지 않습니다.`)
       }
     }
-    questions.push({ id: plan.itemId, type: expectedShape.type, stem: expectedShape.stem, choices, answerIndex: question.answerIndex as number, explanation: typeof question.explanation === 'string' ? question.explanation.trim() : '', intention: typeof question.intention === 'string' ? question.intention.trim() : '', evidenceRefs: evidenceSpans.map((span) => span.text), distractorReasons: Array.isArray(question.distractorReasons) ? question.distractorReasons.map(String) : [], score: question.score as number, schoolStemLanguage: plan.stemLanguage ?? 'ko', schoolChoiceLanguage: usesChoiceLanguage(plan.questionType) ? plan.choiceLanguage ?? 'ko' : undefined })
+    questions.push({ id: plan.itemId, type: expectedShape.type, stem: expectedShape.stem, choices, answerIndex: question.answerIndex as number, explanation: typeof question.explanation === 'string' ? question.explanation.trim() : '', intention: typeof question.intention === 'string' ? question.intention.trim() : '', evidenceRefs: evidenceSpans.map((span) => span.text), distractorReasons: Array.isArray(question.distractorReasons) ? question.distractorReasons.map(String) : [], score: question.score as number, schoolStemLanguage: plan.stemLanguage ?? 'ko', schoolChoiceLanguage: usesChoiceLanguage(plan.questionType) ? plan.choiceLanguage ?? defaultChoiceLanguage(plan.questionType) ?? undefined : undefined, schoolTemplateId: plan.questionType === 'summary' ? 'summary' : undefined, schoolChoiceLayout: plan.questionType === 'summary' ? 'matrix' : undefined, schoolSummaryText: plan.questionType === 'summary' ? String(question.summaryText).trim() : undefined })
     results.push({ itemId: plan.itemId, evidenceSpans, materialOperation: operation })
     if (record.qualityReview) reviews.push(record.qualityReview as CsatQualityReview)
   }
@@ -456,6 +486,8 @@ export function humanizeProvidedPassageBoundaryReferences(set: EnglishQuestionSe
 
 export function providedPassageV02PresentationSpec(set: EnglishQuestionSet, questionId?: string) {
   const state = set.providedPassageV02
+  const question = questionId ? set.questions.find((candidate) => candidate.id === questionId) : undefined
+  if (state && question?.type === '요약문 완성' && question.schoolSummaryText?.trim()) return { kind: 'summary' as const, summary: question.schoolSummaryText.trim() }
   const matchingResults = state?.results?.filter((result) => result.materialOperation?.kind === 'insert_sentence') ?? []
   const result = questionId
     ? matchingResults.find((candidate) => candidate.itemId === questionId)

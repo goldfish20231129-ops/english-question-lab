@@ -132,7 +132,7 @@ function AssetBlock({ block }: { block: ExamFlowBlock }) {
 function QuestionScopedMaterial({ set, question }: { set?: EnglishQuestionSet; question: EnglishQuestion }) {
   if (!set) return null
   if (set.schoolInsertionPresentation === 'shared' && !isSchoolSummaryQuestion(question)) return null
-  if (set.providedPassageV02 && !isSchoolInsertionQuestion(question)) return null
+  if (set.providedPassageV02 && !isSchoolInsertionQuestion(question) && !isSchoolSummaryQuestion(question)) return null
   const presentationSpec = set.providedPassageV02
     ? providedPassageV02PresentationSpec(set, question.id)
     : usesQuestionScopedSchoolMaterial(set) ? schoolQuestionMaterialPresentation(set, question).spec : undefined

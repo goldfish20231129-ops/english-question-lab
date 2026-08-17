@@ -58,9 +58,13 @@ choiceLanguage가 ko이면 모든 선지는 한국어, en이면 모든 선지는
 
 `content_inference`는 발문을 Request의 requiredStem에서 읽고 그대로 사용한다. 정답은 지문에 그대로 적힌 한 문장의 번역이나 단순 재진술이 아니라, 둘 이상의 단서 또는 하나의 충분한 함의를 논리적으로 연결해 도출한다. 외부 배경지식, 상식 보충, 과도한 일반화와 인과 비약은 허용하지 않는다. 오답에는 범위 확대·축소, 관계 역전, 주체 변경, 근거 없는 원인·결과를 분산한다. evidenceSpans에는 실제 추론에 사용한 단서를 넣고, 단서에서 결론으로 이어지는 설명은 2차 해설 요청에서 작성한다. materialOperation은 null이다.
 
+`summary`는 공통 원문을 반복하지 않고 `question.summaryText`에 원문 전체의 핵심 관계를 재진술한 영어 한 문장을 작성한다. `summaryText`에는 `[[요약빈칸:A]]`와 `[[요약빈칸:B]]`를 각각 정확히 한 번 넣는다. choices는 `A단어|B단어` 형식의 서로 다른 영어 단어쌍 다섯 개로 작성하고, 두 빈칸을 모두 충족하는 정답은 하나만 둔다. materialOperation은 null이다.
+
 ## 문장 삽입
 
 문장 삽입은 다른 지원 유형과 같은 Request에 포함할 수 있다. Request의 후보 경계 다섯 개만 사용한다. 새 삽입 문장 하나, 정답 경계 하나, 다섯 위치별 이유, 정답 경계 바로 앞·뒤 evidence를 해당 `itemId`의 `materialOperation`에만 반환한다. 삽입 문장이나 위치 표식을 다른 item에 복제하지 않으며, 원문이나 표식이 들어간 원문 전체를 반환하지 않는다.
+
+`b0`, `b1`, `b3` 같은 boundary ID는 원문 위치 검증을 위한 내부 식별자다. `candidateBoundaryIds`, `answerBoundaryId`, `positionReasons[].boundaryId`에는 Request의 내부 ID를 그대로 보존한다. 반면 `positionReasons[].reason`, 호환형 1차 해설 필드, `qualityReview`의 설명, 검토 보고서와 수정 권고 등 사용자용 문장에는 내부 ID를 절대 노출하지 않는다. 사용자용 위치는 `candidateBoundaryIds` 배열의 순서에 따라 첫 번째부터 `①`, `②`, `③`, `④`, `⑤`로 표현한다. boundary ID의 숫자를 위치 번호로 직접 변환하지 않는다. 예를 들어 후보가 `["b3","b4","b5","b6","b7"]`이고 정답이 `b5`이면 사용자용 정답 위치는 `③`이다.
 
 ## 어법 문항
 
@@ -85,7 +89,7 @@ vocabularyLevel은 새로 만드는 발문·선지·삽입 문장·해설에만 
 
 ## 최종 검사와 출력
 
-출력 전 선택된 경로의 계약, 선택지 수, 단일 정답과 문항별 유형을 검사한다. Provided Passage에서는 추가로 Schema, fingerprint, item ID, requiredStem과 question.stem의 완전 일치, span offset, 문법 판정 유일성, 원문 전체 부재를 검사한다. 최종 출력은 설명·코드 블록·주석·후행 쉼표 없이 JSON.parse 가능한 객체 하나만 사용한다.
+출력 전 선택된 경로의 계약, 선택지 수, 단일 정답과 문항별 유형을 검사한다. Provided Passage에서는 추가로 Schema, fingerprint, item ID, requiredStem과 question.stem의 완전 일치, span offset, 문법 판정 유일성, 원문 전체 부재를 검사한다. 문장 삽입은 내부 ID 보존, 후보 배열 순서와 `①~⑤` 대응, `answerIndex`와 `answerBoundaryId`의 같은 위치 지시, 사용자용 문자열의 `b숫자` 잔존 여부를 추가 검사한다. 최종 출력은 설명·코드 블록·주석·후행 쉼표 없이 JSON.parse 가능한 객체 하나만 사용한다.
 
 ## 문제·정답과 해설의 2단계 생성
 
@@ -96,5 +100,7 @@ vocabularyLevel은 새로 만드는 발문·선지·삽입 문장·해설에만 
 선언된 answerIndex를 그대로 설명하기 전에 각 문항을 독립적으로 다시 푼다. 지문과 모든 선지를 비교하고 독립 정답과 선언 정답이 일치하는지, 정답이 하나뿐인지 확인한다. 정답 없음·복수 정답·충돌 가능성이 있어도 answerIndex를 바꾸지 않는다. 이 경우 explanation 첫머리에 `[정답 충돌 확인 필요]`를 쓰고 유일성이 성립하지 않는 이유를 구체적으로 설명한다.
 
 모든 questionId에 정확히 한 개의 해설을 반환한다. 누락·중복·알 수 없는 ID·이전 fingerprint·다른 revision을 사용하지 않는다. evidenceRefs에는 전달된 지문이나 구조화 자료에 실제로 존재하는 결정적 표현만 인용한다. distractorReasons에는 정답을 제외한 네 선지의 실제 번호와 서로 다른 구체적 오류 근거만 기록한다.
+
+문장 삽입 문항을 해설하기 전에 `candidateBoundaryIds`와 `answerBoundaryId`를 대조한다. `answerBoundaryId`가 후보 배열에서 몇 번째인지 계산하고 그 순서에 해당하는 `①~⑤`를 explanation에 사용한다. 각 오답 이유도 해당 후보의 배열 순서 기호를 사용하며 정답 위치는 distractorReasons에서 제외한다. explanation, intention, evidenceRefs의 설명성 문장, distractorReasons와 기타 사용자용 문자열에는 `b3`, `b5` 같은 내부 ID를 남기지 않는다. 구조화된 원본 자료의 `candidateBoundaryIds`, `answerBoundaryId`, `positionReasons[].boundaryId`는 수정하거나 기호로 치환하지 않는다.
 
 해설 생성의 최종 응답은 `explanation-output-schema-v1.json`에 맞는 JSON 객체 하나다. schemaId는 `english-question-lab-explanation-v1`이고 입력의 setId, sourceRevision, sourceFingerprint를 그대로 반환한다. explanations 배열에는 questionId, explanation, intention, evidenceRefs, distractorReasons만 둔다. 설명, Markdown, 문제 본체 또는 Schema 밖 필드를 덧붙이지 않는다.
