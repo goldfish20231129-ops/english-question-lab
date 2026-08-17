@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import { collapseCsatProseParagraphs, csatLongExpositoryText, csatLongNarrativeSections, csatPrintFlow, decorateCsatMaterialText, embedCsatChartChoices, getCsatItems, getCsatTemplate, isInlinePositionTemplate, resolvedCsatItem, splitCsatSummaryMaterial, usesContinuousCsatProse } from './csat'
 import { CsatMaterialView } from './CsatMaterialView'
-import { buildExamFlowBlocks, examFlowMeasurementKey, geometryKey, getOversizedQuestionIssues, paginateExamBlocks, resolveExamEntries, type ExamFlowBlock, type ExamLayoutMetrics } from './examLayout'
+import { buildExamFlowBlocks, examFlowMeasurementKey, geometryKey, getOversizedQuestionIssues, paginateAtomicAnswerBlocks, paginateExamBlocks, resolveExamEntries, type ExamFlowBlock, type ExamLayoutMetrics } from './examLayout'
 import { providedPassagePresentationSpec } from './providedPassage'
 import { orderedProvidedPassageV02Questions, providedPassageV02PresentationSpec, providedPassageV02QuestionMaterialText, providedPassageV02SharedMaterialText, providedPassageV02SharedPresentationSpec } from './providedPassageV02'
 import { generatedSchoolSharedMaterialPresentation, isSchoolInsertionQuestion, orderedSchoolQuestions, schoolQuestionMaterialPresentation, usesInlineSchoolChoices, usesQuestionScopedSchoolMaterial } from './schoolMaterial'
@@ -226,16 +226,90 @@ export function ExamAnswerPages({ exam, sets, sheet = 'solutions' }: { exam: Eng
       <Footer layout={exam.layout} pageNumber={pageIndex + 1} total={chunks.length} />
     </article>)}</div>
   }
-  const perPage = exam.layout.answerColumns === 2 ? 8 : 5
-  const chunks = Array.from({ length: Math.max(1, Math.ceil(questions.length / perPage)) }, (_, index) => questions.slice(index * perPage, (index + 1) * perPage))
-  return <div className="exam-answer-pages">{chunks.map((chunk, pageIndex) => <article className={`exam-page answer-page print-page preset-${exam.layout.preset}`} style={paperStyle(exam.layout)} key={pageIndex}>
-    <Header exam={exam} pageNumber={pageIndex + 1} layout={exam.layout} questionCount={questions.length} totalScore={totalScore} />
-    <h2>정답 및 해설</h2><div className={`answer-columns columns-${exam.layout.answerColumns}`}>{chunk.map(({ set, question, csatItem }, index) => {
-      const number = pageIndex * perPage + index + 1
-      const stale = Boolean(set.explanationSourceFingerprint && set.explanationSourceFingerprint !== explanationSourceFingerprint(set))
-      return <section key={question.id}><h3>{number}. 정답 {CIRCLED[question.answerIndex - 1] ?? question.answerIndex} <small>{set.title}</small></h3><p>{stale ? '문제가 수정되어 해설을 다시 생성해야 합니다.' : question.explanation || '해설을 아직 생성하지 않았습니다.'}</p><dl><dt>정답 근거</dt><dd>{stale ? '재생성 필요' : question.evidenceRefs.join(' / ') || '미입력'}</dd><dt>출제 의도</dt><dd>{stale ? '재생성 필요' : question.intention || csatItem?.intention || set.intention || '미입력'}</dd>{!stale && question.distractorReasons.length > 0 && <><dt>선지별 해설</dt><dd>{question.distractorReasons.join(' / ')}</dd></>}</dl></section>
-    })}</div><Footer layout={exam.layout} pageNumber={pageIndex + 1} total={chunks.length} />
-  </article>)}</div>
+  return <ExamSolutionPages exam={exam} questions={questions} totalScore={totalScore} />
+}
+
+type AnswerQuestionEntry = {
+  set: EnglishQuestionSet
+  question: EnglishQuestion
+  csatItem?: CsatItemDesign
+}
+
+function AnswerSolutionSection({ entry, number, measureIndex }: { entry: AnswerQuestionEntry; number: number; measureIndex?: number }) {
+  const { set, question, csatItem } = entry
+  const stale = Boolean(set.explanationSourceFingerprint && set.explanationSourceFingerprint !== explanationSourceFingerprint(set))
+  return <section data-answer-measure-index={measureIndex}>
+    <h3>{number}. 정답 {CIRCLED[question.answerIndex - 1] ?? question.answerIndex} <small>{set.title}</small></h3>
+    <p>{stale ? '문제가 수정되어 해설을 다시 생성해야 합니다.' : question.explanation || '해설을 아직 생성하지 않았습니다.'}</p>
+    <dl><dt>정답 근거</dt><dd>{stale ? '재생성 필요' : question.evidenceRefs.join(' / ') || '미입력'}</dd><dt>출제 의도</dt><dd>{stale ? '재생성 필요' : question.intention || csatItem?.intention || set.intention || '미입력'}</dd>{!stale && question.distractorReasons.length > 0 && <><dt>선지별 해설</dt><dd>{question.distractorReasons.join(' / ')}</dd></>}</dl>
+  </section>
+}
+
+function ExamSolutionPages({ exam, questions, totalScore }: { exam: EnglishExamDocument; questions: AnswerQuestionEntry[]; totalScore: number }) {
+  const rootRef = useRef<HTMLDivElement>(null)
+  const columnCount = exam.layout.answerColumns
+  const flowKey = useMemo(() => JSON.stringify({
+    layout: exam.layout,
+    title: exam.title,
+    questions: questions.map(({ set, question, csatItem }) => ({
+      setId: set.id,
+      setTitle: set.title,
+      id: question.id,
+      answerIndex: question.answerIndex,
+      explanation: question.explanation,
+      evidenceRefs: question.evidenceRefs,
+      intention: question.intention || csatItem?.intention || set.intention,
+      distractorReasons: question.distractorReasons,
+      explanationSourceFingerprint: set.explanationSourceFingerprint,
+    })),
+  }), [exam, questions])
+  const [measurement, setMeasurement] = useState<{ flowKey: string; heights: number[]; capacities: [number, number]; gap: number }>()
+  const metrics = measurement?.flowKey === flowKey ? measurement : undefined
+  const pageIndexes = useMemo(() => metrics
+    ? paginateAtomicAnswerBlocks(metrics.heights, metrics.capacities, columnCount, metrics.gap)
+    : questions.length > 0 ? questions.map((_, index) => [[index]]) : [[[]]], [columnCount, metrics, questions])
+
+  useLayoutEffect(() => {
+    if (measurement?.flowKey === flowKey) return
+    const root = rootRef.current
+    if (!root) return
+    const heights = Array.from({ length: questions.length }, () => 0)
+    root.querySelectorAll<HTMLElement>('[data-answer-measure-index]').forEach((section) => {
+      const index = Number(section.dataset.answerMeasureIndex)
+      if (Number.isInteger(index) && index >= 0 && index < heights.length) heights[index] = Math.max(section.offsetHeight, section.scrollHeight)
+    })
+    const capacityElements = root.querySelectorAll<HTMLElement>('[data-answer-capacity]')
+    if (capacityElements.length < 2 || heights.some((height) => height <= 0)) return
+    const first = capacityElements[0].clientHeight
+    const continuation = capacityElements[1].clientHeight
+    if (first <= 0 || continuation <= 0) return
+    const column = root.querySelector<HTMLElement>('.answer-measure-items .answer-solution-column')
+    const gap = column ? parseFloat(getComputedStyle(column).rowGap || '0') : 0
+    setMeasurement({ flowKey, heights, capacities: [first, continuation], gap: Number.isFinite(gap) ? gap : 0 })
+  }, [flowKey, measurement?.flowKey, questions.length])
+
+  return <div className="exam-answer-pages" ref={rootRef} key={flowKey}>
+    {!metrics && <div className="answer-layout-measurement" aria-hidden="true">
+      {[1, 2].map((pageNumber) => <article className={`exam-page answer-page preset-${exam.layout.preset}`} style={paperStyle(exam.layout)} key={`capacity-${pageNumber}`}>
+        <Header exam={exam} pageNumber={pageNumber} layout={exam.layout} questionCount={questions.length} totalScore={totalScore} />
+        <h2>정답 및 해설</h2>
+        <div className={`answer-columns columns-${columnCount}`} data-answer-capacity={pageNumber}><div className="answer-solution-column" /></div>
+        <Footer layout={exam.layout} pageNumber={pageNumber} total={2} />
+      </article>)}
+      <article className={`exam-page answer-page answer-measure-items preset-${exam.layout.preset}`} style={paperStyle(exam.layout)}>
+        <Header exam={exam} pageNumber={1} layout={exam.layout} questionCount={questions.length} totalScore={totalScore} />
+        <h2>정답 및 해설</h2>
+        <div className={`answer-columns columns-${columnCount}`}><div className="answer-solution-column">{questions.map((entry, index) => <AnswerSolutionSection entry={entry} number={index + 1} measureIndex={index} key={`${entry.set.id}-${entry.question.id}-${index}`} />)}</div></div>
+        <Footer layout={exam.layout} pageNumber={1} total={1} />
+      </article>
+    </div>}
+    {pageIndexes.map((page, pageIndex) => <article className={`exam-page answer-page print-page preset-${exam.layout.preset}`} style={paperStyle(exam.layout)} key={pageIndex}>
+      <Header exam={exam} pageNumber={pageIndex + 1} layout={exam.layout} questionCount={questions.length} totalScore={totalScore} />
+      <h2>정답 및 해설</h2>
+      <div className={`answer-columns columns-${columnCount}`}>{page.map((column, columnIndex) => <div className="answer-solution-column" key={columnIndex}>{column.map((questionIndex) => <AnswerSolutionSection entry={questions[questionIndex]} number={questionIndex + 1} key={`${questions[questionIndex].set.id}-${questions[questionIndex].question.id}-${questionIndex}`} />)}</div>)}</div>
+      <Footer layout={exam.layout} pageNumber={pageIndex + 1} total={pageIndexes.length} />
+    </article>)}
+  </div>
 }
 
 export function SetLivePreview({ set, assets = [] }: { set: EnglishQuestionSet; assets?: MediaAsset[] }) {

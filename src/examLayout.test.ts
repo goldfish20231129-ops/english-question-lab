@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { applyCsatItemTemplate, createCsatItem } from './csat'
-import { buildExamFlowBlocks, contentEntriesForSet, examFlowMeasurementKey, geometryKey, getOversizedQuestionIssues, moveExamContentEntry, normalizeExamDocument, paginateExamBlocks } from './examLayout'
+import { buildExamFlowBlocks, contentEntriesForSet, examFlowMeasurementKey, geometryKey, getOversizedQuestionIssues, moveExamContentEntry, normalizeExamDocument, paginateAtomicAnswerBlocks, paginateExamBlocks } from './examLayout'
 import { createEnglishSet, createExamLayout, createQuestion } from './english'
 import { createProvidedPassageV02Plan, syncProvidedPassageV02Questions, transitionSchoolProvidedPassageV02 } from './providedPassageV02'
 import type { EnglishExamDocument, EnglishQuestionSet } from './types'
@@ -366,5 +366,15 @@ describe('공통 조판 회귀', () => {
     expect(blocks.find((block) => block.kind === 'set-header')).toMatchObject({ groupNumberLabel: '1~3', keepWithNext: true })
     expect(blocks.filter((block) => block.kind === 'material')).toHaveLength(1)
     expect(blocks.filter((block) => block.kind === 'question').map((block) => block.questionNumber)).toEqual([1, 2, 3])
+  })
+
+  it('해설 문항은 남은 높이가 부족하면 문항 전체를 다음 페이지로 넘긴다', () => {
+    const pages = paginateAtomicAnswerBlocks([180, 180, 180, 180], [600, 700], 1, 20)
+    expect(pages).toEqual([[[0, 1, 2]], [[3]]])
+  })
+
+  it('2단 해설지는 문항을 쪼개지 않고 다음 칼럼과 다음 페이지를 사용한다', () => {
+    const pages = paginateAtomicAnswerBlocks([300, 300, 300, 300, 300], [620, 620], 2, 20)
+    expect(pages).toEqual([[[0, 1], [2, 3]], [[4], []]])
   })
 })

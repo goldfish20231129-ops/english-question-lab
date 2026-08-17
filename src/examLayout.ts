@@ -139,6 +139,50 @@ export interface ExamLayoutMetrics {
   layoutHeights?: Record<string, number>
 }
 
+/** Keeps each explanation together while filling answer-sheet columns. */
+export function paginateAtomicAnswerBlocks(
+  blockHeights: number[],
+  pageCapacities: [number, number],
+  columnCount: 1 | 2,
+  gap: number,
+) {
+  if (blockHeights.length === 0) return [[[]]]
+  const pages: number[][][] = []
+  let pageIndex = 0
+  let columnIndex = 0
+  let usedHeight = 0
+
+  const ensurePage = () => {
+    while (pages.length <= pageIndex) pages.push(Array.from({ length: columnCount }, () => []))
+  }
+
+  blockHeights.forEach((rawHeight, blockIndex) => {
+    ensurePage()
+    const blockHeight = Number.isFinite(rawHeight) ? Math.max(0, rawHeight) : 0
+    let capacity = pageIndex === 0 ? pageCapacities[0] : pageCapacities[1]
+    const requiredHeight = usedHeight > 0 ? gap + blockHeight : blockHeight
+
+    if (usedHeight > 0 && usedHeight + requiredHeight > capacity) {
+      columnIndex += 1
+      usedHeight = 0
+      if (columnIndex >= columnCount) {
+        pageIndex += 1
+        columnIndex = 0
+        ensurePage()
+      }
+      capacity = pageIndex === 0 ? pageCapacities[0] : pageCapacities[1]
+    }
+
+    pages[pageIndex][columnIndex].push(blockIndex)
+    usedHeight += (usedHeight > 0 ? gap : 0) + blockHeight
+    // An exceptionally tall explanation remains alone so it never pushes a
+    // following explanation into the footer area.
+    if (usedHeight > capacity) usedHeight = capacity
+  })
+
+  return pages
+}
+
 export function renderEnglishMarkup(value: string) {
   return value
     .replace(/\[\[밑줄:([^\]]+)\]\]/g, '<u>$1</u>')
